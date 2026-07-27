@@ -1,6 +1,10 @@
 import { supabase } from "../../config/supabase";
 import type { ClothingSizeRow, JsonObject, MeasurementMap } from "../../shared/types/database";
 import { createHttpError } from "../../shared/utils/http-error";
+import {
+  isMissingOutseamColumnError,
+  toLegacyMeasurementStorage
+} from "../../shared/utils/measurements";
 
 export interface ClothingSizeDto extends MeasurementMap {
   clothing_item_id?: string;
@@ -13,11 +17,20 @@ export const insertClothingSize = async (
   clothingItemId: string,
   dto: ClothingSizeDto
 ): Promise<ClothingSizeRow> => {
-  const { data, error } = await supabase
+  const payload = { ...dto, user_id: userId, clothing_item_id: clothingItemId };
+  let response = await supabase
     .from("clothing_sizes")
-    .insert({ ...dto, user_id: userId, clothing_item_id: clothingItemId })
+    .insert(payload)
     .select("*")
     .single<ClothingSizeRow>();
+  if (isMissingOutseamColumnError(response.error)) {
+    response = await supabase
+      .from("clothing_sizes")
+      .insert(toLegacyMeasurementStorage(payload))
+      .select("*")
+      .single<ClothingSizeRow>();
+  }
+  const { data, error } = response;
   if (error || !data) throw createHttpError(500, "Failed to create clothing size");
   return data;
 };

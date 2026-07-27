@@ -7,6 +7,8 @@ create index idx_clothing_sizes_item_id on public.clothing_sizes(clothing_item_i
 create index idx_reference_clothing_user_active on public.reference_clothing(user_id, is_active);
 create index idx_reference_clothing_user_category on public.reference_clothing(user_id, category);
 create index idx_external_products_user_category on public.external_products(user_id, category);
+create index idx_external_products_source_url on public.external_products(source_url);
+create index idx_product_import_logs_user_created on public.product_import_logs(user_id, created_at desc);
 create index idx_external_product_sizes_product_id on public.external_product_sizes(external_product_id);
 create index idx_fit_results_user_created_at on public.fit_analysis_results(user_id, created_at desc);
 create index idx_clothing_fit_assessments_current on public.clothing_fit_assessments(user_id, clothing_item_id, evaluated_at desc, id desc);

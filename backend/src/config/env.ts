@@ -10,6 +10,11 @@ const required = (key: string): string => {
   return value;
 };
 
+const integer = (key: string, fallback: number): number => {
+  const value = Number(process.env[key] ?? fallback);
+  return Number.isInteger(value) && value > 0 ? value : fallback;
+};
+
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   port: Number(process.env.PORT ?? 4000),
@@ -20,4 +25,14 @@ export const env = {
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? null,
   ollamaGenerateUrl: process.env.OLLAMA_GENERATE_URL ?? "http://localhost:11434/api/generate",
   ollamaModel: process.env.OLLAMA_MODEL ?? "llama3.1:8b",
+  crawlTimeoutMs: integer("CRAWL_TIMEOUT_MS", 30_000),
+  pageLoadTimeoutMs: integer("PAGE_LOAD_TIMEOUT_MS", 20_000),
+  maxConcurrentPages: integer("MAX_CONCURRENT_PAGES", 2),
+  maxRedirects: integer("MAX_REDIRECTS", 5),
+  maxJsonResponseBytes: integer("MAX_JSON_RESPONSE_BYTES", 2_000_000),
+  maxHtmlBytes: integer("MAX_HTML_BYTES", 5_000_000),
+  maxImages: integer("MAX_IMAGES", 30),
+  domainRequestDelayMs: integer("DOMAIN_REQUEST_DELAY_MS", 1_500),
+  userRateLimitPerMinute: integer("USER_RATE_LIMIT_PER_MINUTE", 5),
+  crawlerUserAgent: process.env.USER_AGENT ?? "CoorditProductImporter/1.0",
 };

@@ -58,6 +58,7 @@ import {
   saveStylingLookController,
 } from "./modules/styling/styling.controller";
 import { authMiddleware } from "./middleware/auth.middleware";
+import { previewProductImportController } from "./modules/product-import/product-import.controller";
 
 export const routes = Router();
 
@@ -94,6 +95,7 @@ routes.patch("/reference-clothing/:id/deactivate", deactivateReferenceClothing);
 
 routes.post("/external-products", createExternalProduct);
 routes.post("/external-products/from-url", createExternalProductFromUrl);
+routes.post("/api/v1/products/import-url/preview", previewProductImportController);
 routes.get("/external-products", listExternalProducts);
 routes.get("/external-products/:id", getExternalProduct);
 routes.patch("/external-products/:id", updateExternalProduct);
