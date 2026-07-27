@@ -16,6 +16,7 @@ The executable source of truth is `coordit/CoorditDesignTokens.swift` and `coord
 | Field | `CoorditDesignTokens.ColorToken.field` | RGB 245, 247, 252 | FitLab controls |
 | Closet field | `CoorditDesignTokens.ColorToken.closetField` | RGB 242, 244, 248 | Closet controls |
 | Muted text | `CoorditDesignTokens.ColorToken.muted` | RGB 126, 132, 146 | Secondary copy |
+| Loading sparkle | `CoorditDesignTokens.ColorToken.loadingSparkle` | RGB 246, 215, 122 | Orbit loading indicator sparkle |
 | Positive / negative | `green`, `red`, `danger` | Token-defined | Fit direction and destructive states |
 
 New shared UI must reference these tokens. Feature-specific gradients already present in the app may retain their local stops until a separate consolidation is approved.
@@ -92,6 +93,13 @@ Text scales through SwiftUI relative text styles. Feature titles use `.headline`
 - **Motion**: an upward drag tracks the finger and dismissal exits toward the top with opacity; Reduce Motion uses opacity only.
 - **Accessibility**: each state retains a stable identifier and announces that an upward swipe dismisses the notice.
 
+### Orbit loading indicator
+
+- **Structure**: the existing mannequin and orbit artwork are layered with one independent sparkle that travels along the tilted ring.
+- **Variants**: FitLab uses report-generation copy and exposes retry feedback; Closet uses owned-garment registration copy.
+- **Motion**: while work is active, the sparkle completes a steady elliptical orbit in 1.8 seconds. Reduce Motion keeps the sparkle stationary.
+- **Accessibility**: mannequin, ring, and sparkle are decorative; the surrounding loading screen owns the operation label and stable identifier.
+
 ### Fit report decision actions
 
 - **Structure**: the result closes with a primary `히스토리에 추가` action, a secondary `확인하기` action, and an explicit persistence guide.
@@ -111,6 +119,7 @@ Text scales through SwiftUI relative text styles. Feature titles use `.headline`
 - Navigation is explicit enum state through `CoorditFrameRoute` and `onRouteChange` callbacks.
 - A root feature title bar returns to Home (`.main04`); a nested feature title bar returns to its feature root unless that screen defines a closer parent.
 - Motion must communicate state change and respect Reduce Motion. Do not add decorative animation to title bars.
+- The orbit loading motion runs only while an operation is active and never changes layout.
 - Interactive controls retain at least a 44 pt effective touch target.
 - Adjacent content actions use matching heights and alignment; an `HStack` gives each sibling the same flexible width.
 

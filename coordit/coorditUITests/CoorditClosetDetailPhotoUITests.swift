@@ -99,11 +99,6 @@ final class CoorditClosetDetailPhotoUITests: XCTestCase {
         linkMethod.tap()
         assertScreen("closet-add-link", in: app)
 
-        let nameField = app.textFields["closet-garment-name"]
-        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
-        nameField.tap()
-        nameField.typeText("Verifier Link Shirt")
-
         let linkField = app.textFields["closet-product-link"]
         linkField.tap()
         linkField.typeText("https://coordit.test/verifier-item")
@@ -112,9 +107,12 @@ final class CoorditClosetDetailPhotoUITests: XCTestCase {
         let submit = app.buttons["closet-add-submit"]
         XCTAssertTrue(submit.isEnabled)
         submit.tap()
+        XCTAssertTrue(element("closet-link-size-row-M", in: app).waitForExistence(timeout: 5))
+        element("closet-link-size-row-M", in: app).tap()
+        submit.tap()
         assertScreen("closet-add-loading", in: app)
         assertScreen("closet-add-result", in: app)
-        XCTAssertTrue(element("Verifier Link Shirt", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(element("리넨 셔츠", in: app).waitForExistence(timeout: 5))
 
         let photo = element("closet-detail-garment-photo", in: app)
         XCTAssertTrue(photo.waitForExistence(timeout: 5))

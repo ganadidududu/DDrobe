@@ -4,8 +4,6 @@ import SwiftUI
 extension CoorditMyPageFamilyView {
     func profileEdit(metrics: CoorditResponsiveMetrics) -> some View {
         VStack(spacing: metrics.value(18)) {
-            pageHeader("프로필 수정", metrics: metrics, backRoute: .myPageAccount)
-
             CoorditSettingsCard(metrics: metrics) {
                 VStack(spacing: metrics.value(15)) {
                     Image(systemName: profileAvatarSymbol)
@@ -69,8 +67,6 @@ extension CoorditMyPageFamilyView {
 
     func passwordChange(metrics: CoorditResponsiveMetrics) -> some View {
         VStack(spacing: metrics.value(18)) {
-            pageHeader("비밀번호 변경", metrics: metrics, backRoute: .myPageAccount)
-
             CoorditSettingsCard(metrics: metrics) {
                 VStack(spacing: metrics.value(13)) {
                     CoorditSettingsTextField(
@@ -129,8 +125,6 @@ extension CoorditMyPageFamilyView {
 
     func logout(metrics: CoorditResponsiveMetrics) -> some View {
         VStack(spacing: metrics.value(18)) {
-            pageHeader("로그아웃", metrics: metrics, backRoute: .myPageAccount)
-
             CoorditSettingsInfoPanel(
                 symbol: "rectangle.portrait.and.arrow.right",
                 title: "이 기기에서 로그아웃할까요?",
@@ -159,8 +153,6 @@ extension CoorditMyPageFamilyView {
 
     func accountDeletion(metrics: CoorditResponsiveMetrics) -> some View {
         VStack(spacing: metrics.value(18)) {
-            pageHeader("회원 탈퇴", metrics: metrics, backRoute: .myPageAccount)
-
             CoorditSettingsInfoPanel(
                 symbol: "exclamationmark.triangle.fill",
                 title: "계정과 데이터를 삭제합니다",

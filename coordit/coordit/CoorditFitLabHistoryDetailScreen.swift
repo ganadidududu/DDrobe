@@ -70,6 +70,7 @@ struct CoorditFitLabHistoryDetailScreen: View {
             .padding(.horizontal, metrics.value(24))
             .padding(.bottom, metrics.value(120))
         }
+        .coorditScrollEdgeTreatment(topFade: metrics.value(14))
         .accessibilityIdentifier("fitlab-history-detail")
     }
 

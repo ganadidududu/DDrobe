@@ -11,9 +11,16 @@ struct CoorditFitLabFamilyView: View {
     @EnvironmentObject private var backendSession: CoorditBackendSessionStore
     @ObservedObject var coordinator: CoorditFitLabCoordinator
     @State private var inputDestination: CoorditFitLabInputDestination = .sources
+    @State private var inputNavigationDirection: CoorditNavigationDirection = .forward
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        CoorditScreenScaffold(route: currentRoute, onRouteChange: onRouteChange, contentTop: 115) { metrics in
+        CoorditScreenScaffold(
+            route: currentRoute,
+            onRouteChange: onRouteChange,
+            contentTop: 115,
+            contentBottom: 0
+        ) { metrics in
             VStack(spacing: metrics.value(22)) {
                 CoorditFitLabTitleCard(
                     title: currentRoute == .fitLabHistoryDetail ? "FIT DETAIL" : "FIT LAB",
@@ -30,7 +37,11 @@ struct CoorditFitLabFamilyView: View {
                     case .fitLabInput:
                         fitLabInput(metrics: metrics)
                     case .fitLabLoading:
-                        CoorditFitLabLoadingScreen(metrics: metrics)
+                        CoorditFitLabLoadingScreen(
+                            metrics: metrics,
+                            coordinator: coordinator,
+                            retry: submitAnalysis
+                        )
                     case .fitLabResultTop:
                         CoorditFitLabResultScreen(
                             variant: .top,
@@ -77,22 +88,8 @@ struct CoorditFitLabFamilyView: View {
                     .accessibilityLabel(currentRoute.rawValue)
                     .accessibilityIdentifier(currentRoute.fitLabAccessibilityIdentifier)
                 #endif
-                #if DEBUG
-                if coordinator.fixtureName == "submission-recommendation-race" {
-                    Button("테스트 제출 폐기") { coordinator.discardAndRestart() }
-                        .accessibilityIdentifier("fitlab-test-force-discard")
-                    Button("테스트 추천 응답 재개") { coordinator.fixtureAPI?.releaseRecommendation() }
-                        .accessibilityIdentifier("fitlab-test-release-recommendation")
-                } else if coordinator.fixtureName == "submission-report-race" {
-                    Button("테스트 제출 폐기") { coordinator.discardAndRestart() }
-                        .accessibilityIdentifier("fitlab-test-force-discard")
-                    Button("테스트 리포트 응답 재개") { coordinator.fixtureAPI?.releaseReport() }
-                        .accessibilityIdentifier("fitlab-test-release-report")
-                }
-                #endif
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .accessibilityIdentifier(currentRoute.fitLabAccessibilityIdentifier)
             .overlay(alignment: .topLeading) {
                 CoorditGmarketBoldFontDiagnostic()
             }
@@ -106,14 +103,18 @@ struct CoorditFitLabFamilyView: View {
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .onChange(of: coordinator.analysisState) { _, state in
-            if case .completed(let destination) = state,
-               currentRoute == .fitLabInput {
-                onRouteChange(destination)
-            }
+            routeToCompletedAnalysis(state)
+        }
+        .onAppear {
+            routeToCompletedAnalysis(coordinator.analysisState)
         }
         #if DEBUG
         .overlay(alignment: .topLeading) {
             debugProbeOverlay
+        }
+        .overlay(alignment: .bottom) {
+            raceDebugControls
+                .padding(.bottom, 104)
         }
         #endif
         .onChange(of: currentRoute) { _, route in
@@ -143,6 +144,13 @@ struct CoorditFitLabFamilyView: View {
         #endif
     }
 
+    private func routeToCompletedAnalysis(_ state: CoorditFitLabAnalysisState) {
+        guard case .completed(let destination) = state,
+              currentRoute == .fitLabInput || currentRoute == .fitLabLoading
+        else { return }
+        onRouteChange(destination)
+    }
+
     private var fixtureAPIRequestLedger: [String] {
         #if DEBUG
         coordinator.fixtureAPI?.requestLedger ?? []
@@ -151,17 +159,22 @@ struct CoorditFitLabFamilyView: View {
         #endif
     }
 
-    private func prefillProduct(from url: URL) async throws -> CoorditFitLabURLPrefillResponse {
+    private func prefillProduct(
+        from url: URL,
+        category: CoorditFitLabCategory
+    ) async throws -> CoorditFitLabURLPrefillResponse {
         #if DEBUG
         if coordinator.fixtureName != nil {
-            return try await coordinator.prefillProduct(from: url)
+            return try await coordinator.prefillProduct(from: url, category: category)
         }
         #endif
         guard let token = backendSession.session?.accessToken else {
             throw CoorditFitLabError.loginRequired
         }
         let api = CoorditFitLabHTTPAPI(baseURL: CoorditBackendConfig.baseURL(), accessToken: token)
-        return try await api.prefillProduct(from: CoorditFitLabURLPrefillRequest(url: url))
+        return try await api.prefillProduct(
+            from: CoorditFitLabURLPrefillRequest(url: url, category: category)
+        )
     }
 
     private func compatibleReferences(for category: CoorditFitLabCategory) async throws -> [CoorditFitLabReferenceRow] {
@@ -192,7 +205,8 @@ struct CoorditFitLabFamilyView: View {
             CoorditFitLabInputScreen(
                 metrics: metrics,
                 draft: $coordinator.draft,
-                destination: $inputDestination,
+                destination: inputDestinationBinding,
+                navigationDirection: inputNavigationDirection,
                 fixtureName: coordinator.fixtureName,
                 apiRequestLedger: fixtureAPIRequestLedger,
                 urlRequestLedger: { fixtureAPIRequestLedger },
@@ -210,11 +224,28 @@ struct CoorditFitLabFamilyView: View {
 
     private func handleTitleBack() {
         if currentRoute == .fitLabInput, inputDestination != .sources {
-            inputDestination = .sources
+            navigateInput(to: .sources)
         } else if currentRoute == .fitLabInput {
+            onRouteChange(.main04)
+        } else if currentRoute == .fitLabLoading {
             onRouteChange(.main04)
         } else {
             onRouteChange(.fitLabInput)
+        }
+    }
+
+    private var inputDestinationBinding: Binding<CoorditFitLabInputDestination> {
+        Binding(
+            get: { inputDestination },
+            set: { navigateInput(to: $0) }
+        )
+    }
+
+    private func navigateInput(to destination: CoorditFitLabInputDestination) {
+        guard destination != inputDestination else { return }
+        inputNavigationDirection = destination == .sources ? .backward : .forward
+        withAnimation(.easeOut(duration: reduceMotion ? 0.14 : 0.22)) {
+            inputDestination = destination
         }
     }
 
@@ -293,12 +324,36 @@ struct CoorditFitLabFamilyView: View {
                 fixtureAPIRequestLedger.isEmpty ? "[]" : "[\(fixtureAPIRequestLedger.joined(separator: ","))]",
                 identifier: "fitlab-ocr-api-request-ledger"
             )
+            debugProbe(submissionLedgerSummary, identifier: "fitlab-submission-ledger")
+            debugProbe(
+                fixtureAPIRequestLedger.joined(separator: "|"),
+                identifier: "fitlab-submission-ledger-detail"
+            )
             debugProbe(ocrPayloadMetadataProbe, identifier: "fitlab-ocr-payload-metadata")
             debugProbe(ocrSizeRequestProbe, identifier: "fitlab-ocr-size-request-probe")
             debugProbe(productRequestProbe, identifier: "fitlab-product-request-probe")
         }
         .frame(width: 1, height: 1)
         .clipped()
+    }
+
+    @ViewBuilder
+    private var raceDebugControls: some View {
+        if coordinator.fixtureName == "submission-recommendation-race" {
+            HStack {
+                Button("테스트 제출 폐기") { coordinator.discardAndRestart() }
+                    .accessibilityIdentifier("fitlab-test-force-discard")
+                Button("테스트 추천 응답 재개") { coordinator.fixtureAPI?.releaseRecommendation() }
+                    .accessibilityIdentifier("fitlab-test-release-recommendation")
+            }
+        } else if coordinator.fixtureName == "submission-report-race" {
+            HStack {
+                Button("테스트 제출 폐기") { coordinator.discardAndRestart() }
+                    .accessibilityIdentifier("fitlab-test-force-discard")
+                Button("테스트 리포트 응답 재개") { coordinator.fixtureAPI?.releaseReport() }
+                    .accessibilityIdentifier("fitlab-test-release-report")
+            }
+        }
     }
 
     private func debugProbe(_ value: String, identifier: String) -> some View {
@@ -331,6 +386,22 @@ struct CoorditFitLabFamilyView: View {
     private var productRequestProbe: String {
         guard let request = coordinator.fixtureAPI?.lastProductRequest else { return "none" }
         return "name=\(request.productName)|category=\(request.category.rawValue)"
+    }
+
+    private var submissionLedgerSummary: String {
+        func count(_ exact: String) -> Int {
+            fixtureAPIRequestLedger.filter { $0 == exact }.count
+        }
+        return [
+            "references=\(fixtureAPIRequestLedger.filter { $0.hasPrefix("references:") }.count)",
+            "product=\(count("create-product"))",
+            "M-attempts=\(count("create-size:M:attempt"))",
+            "M-success=\(count("create-size:M:success"))",
+            "L-attempts=\(count("create-size:L:attempt"))",
+            "L-success=\(count("create-size:L:success"))",
+            "recommend=\(count("recommend"))",
+            "report=\(fixtureAPIRequestLedger.filter { $0.hasPrefix("report:") }.count)",
+        ].joined(separator: "|")
     }
 
     private var historyDebugControls: some View {
@@ -387,11 +458,13 @@ struct CoorditFitLabFamilyView: View {
         #if DEBUG
         if coordinator.fixtureName != nil {
             coordinator.startSubmission()
+            onRouteChange(.fitLabLoading)
             return
         }
         #endif
         guard let session = backendSession.session else {
             coordinator.startSubmission(authenticatedUserID: nil)
+            onRouteChange(.fitLabLoading)
             return
         }
         let api = CoorditFitLabHTTPAPI(
@@ -399,6 +472,7 @@ struct CoorditFitLabFamilyView: View {
             accessToken: session.accessToken
         )
         coordinator.startSubmission(using: api, authenticatedUserID: session.user.id)
+        onRouteChange(.fitLabLoading)
     }
 
     @ViewBuilder
@@ -537,28 +611,59 @@ struct CoorditFitLabScreens: View {
 
 private struct CoorditFitLabLoadingScreen: View {
     let metrics: CoorditResponsiveMetrics
+    @ObservedObject var coordinator: CoorditFitLabCoordinator
+    let retry: () -> Void
 
     var body: some View {
-        VStack(spacing: metrics.value(22)) {
+        VStack(spacing: metrics.value(16)) {
             Spacer(minLength: metrics.value(158))
-            ZStack {
-                Image(CoorditAssetNames.loadingMannequin)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: metrics.value(58), height: metrics.value(82))
-                    .opacity(0.28)
-                Image(CoorditAssetNames.loadingOrbit)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: metrics.value(85), height: metrics.value(44))
-                    .opacity(0.75)
-            }
-            Text("핏 스코어 계산 중 . . .")
+            CoorditOrbitLoadingIndicator(metrics: metrics)
+            Text("핏 리포트를 만들고 있어요")
                 .font(CoorditTypography.gmarketMedium(size: metrics.value(16), relativeTo: .body))
                 .foregroundStyle(Color.black.opacity(0.76))
+
+            Text(statusMessage)
+                .font(CoorditTypography.gmarketMedium(size: metrics.value(10), relativeTo: .caption))
+                .foregroundStyle(CoorditFitLabPalette.muted)
+                .multilineTextAlignment(.center)
+
+            if let error = coordinator.error {
+                VStack(spacing: metrics.value(10)) {
+                    Text(error.errorDescription ?? "핏 리포트를 완성하지 못했어요.")
+                        .font(CoorditTypography.gmarketMedium(size: metrics.value(10), relativeTo: .caption))
+                        .foregroundStyle(CoorditDesignTokens.ColorToken.danger)
+                        .multilineTextAlignment(.center)
+                        .accessibilityIdentifier("fitlab-loading-error")
+
+                    Button("다시 시도하기", action: retry)
+                        .buttonStyle(
+                            CoorditContentActionButtonStyle(
+                                prominence: .primary,
+                                height: metrics.value(46),
+                                cornerRadius: metrics.value(7),
+                                fontSize: metrics.value(12)
+                            )
+                        )
+                        .accessibilityIdentifier("fitlab-loading-retry")
+                }
+                .padding(.horizontal, metrics.value(30))
+            }
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var statusMessage: String {
+        switch coordinator.submissionStep {
+        case .creatingProduct, .creatingSizes:
+            "상품과 사이즈 정보를 확인하고 있어요."
+        case .recommending:
+            "기준 옷과 비교해 핏 스코어를 계산하고 있어요."
+        case .generatingReport:
+            "핏 스코어를 바탕으로 상세 리포트를 작성하고 있어요."
+        default:
+            "핏 분석을 준비하고 있어요."
+        }
     }
 }
 
@@ -686,6 +791,7 @@ private struct CoorditFitLabResultScreen: View {
             .padding(.horizontal, metrics.value(24))
             .padding(.bottom, metrics.value(120))
         }
+        .coorditScrollEdgeTreatment(topFade: metrics.value(14))
     }
 }
 

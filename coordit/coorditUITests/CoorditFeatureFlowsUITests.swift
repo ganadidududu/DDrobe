@@ -84,6 +84,19 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         XCTAssertEqual(element("fitlab-history-detail-analysis", in: app).label, "analysis-fixture-lower")
     }
 
+    func testPrimaryNavigationKeepsSharedBackgroundMounted() throws {
+        let app = launchApp(at: "main04")
+        let sharedBackground = element("coordit-shared-app-background", in: app)
+
+        assertScreen("main04", in: app)
+        XCTAssertTrue(sharedBackground.waitForExistence(timeout: 5))
+
+        app.buttons["FIT LAB"].tap()
+
+        assertScreen("fitlab-input", in: app)
+        XCTAssertTrue(sharedBackground.exists)
+    }
+
     func testFitLabReferenceRowsDoNotShowPreferenceCopy() throws {
         let app = launchApp(at: "fitlab-input", fixture: "submission-success")
         let reference = element("fitlab-reference-reference-fixture-hoodie", in: app)
@@ -108,6 +121,23 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         XCTAssertTrue(completedNotice.waitForExistence(timeout: 8))
         completedNotice.swipeUp()
         waitForDisappearance(completedNotice)
+    }
+
+    func testHomeBlocksNewFitWhileReportIsStillGenerating() throws {
+        let app = launchApp(
+            at: "main04",
+            extraArguments: ["--coordit-test-analysis-running"]
+        )
+
+        app.buttons["새로운 옷 찾기"].tap()
+
+        XCTAssertTrue(app.alerts["핏 리포트를 만들고 있어요"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["리포트 완성 후 새 옷을 분석해 주세요."].exists)
+        assertScreen("main04", in: app)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "home-fit-report-busy-alert"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
     }
 
     func testFitLabInputMethodsUseTheSharedTitleBackButton() throws {
@@ -266,6 +296,31 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         XCTAssertFalse(element("closet-mannequin-top", in: app).exists)
     }
 
+    func testClosetDetailShowsTheRegisteredLowerGarmentSizeChart() throws {
+        let app = launchApp(at: "closet-detail-bottom")
+        assertScreen("closet-detail-bottom", in: app)
+
+        let sizeChart = element("closet-detail-size-chart", in: app)
+        XCTAssertTrue(sizeChart.waitForExistence(timeout: 5))
+        XCTAssertEqual(element("closet-detail-size-label", in: app).label, "M")
+        XCTAssertEqual(element("closet-detail-measurement-waist-width", in: app).label, "40 cm")
+        XCTAssertEqual(element("closet-detail-measurement-outseam", in: app).label, "101 cm")
+    }
+
+    func testClosetDeleteRemovesTheSelectedGarmentAndReturnsToOverview() throws {
+        let app = launchApp(at: "closet-detail-bottom")
+        assertScreen("closet-detail-bottom", in: app)
+
+        let deleteButton = app.buttons["closet-detail-delete"]
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
+        deleteButton.tap()
+        app.buttons["삭제"].tap()
+
+        assertScreen("closet-overview", in: app)
+        app.buttons["closet-category-bottom"].tap()
+        XCTAssertFalse(app.buttons["Wide Denim"].exists)
+    }
+
     func testClosetReassessmentUpdatesOnlySelectedItemWithNeutralStatus() throws {
         let app = launchApp(at: "closet-detail-bottom")
         assertScreen("closet-detail-bottom", in: app)
@@ -339,11 +394,6 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         app.buttons["closet-add-method-link"].tap()
         assertScreen("closet-add-link", in: app)
 
-        let nameField = app.textFields["closet-garment-name"]
-        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
-        nameField.tap()
-        nameField.typeText("New Shirt")
-
         let linkField = app.textFields["closet-product-link"]
         linkField.tap()
         linkField.typeText("https://coordit.test/item")
@@ -352,15 +402,18 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         let submit = app.buttons["closet-add-submit"]
         XCTAssertTrue(submit.isEnabled)
         submit.tap()
+        XCTAssertTrue(element("closet-link-size-row-L", in: app).waitForExistence(timeout: 5))
+        element("closet-link-size-row-L", in: app).tap()
+        submit.tap()
         assertScreen("closet-add-loading", in: app)
         assertScreen("closet-add-result", in: app)
-        XCTAssertTrue(element("New Shirt", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(element("리넨 셔츠", in: app).waitForExistence(timeout: 5))
 
         let backToCloset = app.buttons["FIT DETAIL"]
         XCTAssertTrue(backToCloset.waitForExistence(timeout: 5))
         backToCloset.tap()
         assertScreen("closet-overview", in: app)
-        XCTAssertTrue(app.buttons["New Shirt"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["리넨 셔츠"].waitForExistence(timeout: 5))
     }
 
     private func launchApp(

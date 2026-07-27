@@ -1,6 +1,44 @@
 import SwiftUI
 
 #if os(iOS)
+enum CoorditNavigationDirection {
+    case forward
+    case backward
+}
+
+extension AnyTransition {
+    static func coorditMenuPush(
+        direction: CoorditNavigationDirection,
+        reduceMotion: Bool
+    ) -> AnyTransition {
+        let removalDuration = reduceMotion ? 0.06 : 0.10
+        let insertionDuration = reduceMotion ? 0.08 : 0.14
+        let outgoingOffset: CGFloat
+        let incomingOffset: CGFloat
+
+        switch direction {
+        case .forward:
+            outgoingOffset = reduceMotion ? 0 : -18
+            incomingOffset = reduceMotion ? 0 : 22
+        case .backward:
+            outgoingOffset = reduceMotion ? 0 : 18
+            incomingOffset = reduceMotion ? 0 : -22
+        }
+
+        let removal = AnyTransition.opacity
+            .combined(with: .offset(x: outgoingOffset))
+            .animation(.easeOut(duration: removalDuration))
+        let insertion = AnyTransition.opacity
+            .combined(with: .offset(x: incomingOffset))
+            .animation(
+                .easeOut(duration: insertionDuration)
+                    .delay(removalDuration)
+            )
+
+        return .asymmetric(insertion: insertion, removal: removal)
+    }
+}
+
 struct CoorditBackTitleCard: View {
     let title: String
     let metrics: CoorditResponsiveMetrics

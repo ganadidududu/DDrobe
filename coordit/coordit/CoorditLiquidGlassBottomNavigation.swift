@@ -63,7 +63,7 @@ struct CoorditLiquidGlassBottomNavigation: View {
                 : .identity,
             in: Capsule()
         )
-        .animation(.snappy(duration: 0.28), value: isSelected)
+        .animation(.easeOut(duration: 0.22), value: isSelected)
         .accessibilityLabel(Text(tab.title))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityIdentifier("\(tabIdentifierPrefix)-\(tab.rawValue)")

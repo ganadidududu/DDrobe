@@ -24,6 +24,7 @@ struct CoorditFitLabSubmissionView: View {
             .padding(.horizontal, metrics.value(33))
             .padding(.bottom, metrics.value(120))
         }
+        .coorditScrollEdgeTreatment(topFade: metrics.value(14))
         .task {
             if coordinator.references.isEmpty, coordinator.recommendation == nil {
                 await loadReferences()
