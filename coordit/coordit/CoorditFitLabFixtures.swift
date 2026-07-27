@@ -76,7 +76,7 @@ enum CoorditFitLabContractProbe {
             let builtRequest = try api.makeRequest(
                 path: "/external-products/from-url",
                 method: "POST",
-                body: CoorditFitLabURLPrefillRequest(url: url)
+                body: CoorditFitLabURLPrefillRequest(url: url, category: .pants)
             )
             guard
                 builtRequest.url?.absoluteString == "https://api.example/external-products/from-url",
@@ -88,8 +88,9 @@ enum CoorditFitLabContractProbe {
                 with: builtBody
             ) as? [String: Any]
             guard
-                urlObject?.count == 1,
-                urlObject?["url"] as? String == url.absoluteString
+                urlObject?.count == 2,
+                urlObject?["url"] as? String == url.absoluteString,
+                urlObject?["category"] as? String == "pants"
             else { return "CONTRACT_ERROR url-body" }
 
             let sizeObject = try JSONSerialization.jsonObject(
@@ -178,6 +179,19 @@ final class CoorditFitLabFixtureAPI: CoorditFitLabAPI {
                 try? await Task.sleep(for: .milliseconds(80))
             }
         }
+        if fixtureName == "url-compatible-lower-reference", category == .pants {
+            return [
+                CoorditFitLabReferenceRow(
+                    id: "reference-fixture-jeans",
+                    clothingItemID: "clothing-fixture-jeans",
+                    nickname: "기준 데님",
+                    category: .jeans,
+                    fitType: "regular",
+                    preferenceScore: 5,
+                    isActive: true
+                )
+            ]
+        }
         let referenceID: String
         if fixtureName == "url-category-race" {
             referenceID = category == .tshirt ? "reference-tshirt-new" : "reference-shirt-stale"
@@ -207,7 +221,31 @@ final class CoorditFitLabFixtureAPI: CoorditFitLabAPI {
             throw CoorditFitLabError.server(statusCode: 500, message: "상품 정보를 가져오지 못했어요.")
         }
         let json = #"{"productName":"리넨 셔츠","brand":"Coordit","mallName":"shop.example","productUrl":"https://shop.example/products/linen-shirt","category":"shirt","fitType":"regular","parsingStatus":"mocked","sizes":[{"sizeLabel":"M","shoulderWidth":45,"chestWidth":56,"totalLength":70,"sleeveLength":61,"waistWidth":null,"hipWidth":null,"rise":null,"outseam":null},{"sizeLabel":"L","shoulderWidth":47,"chestWidth":58,"totalLength":72,"sleeveLength":63,"waistWidth":null,"hipWidth":null,"rise":null,"outseam":null}]}"#
-        return try JSONDecoder().decode(CoorditFitLabURLPrefillResponse.self, from: Data(json.utf8))
+        let response = try JSONDecoder().decode(CoorditFitLabURLPrefillResponse.self, from: Data(json.utf8))
+        let category = request.category ?? response.category
+        let lowerSizes = [
+            CoorditFitLabURLPrefillResponse.Size(
+                sizeLabel: "M",
+                shoulderWidth: nil,
+                chestWidth: nil,
+                totalLength: 101,
+                sleeveLength: nil,
+                waistWidth: 39,
+                hipWidth: 51,
+                rise: 30,
+                outseam: 101
+            )
+        ]
+        return CoorditFitLabURLPrefillResponse(
+            productName: category.garmentKind == .lower ? "와이드 팬츠" : response.productName,
+            brand: response.brand,
+            mallName: response.mallName,
+            productUrl: response.productUrl,
+            category: category,
+            fitType: response.fitType,
+            parsingStatus: response.parsingStatus,
+            sizes: category.garmentKind == .lower ? lowerSizes : response.sizes
+        )
     }
 
     func createProduct(_ request: CoorditFitLabProductRequest) async throws -> CoorditFitLabExternalProductRow {
@@ -251,7 +289,7 @@ final class CoorditFitLabFixtureAPI: CoorditFitLabAPI {
     func report(analysisID: String, request: CoorditFitLabReportRequest) async throws -> CoorditFitLabReportResponse {
         reportAttempts += 1
         requestLedger.append("report:\(analysisID)")
-        if ["submission-report-failure", "submission-report-copy"].contains(fixtureName), reportAttempts == 1 {
+        if fixtureName == "submission-report-failure", reportAttempts == 1 {
             throw CoorditFitLabError.server(statusCode: 503, message: "리포트 생성 지연")
         }
         if fixtureName == "submission-report-race" {

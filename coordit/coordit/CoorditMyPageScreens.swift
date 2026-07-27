@@ -45,27 +45,42 @@ struct CoorditMyPageFamilyView: View {
             route: route,
             onRouteChange: onRouteChange,
             contentTop: 115,
-            contentBottom: Main01DesignTokens.Metrics.navHeight + 12
+            contentBottom: 0
         ) { metrics in
-            ScrollView(.vertical, showsIndicators: false) {
-                routeContent(metrics: metrics)
-                    .frame(width: metrics.value(contentWidth))
-                    .frame(maxWidth: .infinity)
-                    .padding(.bottom, metrics.value(26))
-            }
-            .scrollDismissesKeyboard(.immediately)
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("완료") {
-                        UIApplication.shared.sendAction(
-                            #selector(UIResponder.resignFirstResponder),
-                            to: nil,
-                            from: nil,
-                            for: nil
+            VStack(spacing: 0) {
+                pageHeader(
+                    routeHeader.title,
+                    metrics: metrics,
+                    backRoute: routeHeader.backRoute
+                )
+                .frame(width: metrics.value(contentWidth))
+                .frame(maxWidth: .infinity)
+
+                ScrollView(.vertical, showsIndicators: false) {
+                    routeContent(metrics: metrics)
+                        .frame(width: metrics.value(contentWidth))
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, metrics.value(routeHeader.spacing))
+                        .padding(
+                            .bottom,
+                            metrics.value(Main01DesignTokens.Metrics.navHeight + 26)
                         )
+                }
+                .coorditScrollEdgeTreatment(topFade: metrics.value(18))
+                .scrollDismissesKeyboard(.immediately)
+                .toolbar {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("완료") {
+                            UIApplication.shared.sendAction(
+                                #selector(UIResponder.resignFirstResponder),
+                                to: nil,
+                                from: nil,
+                                for: nil
+                            )
+                        }
+                        .accessibilityIdentifier("coordit-keyboard-dismiss")
                     }
-                    .accessibilityIdentifier("coordit-keyboard-dismiss")
                 }
             }
             .accessibilityIdentifier(routeIdentifier)
@@ -162,6 +177,49 @@ struct CoorditMyPageFamilyView: View {
             : 370
     }
 
+    private var routeHeader: (title: String, backRoute: CoorditFrameRoute, spacing: CGFloat) {
+        switch route {
+        case .myPage:
+            ("MY PAGE", .main04, 10)
+        case .myPageThreadCharge:
+            (
+                "실타래 충전",
+                .myPage,
+                CoorditDesignTokens.ChargeMetrics.titleToBalanceSpacing
+            )
+        case .myPageBody:
+            ("내 신체 정보", .myPage, 27)
+        case .myPageAccount:
+            ("계정", .myPage, 18)
+        case .myPagePrivacy:
+            ("개인정보/보안", .myPage, 112)
+        case .myPageAppSettings:
+            ("앱 설정", .myPage, 112)
+        case .myPageNotifications:
+            ("알림", .myPage, 112)
+        case .myPageProfileEdit:
+            ("프로필 수정", .myPageAccount, 18)
+        case .myPagePasswordChange:
+            ("비밀번호 변경", .myPageAccount, 18)
+        case .myPageLogout:
+            ("로그아웃", .myPageAccount, 18)
+        case .myPageAccountDeletion:
+            ("회원 탈퇴", .myPageAccount, 18)
+        case .myPageBodyMeasurements:
+            ("신체 치수 관리", .myPageBody, 18)
+        case .myPagePrivacyPolicy:
+            ("개인정보 처리방침", .myPagePrivacy, 18)
+        case .myPageTerms:
+            ("서비스 이용약관", .myPagePrivacy, 18)
+        case .myPageContact:
+            ("문의하기", .myPageAppSettings, 18)
+        case .myPageBugReport:
+            ("버그 신고", .myPageAppSettings, 18)
+        default:
+            ("MY PAGE", .main04, 10)
+        }
+    }
+
     private func isCompactVerticalLayout(_ metrics: CoorditResponsiveMetrics) -> Bool {
         metrics.size.width <= 380 && metrics.size.height <= 700
     }
@@ -179,7 +237,6 @@ struct CoorditMyPageFamilyView: View {
         contentMetrics: CoorditResponsiveMetrics
     ) -> some View {
         VStack(spacing: contentMetrics.value(10)) {
-            pageHeader("MY PAGE", metrics: metrics, backRoute: .main04)
             if backendSession.isAuthenticated {
                 myPageYarnBalanceCard(metrics: contentMetrics)
             } else {
@@ -318,7 +375,6 @@ struct CoorditMyPageFamilyView: View {
 
     private func account(metrics: CoorditResponsiveMetrics) -> some View {
         VStack(spacing: metrics.value(18)) {
-            pageHeader("계정", metrics: metrics)
             backendConnectionStatus(metrics: metrics)
             backendAuthControls(metrics: metrics)
 
@@ -356,7 +412,6 @@ struct CoorditMyPageFamilyView: View {
 
     private func bodyInfo(metrics: CoorditResponsiveMetrics) -> some View {
         VStack(spacing: metrics.value(27)) {
-            pageHeader("내 신체 정보", metrics: metrics)
             backendConnectionStatus(metrics: metrics)
 
             CoorditSettingsCard(metrics: metrics) {

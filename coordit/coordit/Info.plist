@@ -35,6 +35,11 @@
 	<string>$(GOOGLE_WEB_CLIENT_ID)</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Coordit uses the camera to add Fit Lab photos.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Coordit uses the photo library to add Fit Lab photos.</string>
 	<key>UIApplicationSceneManifest</key>

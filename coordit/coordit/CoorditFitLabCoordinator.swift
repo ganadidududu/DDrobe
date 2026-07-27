@@ -125,7 +125,10 @@ final class CoorditFitLabCoordinator: ObservableObject {
         )
     }
 
-    var isAnalysisRunning: Bool { submissionTask != nil }
+    var isAnalysisRunning: Bool {
+        if case .running = analysisState { return true }
+        return false
+    }
 
     func startSubmission(
         using overrideAPI: (any CoorditFitLabAPI)? = nil,
@@ -134,6 +137,7 @@ final class CoorditFitLabCoordinator: ObservableObject {
         guard submissionTask == nil, loadState != .loading else { return }
         analysisState = .running
         isAnalysisNoticeVisible = true
+        screen = .loading
         submissionTask = Task { [weak self] in
             guard let self else { return }
             await self.submit(using: overrideAPI, authenticatedUserID: authenticatedUserID)
@@ -173,11 +177,16 @@ final class CoorditFitLabCoordinator: ObservableObject {
         }
     }
 
-    func prefillProduct(from url: URL) async throws -> CoorditFitLabURLPrefillResponse {
+    func prefillProduct(
+        from url: URL,
+        category: CoorditFitLabCategory
+    ) async throws -> CoorditFitLabURLPrefillResponse {
         guard let api else {
             throw CoorditFitLabError.transport("상품 링크 API를 준비할 수 없어요.")
         }
-        return try await api.prefillProduct(from: CoorditFitLabURLPrefillRequest(url: url))
+        return try await api.prefillProduct(
+            from: CoorditFitLabURLPrefillRequest(url: url, category: category)
+        )
     }
 
     func fetchCompatibleReferences(
@@ -299,6 +308,7 @@ final class CoorditFitLabCoordinator: ObservableObject {
         error = nil
         retryStep = nil
         loadState = .loading
+        screen = .loading
         do {
             if checkpoint.productID == nil {
                 submissionStep = .creatingProduct
@@ -355,10 +365,10 @@ final class CoorditFitLabCoordinator: ObservableObject {
                     reportNeedsRetry = false
                 } catch {
                     try ensureActive(generation)
-                    report = fallbackReport(from: recommendation)
                     reportNeedsRetry = true
-                    self.error = .transport("추천 결과는 준비됐지만 상세 리포트를 불러오지 못했어요.")
-                    retryStep = .generatingReport
+                    throw CoorditFitLabError.transport(
+                        "핏 스코어 계산은 끝났지만 상세 리포트 생성이 지연되고 있어요. 다시 시도해 주세요."
+                    )
                 }
             }
 
@@ -442,40 +452,11 @@ final class CoorditFitLabCoordinator: ObservableObject {
         loadState = .failed(failure)
     }
 
-    private func fallbackReport(from recommendation: CoorditFitLabRecommendationResponse) -> CoorditFitLabReportResponse {
-        let details: [CoorditFitLabReportResponse.Report.MeasurementAnalysis]
-        if recommendation.partExplanations.isEmpty {
-            details = recommendation.diff
-                .sorted { $0.key.rawValue < $1.key.rawValue }
-                .map { key, value in
-                    CoorditFitLabReportResponse.Report.MeasurementAnalysis(
-                        measurement: key.rawValue,
-                        text: "베스트 기준과 \(value.formatted(.number.precision(.fractionLength(0...1))))cm 차이가 있어요."
-                    )
-                }
-        } else {
-            details = recommendation.partExplanations.enumerated().map { index, explanation in
-                CoorditFitLabReportResponse.Report.MeasurementAnalysis(
-                    measurement: "부위 \(index + 1)",
-                    text: explanation
-                )
-            }
-        }
-        return CoorditFitLabReportResponse(
-            fitAnalysisResultID: recommendation.fitAnalysisResultID,
-            source: "local_fallback",
-            report: .init(
-                title: "핏 분석 요약",
-                summary: recommendation.fitComment,
-                recommendationReason: "추천 결과를 바탕으로 만든 임시 설명이에요.",
-                measurementAnalysis: details,
-                nextActions: ["상세 리포트를 다시 시도해 주세요."]
-            ),
-            chartData: .init()
-        )
-    }
-
     func synchronize(route: CoorditFrameRoute) {
+        if route == .fitLabLoading {
+            screen = .loading
+            return
+        }
         operationGeneration += 1
         screen = Self.screen(for: route)
         error = nil

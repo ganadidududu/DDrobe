@@ -6,13 +6,8 @@ struct Main01ChromeBackground: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ZStack {
-                Rectangle()
-                    .fill(Main01DesignTokens.Colors.topChrome)
-
-                Rectangle()
-                    .fill(Main01DesignTokens.Colors.chromeEdgeHighlight)
-            }
+            Rectangle()
+                .fill(Main01DesignTokens.Colors.topChrome)
             .frame(height: Main01DesignTokens.Metrics.topChromeHeight * scale)
 
             Spacer(minLength: 0)

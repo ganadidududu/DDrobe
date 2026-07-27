@@ -16,6 +16,8 @@ npm run typecheck
 
 `POST /fit-analysis-results/:id/report` builds a fit report from a saved fit result, calls local Ollama, and falls back to a deterministic report if Ollama is unavailable.
 
+`POST /api/v1/products/import-url/preview` analyzes one public product URL without saving it. Setup, API examples, persistence flow, Playwright deployment, and adapter guidance are documented in [`docs/PRODUCT_URL_IMPORT.md`](../docs/PRODUCT_URL_IMPORT.md).
+
 ## Ollama Report Env
 
 ```bash

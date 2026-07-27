@@ -20,6 +20,7 @@ enum CoorditDesignTokens {
         static let red = rgb(235, 37, 73)
         static let danger = rgb(234, 74, 86)
         static let warmLine = rgb(255, 188, 56)
+        static let loadingSparkle = rgb(246, 215, 122)
         static let chargeGradientTop = rgb(50, 66, 116)
         static let chargeGradientEnd = rgb(74, 85, 132)
 

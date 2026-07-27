@@ -83,6 +83,36 @@ final class CoorditClosetAddReadinessUITests: XCTestCase {
         assertScreen("closet-add-photo", in: app)
     }
 
+    func testLinkImportUsesCrawledNameAndRequiresOwnedSizeSelection() throws {
+        let app = launchApp(at: "closet-add-link")
+        assertScreen("closet-add-link", in: app)
+
+        XCTAssertFalse(app.textFields["closet-garment-name"].exists)
+        attachScreenshot(named: "closet-link-before-import", from: app)
+        typeText("https://shop.example/products/linen-shirt", into: "closet-product-link", in: app)
+        app.swipeDown()
+        app.buttons["closet-add-submit"].tap()
+
+        XCTAssertTrue(element("closet-link-product-name", in: app).waitForExistence(timeout: 5))
+        XCTAssertEqual(element("closet-link-product-name", in: app).label, "리넨 셔츠")
+        XCTAssertTrue(element("closet-link-size-row-M", in: app).exists)
+        XCTAssertTrue(element("closet-link-size-row-L", in: app).exists)
+        XCTAssertFalse(app.buttons["closet-add-submit"].isEnabled)
+
+        element("closet-link-size-row-L", in: app).tap()
+        XCTAssertEqual(element("closet-selected-size-label", in: app).label, "L")
+        XCTAssertTrue(app.buttons["closet-add-submit"].isEnabled)
+        attachScreenshot(named: "closet-link-owned-size-selected", from: app)
+
+        app.swipeUp()
+        app.buttons["closet-add-submit"].tap()
+        assertScreen("closet-add-loading", in: app)
+        XCTAssertTrue(app.staticTexts["보유 의류를 등록하고 있어요"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["새 의류의 핏 스코어 계산 중 . . ."].exists)
+        assertScreen("closet-add-result", in: app)
+        XCTAssertTrue(app.staticTexts["L"].waitForExistence(timeout: 5))
+    }
+
     func testEmptyBottomGarmentsUsePantsArtworkInsteadOfTopArtwork() throws {
         let app = launchApp(at: "closet-overview")
         assertScreen("closet-overview", in: app)
@@ -175,6 +205,13 @@ final class CoorditClosetAddReadinessUITests: XCTestCase {
             file: file,
             line: line
         )
+    }
+
+    private func attachScreenshot(named name: String, from app: XCUIApplication) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     private func typeText(_ text: String, into identifier: String, in app: XCUIApplication) {

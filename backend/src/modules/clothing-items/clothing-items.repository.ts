@@ -58,6 +58,24 @@ export const patchClothingItem = async (
 };
 
 export const removeClothingItem = async (userId: string, id: string): Promise<void> => {
+  const { data: references, error: referenceError } = await supabase
+    .from("reference_clothing")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("clothing_item_id", id)
+    .returns<Array<{ id: string }>>();
+  if (referenceError) throw createHttpError(500, "Failed to load clothing references");
+
+  const referenceIds = (references ?? []).map((reference) => reference.id);
+  if (referenceIds.length > 0) {
+    const { error: analysisError } = await supabase
+      .from("fit_analysis_results")
+      .delete()
+      .eq("user_id", userId)
+      .in("reference_clothing_id", referenceIds);
+    if (analysisError) throw createHttpError(500, "Failed to delete clothing fit history");
+  }
+
   const { error } = await supabase
     .from("clothing_items")
     .delete()

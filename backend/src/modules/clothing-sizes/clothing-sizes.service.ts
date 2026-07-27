@@ -1,4 +1,4 @@
-import { pickMeasurements } from "../../shared/utils/measurements";
+import { pickMeasurements, rowToMeasurements } from "../../shared/utils/measurements";
 import { asOptionalRecord, asOptionalString } from "../../shared/utils/request";
 import {
   insertClothingSize,
@@ -14,14 +14,19 @@ const toDto = (body: Record<string, unknown>): ClothingSizeDto => ({
   ...pickMeasurements(body)
 });
 
-export const createClothingSizeForUser = (
+export const createClothingSizeForUser = async (
   userId: string,
   clothingItemId: string,
   body: Record<string, unknown>
-) => insertClothingSize(userId, clothingItemId, toDto(body));
+) => {
+  const row = await insertClothingSize(userId, clothingItemId, toDto(body));
+  return { ...row, ...rowToMeasurements(row) };
+};
 
-export const listClothingSizesForUser = (userId: string, clothingItemId: string) =>
-  selectClothingSizes(userId, clothingItemId);
+export const listClothingSizesForUser = async (userId: string, clothingItemId: string) => {
+  const rows = await selectClothingSizes(userId, clothingItemId);
+  return rows.map((row) => ({ ...row, ...rowToMeasurements(row) }));
+};
 
 export const updateClothingSizeForUser = (
   userId: string,

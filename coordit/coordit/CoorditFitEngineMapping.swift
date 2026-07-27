@@ -4,6 +4,7 @@ import Foundation
 struct CoorditReferenceSaveResult: Equatable {
     let clothingItemId: String
     let referenceClothingId: String
+    let sizeChart: CoorditClosetSizeChart
 }
 
 extension CoorditClosetCategory {
@@ -117,6 +118,19 @@ extension CoorditClosetDraft {
 }
 
 extension ClothingSizeRequest {
+    var measurements: CoorditMeasurementMap {
+        CoorditMeasurementMap(
+            totalLength: totalLength,
+            shoulderWidth: shoulderWidth,
+            chestWidth: chestWidth,
+            sleeveLength: sleeveLength,
+            waistWidth: waistWidth,
+            hipWidth: hipWidth,
+            rise: rise,
+            outseam: outseam
+        )
+    }
+
     func withRawMeasurements(_ nextRawMeasurements: [String: String]) -> ClothingSizeRequest {
         ClothingSizeRequest(
             sizeLabel: sizeLabel,

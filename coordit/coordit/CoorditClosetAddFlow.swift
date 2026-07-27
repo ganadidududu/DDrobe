@@ -80,7 +80,11 @@ struct CoorditClosetDraft {
             score: score,
             scoreColor: CoorditClosetColors.blue,
             route: .closetAddResult,
-            imageData: garmentImageData
+            imageData: garmentImageData,
+            sizeChart: CoorditClosetSizeChart(
+                sizeLabel: selectedSizeRow?.label,
+                measurements: clothingSizeRequest.measurements
+            )
         )
     }
 }
@@ -149,7 +153,11 @@ extension CoorditClosetFamilyView {
             score: submittedDraft.score,
             scoreColor: CoorditClosetColors.blue,
             route: .closetAddResult,
-            imageData: submittedDraft.garmentImageData
+            imageData: submittedDraft.garmentImageData,
+            sizeChart: CoorditClosetSizeChart(
+                sizeLabel: submittedDraft.selectedSizeRow?.label,
+                measurements: submittedDraft.clothingSizeRequest.measurements
+            )
         )
 
         items.insert(item, at: 0)
@@ -162,6 +170,7 @@ extension CoorditClosetFamilyView {
             guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
             items[index].backendClothingItemId = saved.clothingItemId
             items[index].backendReferenceClothingId = saved.referenceClothingId
+            items[index].sizeChart = saved.sizeChart
         }
     }
 }
@@ -172,10 +181,12 @@ private struct CoorditClosetAddMethodScreen: View {
     let onSelect: (CoorditClosetAddMethod) -> Void
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: metrics.value(18)) {
-                CoorditClosetTitleBar(title: "ADD CLOTHES", metrics: metrics, horizontalOutset: 6, onBack: onBack)
+        VStack(spacing: 0) {
+            CoorditClosetTitleBar(title: "ADD CLOTHES", metrics: metrics, horizontalOutset: 6, onBack: onBack)
+                .padding(.horizontal, metrics.value(22))
 
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: metrics.value(18)) {
                 VStack(alignment: .leading, spacing: metrics.value(5)) {
                     Text("어떻게 추가할까요?")
                         .font(CoorditTypography.gmarketBold(size: metrics.value(20)))
@@ -229,9 +240,15 @@ private struct CoorditClosetAddMethodScreen: View {
                         .accessibilityIdentifier("closet-add-method-\(method.rawValue)")
                     }
                 }
+                }
+                .padding(.top, metrics.value(18))
+                .padding(.horizontal, metrics.value(22))
+                .padding(
+                    .bottom,
+                    metrics.value(Main01DesignTokens.Metrics.navHeight + 28)
+                )
             }
-            .padding(.horizontal, metrics.value(22))
-            .padding(.bottom, metrics.value(28))
+            .coorditScrollEdgeTreatment(topFade: metrics.value(18))
         }
         .accessibilityIdentifier("coordit-screen-closet-add-method")
     }
@@ -252,15 +269,20 @@ private struct CoorditClosetLinkInputScreen: View {
     @FocusState private var isLinkFocused: Bool
 
     private var isReady: Bool {
-        !draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !draft.productLink.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if draft.extractedSizeRows.isEmpty {
+            return !draft.productLink.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        return draft.selectedSizeRow != nil
     }
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: metrics.value(16)) {
-                CoorditClosetTitleBar(title: "LINK INPUT", metrics: metrics, horizontalOutset: 6, onBack: onBack)
-                CoorditClosetBasicsCard(draft: $draft, metrics: metrics)
+        VStack(spacing: 0) {
+            CoorditClosetTitleBar(title: "LINK INPUT", metrics: metrics, horizontalOutset: 6, onBack: onBack)
+                .padding(.horizontal, metrics.value(22))
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: metrics.value(16)) {
+                CoorditClosetBasicsCard(draft: $draft, metrics: metrics, showsName: false)
 
                 CoorditClosetFormCard(title: "상품 링크", subtitle: "사이즈 정보가 있는 상품 페이지 주소를 붙여넣어 주세요.", metrics: metrics) {
                     HStack(spacing: metrics.value(10)) {
@@ -307,17 +329,60 @@ private struct CoorditClosetLinkInputScreen: View {
                     .accessibilityIdentifier("closet-link-extraction-error")
                 }
 
+                if !draft.extractedSizeRows.isEmpty {
+                    CoorditClosetFormCard(
+                        title: "불러온 상품",
+                        subtitle: "상품명은 링크에서 자동으로 가져왔어요.",
+                        metrics: metrics
+                    ) {
+                        Text(draft.name)
+                            .font(CoorditTypography.gmarketBold(size: metrics.value(14)))
+                            .foregroundStyle(.black)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, metrics.value(13))
+                            .frame(minHeight: metrics.value(45))
+                            .background(CoorditClosetColors.field)
+                            .clipShape(RoundedRectangle(cornerRadius: metrics.value(8)))
+                            .accessibilityIdentifier("closet-link-product-name")
+                    }
+
+                    CoorditClosetFormCard(
+                        title: "내 사이즈 선택",
+                        subtitle: "구매해서 보유 중인 사이즈 한 개를 선택해 주세요.",
+                        metrics: metrics
+                    ) {
+                        VStack(spacing: metrics.value(8)) {
+                            ForEach(draft.extractedSizeRows) { row in
+                                linkSizeRow(row)
+                            }
+                        }
+                    }
+                }
+
+                Text(draft.selectedSizeRow?.label ?? "")
+                    .font(.system(size: 1))
+                    .frame(width: 1, height: 1)
+                    .opacity(0.01)
+                    .accessibilityLabel(draft.selectedSizeRow?.label ?? "")
+                    .accessibilityIdentifier("closet-selected-size-label")
+
                 CoorditClosetSubmitButton(
-                    title: isExtracting ? "링크 분석 중…" : "링크 분석하기",
+                    title: submitTitle,
                     isEnabled: isReady && !isExtracting,
                     metrics: metrics,
-                    action: extractLink
+                    action: draft.extractedSizeRows.isEmpty ? extractLink : onSubmit
+                )
+                }
+                .padding(.top, metrics.value(16))
+                .padding(.horizontal, metrics.value(22))
+                .padding(
+                    .bottom,
+                    metrics.value(Main01DesignTokens.Metrics.navHeight + 28)
                 )
             }
-            .padding(.horizontal, metrics.value(22))
-            .padding(.bottom, metrics.value(28))
+            .coorditScrollEdgeTreatment(topFade: metrics.value(18))
+            .scrollDismissesKeyboard(.immediately)
         }
-        .scrollDismissesKeyboard(.immediately)
         .accessibilityIdentifier("coordit-screen-closet-add-link")
         .task {
 #if DEBUG
@@ -346,7 +411,10 @@ private struct CoorditClosetLinkInputScreen: View {
             }
 #endif
             do {
-                let response = try await backendSession.prefillClosetProduct(from: url)
+                let response = try await backendSession.prefillClosetProduct(
+                    from: url,
+                    category: draft.exactCategory
+                )
                 draft.name = response.productName
                 draft.category = response.category.garmentKind == .upper ? .top : .bottom
                 draft.exactCategory = response.category
@@ -365,15 +433,67 @@ private struct CoorditClosetLinkInputScreen: View {
                         ].compactMapValues { $0 }
                     )
                 }
-                draft.selectedSizeRowID = draft.extractedSizeRows.first?.id
-                guard draft.selectedSizeRow != nil else {
+                draft.selectedSizeRowID = nil
+                guard !draft.extractedSizeRows.isEmpty else {
                     extractionError = "링크에서 사이즈 행을 찾지 못했어요."
                     return
                 }
-                onSubmit()
             } catch {
                 extractionError = "추출에 실패했어요. 사진 OCR이나 직접 입력으로 계속할 수 있어요."
             }
+        }
+    }
+
+    private var submitTitle: String {
+        if isExtracting { return "링크 분석 중…" }
+        return draft.extractedSizeRows.isEmpty ? "링크 분석하기" : "선택한 사이즈로 등록"
+    }
+
+    private func linkSizeRow(_ row: CoorditClosetOCRSizeRow) -> some View {
+        let isSelected = draft.selectedSizeRowID == row.id
+        return Button {
+            draft.selectedSizeRowID = row.id
+        } label: {
+            HStack(spacing: metrics.value(10)) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: metrics.value(20), weight: .semibold))
+                    .foregroundStyle(CoorditClosetColors.navy)
+                VStack(alignment: .leading, spacing: metrics.value(4)) {
+                    Text(row.label)
+                        .font(CoorditTypography.gmarketBold(size: metrics.value(14)))
+                        .foregroundStyle(.black)
+                    Text(row.measurements.map { key, value in
+                        "\(measurementTitle(key)) \(value.formatted(.number.precision(.fractionLength(0...1))))"
+                    }.sorted().joined(separator: " · "))
+                        .font(CoorditTypography.gmarketMedium(size: metrics.value(9)))
+                        .foregroundStyle(CoorditClosetColors.navy.opacity(0.55))
+                        .lineLimit(2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(metrics.value(11))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(isSelected ? CoorditClosetColors.navy.opacity(0.08) : CoorditClosetColors.field)
+            .clipShape(RoundedRectangle(cornerRadius: metrics.value(8)))
+            .overlay(
+                RoundedRectangle(cornerRadius: metrics.value(8))
+                    .stroke(isSelected ? CoorditClosetColors.navy : .clear, lineWidth: 1.2)
+            )
+        }
+        .coorditPressFeedback()
+        .accessibilityIdentifier("closet-link-size-row-\(row.label)")
+    }
+
+    private func measurementTitle(_ key: CoorditFitLabMeasurementKey) -> String {
+        switch key {
+        case .shoulderWidth: "어깨"
+        case .chestWidth: "가슴단면"
+        case .totalLength: "총장"
+        case .sleeveLength: "소매"
+        case .waistWidth: "허리단면"
+        case .hipWidth: "엉덩이단면"
+        case .rise: "밑위"
+        case .outseam: "총장"
         }
     }
 
@@ -407,9 +527,12 @@ private struct CoorditClosetPhotoInputScreen: View {
     }
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: metrics.value(16)) {
-                CoorditClosetTitleBar(title: "PHOTO INPUT", metrics: metrics, horizontalOutset: 6, onBack: onBack)
+        VStack(spacing: 0) {
+            CoorditClosetTitleBar(title: "PHOTO INPUT", metrics: metrics, horizontalOutset: 6, onBack: onBack)
+                .padding(.horizontal, metrics.value(22))
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: metrics.value(16)) {
                 CoorditClosetBasicsCard(draft: $draft, metrics: metrics)
 
                 CoorditClosetFormCard(title: "사진 첨부", subtitle: "사진을 고른 다음 표 부분만 정확히 잘라주세요.", metrics: metrics) {
@@ -493,11 +616,14 @@ private struct CoorditClosetPhotoInputScreen: View {
                     .accessibilityIdentifier("closet-selected-size-label")
 
                 CoorditClosetSubmitButton(title: "사진 분석하기", isEnabled: isReady, metrics: metrics, action: onSubmit)
+                }
+                .padding(.top, metrics.value(16))
+                .padding(.horizontal, metrics.value(22))
+                .padding(.bottom, metrics.value(128))
             }
-            .padding(.horizontal, metrics.value(22))
-            .padding(.bottom, metrics.value(128))
+            .coorditScrollEdgeTreatment(topFade: metrics.value(18))
+            .scrollDismissesKeyboard(.immediately)
         }
-        .scrollDismissesKeyboard(.immediately)
         .accessibilityIdentifier("coordit-screen-closet-add-photo")
         .task {
             injectSizeChartFixtureIfRequested()
@@ -724,9 +850,12 @@ private struct CoorditClosetManualInputScreen: View {
     }
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: metrics.value(16)) {
-                CoorditClosetTitleBar(title: "MANUAL INPUT", metrics: metrics, horizontalOutset: 6, onBack: onBack)
+        VStack(spacing: 0) {
+            CoorditClosetTitleBar(title: "MANUAL INPUT", metrics: metrics, horizontalOutset: 6, onBack: onBack)
+                .padding(.horizontal, metrics.value(22))
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: metrics.value(16)) {
                 CoorditClosetBasicsCard(draft: $draft, metrics: metrics)
 
                 CoorditClosetFormCard(title: "실측 사이즈", subtitle: "단위는 cm로 입력해주세요.", metrics: metrics) {
@@ -740,12 +869,18 @@ private struct CoorditClosetManualInputScreen: View {
                     }
                 }
 
-                CoorditClosetSubmitButton(title: "핏 스코어 계산하기", isEnabled: isReady, metrics: metrics, action: onSubmit)
+                CoorditClosetSubmitButton(title: "보유 의류 등록하기", isEnabled: isReady, metrics: metrics, action: onSubmit)
+                }
+                .padding(.top, metrics.value(16))
+                .padding(.horizontal, metrics.value(22))
+                .padding(
+                    .bottom,
+                    metrics.value(Main01DesignTokens.Metrics.navHeight + 28)
+                )
             }
-            .padding(.horizontal, metrics.value(22))
-            .padding(.bottom, metrics.value(28))
+            .coorditScrollEdgeTreatment(topFade: metrics.value(18))
+            .scrollDismissesKeyboard(.immediately)
         }
-        .scrollDismissesKeyboard(.immediately)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
@@ -805,22 +940,11 @@ private struct CoorditClosetAddLoadingScreen: View {
             CoorditClosetTitleBar(title: "FIT CHECK", metrics: metrics, horizontalOutset: 6, onBack: onBack)
 
             Spacer(minLength: metrics.value(120))
-            ZStack {
-                Image(CoorditAssetNames.loadingMannequin)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: metrics.value(58), height: metrics.value(82))
-                    .opacity(0.28)
-                Image(CoorditAssetNames.loadingOrbit)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: metrics.value(85), height: metrics.value(44))
-                    .opacity(0.75)
-            }
-            Text("새 의류의 핏 스코어 계산 중 . . .")
+            CoorditOrbitLoadingIndicator(metrics: metrics)
+            Text("보유 의류를 등록하고 있어요")
                 .font(CoorditTypography.gmarketMedium(size: metrics.value(15)))
                 .foregroundStyle(Color.black.opacity(0.76))
-            Text("입력한 정보를 바탕으로 가장 가까운 핏을 찾고 있어요.")
+            Text("선택한 사이즈와 실측 정보를 옷장에 저장하고 있어요.")
                 .font(CoorditTypography.gmarketMedium(size: metrics.value(9)))
                 .foregroundStyle(CoorditClosetColors.navy.opacity(0.42))
             Spacer(minLength: 0)
@@ -838,22 +962,29 @@ private struct CoorditClosetAddLoadingScreen: View {
 private struct CoorditClosetBasicsCard: View {
     @Binding var draft: CoorditClosetDraft
     let metrics: CoorditResponsiveMetrics
+    var showsName = true
 
     @FocusState private var isNameFocused: Bool
 
     var body: some View {
-        CoorditClosetFormCard(title: "기본 정보", subtitle: "옷장에 표시할 이름과 종류를 입력해주세요.", metrics: metrics) {
-            TextField("의류 이름", text: $draft.name)
-                .font(CoorditTypography.gmarketMedium(size: metrics.value(12)))
-                .focused($isNameFocused)
-                .submitLabel(.done)
-                .onSubmit { isNameFocused = false }
-                .onTapGesture { isNameFocused = true }
-                .padding(.horizontal, metrics.value(13))
-                .frame(height: metrics.value(45))
-                .background(CoorditClosetColors.field)
-                .clipShape(RoundedRectangle(cornerRadius: metrics.value(8)))
-                .accessibilityIdentifier("closet-garment-name")
+        CoorditClosetFormCard(
+            title: showsName ? "기본 정보" : "옷 종류",
+            subtitle: showsName ? "옷장에 표시할 이름과 종류를 입력해주세요." : "링크를 분석하기 전에 옷 종류를 선택해 주세요.",
+            metrics: metrics
+        ) {
+            if showsName {
+                TextField("의류 이름", text: $draft.name)
+                    .font(CoorditTypography.gmarketMedium(size: metrics.value(12)))
+                    .focused($isNameFocused)
+                    .submitLabel(.done)
+                    .onSubmit { isNameFocused = false }
+                    .onTapGesture { isNameFocused = true }
+                    .padding(.horizontal, metrics.value(13))
+                    .frame(height: metrics.value(45))
+                    .background(CoorditClosetColors.field)
+                    .clipShape(RoundedRectangle(cornerRadius: metrics.value(8)))
+                    .accessibilityIdentifier("closet-garment-name")
+            }
 
             CoorditClosetSegment(selected: draft.category, metrics: metrics) {
                 draft.category = $0

@@ -21,6 +21,12 @@ struct CoorditFitLabReferenceRow: Codable, Identifiable, Equatable, Sendable {
 
 struct CoorditFitLabURLPrefillRequest: Codable, Equatable, Sendable {
     let url: URL
+    let category: CoorditFitLabCategory?
+
+    init(url: URL, category: CoorditFitLabCategory? = nil) {
+        self.url = url
+        self.category = category
+    }
 }
 
 struct CoorditFitLabURLPrefillResponse: Codable, Equatable, Sendable {

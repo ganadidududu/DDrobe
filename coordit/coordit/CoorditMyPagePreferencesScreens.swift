@@ -4,8 +4,6 @@ import SwiftUI
 extension CoorditMyPageFamilyView {
     func privacy(metrics: CoorditResponsiveMetrics) -> some View {
         VStack(spacing: metrics.value(112)) {
-            pageHeader("개인정보/보안", metrics: metrics)
-
             CoorditSettingsCard(metrics: metrics) {
                 CoorditSettingsDetailRow(title: "개인정보 처리방침", subtitle: "서비스 데이터 처리 기준", metrics: metrics, action: {
                     onRouteChange(.myPagePrivacyPolicy)
@@ -36,8 +34,6 @@ extension CoorditMyPageFamilyView {
 
     func appSettings(metrics: CoorditResponsiveMetrics) -> some View {
         VStack(spacing: metrics.value(112)) {
-            pageHeader("앱 설정", metrics: metrics)
-
             CoorditSettingsCard(metrics: metrics) {
                 CoorditSettingsDetailRow(title: "테마", metrics: metrics) {
                     CoorditSettingsSegmentedOptions(
@@ -78,8 +74,6 @@ extension CoorditMyPageFamilyView {
 
     func notifications(metrics: CoorditResponsiveMetrics) -> some View {
         VStack(spacing: metrics.value(112)) {
-            pageHeader("알림", metrics: metrics)
-
             CoorditSettingsCard(metrics: metrics) {
                 CoorditSettingsDetailRow(title: "마케팅 알림", subtitle: "혜택과 이벤트", metrics: metrics) {
                     CoorditSettingsToggle(isOn: $marketingNotifications, metrics: metrics, label: "마케팅 알림")

@@ -80,12 +80,25 @@ struct CoorditBackendClient {
         try await send(path: "/clothing-items", method: "GET", token: token, body: Optional<String>.none)
     }
 
+    func deleteClothingItem(token: String, id: String) async throws {
+        try await sendWithoutResponse(path: "/clothing-items/\(id)", method: "DELETE", token: token)
+    }
+
     func createClothingSize(
         token: String,
         clothingItemId: String,
         request: ClothingSizeRequest
     ) async throws -> CoorditClothingSizeResponse {
         try await send(path: "/clothing-items/\(clothingItemId)/sizes", method: "POST", token: token, body: request)
+    }
+
+    func listClothingSizes(token: String, clothingItemId: String) async throws -> [CoorditClothingSizeResponse] {
+        try await send(
+            path: "/clothing-items/\(clothingItemId)/sizes",
+            method: "GET",
+            token: token,
+            body: Optional<String>.none
+        )
     }
 
     func createReferenceClothing(
@@ -175,6 +188,27 @@ struct CoorditBackendClient {
         }
 
         return try JSONDecoder().decode(ResponseBody.self, from: data)
+    }
+
+    private func sendWithoutResponse(path: String, method: String, token: String?) async throws {
+        var request = URLRequest(url: baseURL.appending(path: path))
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let token {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw CoorditBackendClientError.invalidResponse
+        }
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            let apiError = try? JSONDecoder().decode(CoorditBackendErrorResponse.self, from: data)
+            throw CoorditBackendClientError.server(
+                statusCode: httpResponse.statusCode,
+                message: apiError?.message ?? "백엔드 요청에 실패했어요."
+            )
+        }
     }
 }
 

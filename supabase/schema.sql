@@ -117,9 +117,31 @@ create table public.external_products (
   category text not null,
   fit_type text not null default 'regular',
   image_url text,
+  source_url text,
+  source_site text,
+  source_product_id text,
+  thumbnail_url text,
+  raw_category text,
+  normalized_category text,
+  imported_from_url boolean not null default false,
+  import_metadata jsonb not null default '{}'::jsonb,
   raw_product_data jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
+);
+
+create table public.product_import_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references public.users(id) on delete set null,
+  source_url text not null,
+  source_site text,
+  product_id text,
+  status text not null,
+  error_code text,
+  warnings jsonb not null default '[]'::jsonb,
+  extraction_methods jsonb not null default '[]'::jsonb,
+  duration_ms integer,
+  created_at timestamptz not null default now()
 );
 
 create table public.external_product_sizes (

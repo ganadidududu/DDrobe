@@ -138,10 +138,39 @@ struct CoorditExternalProductSizeResponse: Codable, Equatable {
 struct CoorditClothingSizeResponse: Codable, Equatable {
     let id: String
     let sizeLabel: String?
+    let totalLength: Double?
+    let shoulderWidth: Double?
+    let chestWidth: Double?
+    let sleeveLength: Double?
+    let waistWidth: Double?
+    let hipWidth: Double?
+    let rise: Double?
+    let outseam: Double?
 
     enum CodingKeys: String, CodingKey {
         case id
         case sizeLabel = "size_label"
+        case totalLength = "total_length"
+        case shoulderWidth = "shoulder_width"
+        case chestWidth = "chest_width"
+        case sleeveLength = "sleeve_length"
+        case waistWidth = "waist_width"
+        case hipWidth = "hip_width"
+        case rise
+        case outseam
+    }
+
+    var measurements: CoorditMeasurementMap {
+        CoorditMeasurementMap(
+            totalLength: totalLength,
+            shoulderWidth: shoulderWidth,
+            chestWidth: chestWidth,
+            sleeveLength: sleeveLength,
+            waistWidth: waistWidth,
+            hipWidth: hipWidth,
+            rise: rise,
+            outseam: outseam
+        )
     }
 }
 

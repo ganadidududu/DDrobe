@@ -202,7 +202,7 @@ struct CoorditFitLabOCRInputView: View {
                 #endif
             }
             .padding(.horizontal, metrics.value(33))
-            .padding(.bottom, metrics.value(100))
+            .padding(.bottom, metrics.value(120))
         }
         .accessibilityIdentifier("fitlab-ocr-source-chooser")
     }
@@ -353,6 +353,7 @@ struct CoorditFitLabOCRInputView: View {
             .padding(.horizontal, metrics.value(33))
             .padding(.bottom, metrics.value(120))
         }
+        .coorditScrollEdgeTreatment(topFade: metrics.value(14))
         .scrollDismissesKeyboard(.interactively)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
@@ -389,7 +390,9 @@ struct CoorditFitLabOCRInputView: View {
             }
             .panelStyle()
             .padding(.horizontal, metrics.value(33))
+            .padding(.bottom, metrics.value(120))
         }
+        .coorditScrollEdgeTreatment(topFade: metrics.value(14))
     }
 
     private func recovery(identifier: String, title: String) -> some View {
@@ -422,6 +425,7 @@ struct CoorditFitLabOCRInputView: View {
             .padding(.horizontal, metrics.value(33))
             .padding(.bottom, metrics.value(120))
         }
+        .coorditScrollEdgeTreatment(topFade: metrics.value(14))
     }
 
     private func sourceButton(title: String, symbol: String) -> some View {

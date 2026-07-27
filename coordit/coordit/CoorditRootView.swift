@@ -3,12 +3,15 @@ import SwiftUI
 #if os(iOS)
 struct CoorditRootView: View {
     @State private var route: CoorditFrameRoute
+    @State private var navigationDirection: CoorditNavigationDirection = .forward
     @State private var closetItems = CoorditClosetItem.seedItems
     @State private var selectedClosetItemID: String?
     @State private var closetDraft = CoorditClosetDraft()
     @State private var selectedReferenceIDs: Set<String> = []
     @State private var showsFitLabReferenceSelection = false
+    @State private var showsFitLabBusyAlert = false
     @EnvironmentObject private var backendSession: CoorditBackendSessionStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var fitLabCoordinator: CoorditFitLabCoordinator
 
     init(startRoute: CoorditFrameRoute = .testingLaunchRoute()) {
@@ -20,14 +23,19 @@ struct CoorditRootView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
+            if showsSharedAppBackground {
+                CoorditSharedAppBackground()
+                    .zIndex(-100)
+            }
+
             Group {
                 switch route {
         case .main01:
             CoorditMain01Screen(initialTab: .home) { selectedTab in
-                route = CoorditFrameRoute.route(for: selectedTab, from: route)
+                navigate(to: CoorditFrameRoute.route(for: selectedTab, from: route))
             }
         case .splash:
-            CoorditSplashScreen { route = $0 }
+            CoorditSplashScreen { navigate(to: $0) }
         case .main04:
             CoorditMain04Screen(
                 closetItems: $closetItems,
@@ -35,7 +43,7 @@ struct CoorditRootView: View {
                 fitLabHistory: fitLabCoordinator.savedHistory,
                 onOpenFitLabHistory: { snapshot in
                     fitLabCoordinator.selectHistory(snapshot)
-                    route = .fitLabHistoryDetail
+                    navigate(to: .fitLabHistoryDetail)
                 },
                 onReferenceCommit: { selection in
                     Task {
@@ -52,7 +60,7 @@ struct CoorditRootView: View {
                         await backendSession.refreshReferenceFitProfiles()
                     }
                 }
-            ) { route = $0 }
+            ) { navigate(to: $0) }
         case .fitLabInput,
              .fitLabLoading,
              .fitLabResultTop,
@@ -61,7 +69,7 @@ struct CoorditRootView: View {
              .fitLabHistoryDetail:
             CoorditFitLabFamilyView(
                 currentRoute: route,
-                onRouteChange: { route = $0 },
+                onRouteChange: { navigate(to: $0) },
                 onManageReferences: { showsFitLabReferenceSelection = true },
                 coordinator: fitLabCoordinator
             )
@@ -81,7 +89,7 @@ struct CoorditRootView: View {
              .myPageTerms,
              .myPageContact,
              .myPageBugReport:
-            CoorditMyPageFamilyView(route: route) { route = $0 }
+            CoorditMyPageFamilyView(route: route) { navigate(to: $0) }
         case .closetOverview,
              .closetDetailTop,
              .closetDetailBottom,
@@ -97,19 +105,34 @@ struct CoorditRootView: View {
                 selectedItemID: $selectedClosetItemID,
                 draft: $closetDraft,
                 selectedReferenceIDs: $selectedReferenceIDs
-            ) { route = $0 }
+            ) { navigate(to: $0) }
                 }
             }
+            .id(route)
+            .transition(routeTransition)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .environment(\.coorditShowsScreenChrome, false)
+            .environment(\.coorditShowsScreenBackground, false)
+
+            if showsScreenChrome {
+                CoorditScreenChrome(route: route) { navigate(to: $0) }
+                    .zIndex(90)
+            }
 
             CoorditGlobalFitAnalysisBanner(
                 coordinator: fitLabCoordinator,
-                onOpenResult: { route = $0 },
-                onOpenFitLab: { route = .fitLabInput }
+                onOpenResult: { navigate(to: $0) },
+                onOpenFitLab: { navigate(to: .fitLabInput) }
             )
             .zIndex(100)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .buttonStyle(CoorditPressFeedbackButtonStyle())
+        .alert("핏 리포트를 만들고 있어요", isPresented: $showsFitLabBusyAlert) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text("리포트 완성 후 새 옷을 분석해 주세요.")
+        }
         .task(id: backendSession.session?.user.id) {
             guard let snapshot = await backendSession.loadClosetSnapshot(preserving: closetItems) else { return }
             closetItems = snapshot.items
@@ -118,6 +141,11 @@ struct CoorditRootView: View {
         .task(id: fitLabHistoryUserID) {
             await fitLabCoordinator.prepareHistory(userID: fitLabHistoryUserID)
         }
+        #if DEBUG
+        .task {
+            await performTestingAutoNavigationIfNeeded()
+        }
+        #endif
         .onChange(of: closetItems.compactMap(\.backendReferenceClothingId)) { oldIDs, newIDs in
             let addedReferenceIDs = Set(newIDs).subtracting(oldIDs)
             guard !addedReferenceIDs.isEmpty else { return }
@@ -134,9 +162,39 @@ struct CoorditRootView: View {
                 items: closetItems,
                 initialSelection: selectedReferenceIDs,
                 onCommit: syncFitLabReferenceSelection,
-                onAddGarment: { route = .closetAddMethod }
+                onAddGarment: { navigate(to: .closetAddMethod) }
             )
         }
+    }
+
+    private var routeTransition: AnyTransition {
+        .coorditMenuPush(direction: navigationDirection, reduceMotion: reduceMotion)
+    }
+
+    private func navigate(to nextRoute: CoorditFrameRoute) {
+        if nextRoute == .fitLabInput, fitLabCoordinator.isAnalysisRunning {
+            showsFitLabBusyAlert = true
+            return
+        }
+        guard nextRoute != route else { return }
+        if nextRoute.navigationSection == route.navigationSection {
+            navigationDirection = nextRoute.navigationDepth >= route.navigationDepth ? .forward : .backward
+        } else if nextRoute.navigationSection == 0 {
+            navigationDirection = .backward
+        } else {
+            navigationDirection = .forward
+        }
+        withAnimation(.easeOut(duration: reduceMotion ? 0.14 : 0.22)) {
+            route = nextRoute
+        }
+    }
+
+    private var showsScreenChrome: Bool {
+        route != .splash && route != .main01
+    }
+
+    private var showsSharedAppBackground: Bool {
+        route != .splash && route != .main01
     }
 
     private var fitLabHistoryUserID: String? {
@@ -182,5 +240,24 @@ struct CoorditRootView: View {
             )
         }
     }
+
+    #if DEBUG
+    private func performTestingAutoNavigationIfNeeded(
+        arguments: [String] = ProcessInfo.processInfo.arguments
+    ) async {
+        guard arguments.contains("--coordit-ui-testing"),
+              let markerIndex = arguments.firstIndex(of: "--coordit-auto-route"),
+              arguments.indices.contains(arguments.index(after: markerIndex)),
+              let nextRoute = CoorditFrameRoute(
+                rawValue: arguments[arguments.index(after: markerIndex)]
+              ) else {
+            return
+        }
+
+        try? await Task.sleep(for: .seconds(1))
+        guard !Task.isCancelled else { return }
+        navigate(to: nextRoute)
+    }
+    #endif
 }
 #endif

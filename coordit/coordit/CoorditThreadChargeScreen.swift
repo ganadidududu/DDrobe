@@ -7,10 +7,6 @@ extension CoorditMyPageFamilyView {
         contentMetrics: CoorditResponsiveMetrics
     ) -> some View {
         VStack(spacing: 0) {
-            pageHeader("실타래 충전", metrics: metrics)
-                .accessibilityIdentifier("coordit-thread-charge-title")
-                .padding(.bottom, contentMetrics.value(CoorditDesignTokens.ChargeMetrics.titleToBalanceSpacing))
-
             HStack(spacing: contentMetrics.value(12)) {
                 Image(CoorditAssetNames.yarn)
                     .resizable()

@@ -147,5 +147,85 @@ enum CoorditFrameRoute: String, CaseIterable, Identifiable {
             .closetOverview
         }
     }
+
+    var navigationSection: Int {
+        switch self {
+        case .main01, .splash, .main04:
+            0
+        case .fitLabInput,
+             .fitLabLoading,
+             .fitLabResultTop,
+             .fitLabResultBottom,
+             .fitLabHistoryRegister,
+             .fitLabHistoryDetail:
+            1
+        case .closetOverview,
+             .closetDetailTop,
+             .closetDetailBottom,
+             .closetAddMethod,
+             .closetAddLink,
+             .closetAddPhoto,
+             .closetAddManual,
+             .closetAddLoading,
+             .closetAddResult:
+            2
+        case .myPage,
+             .myPageThreadCharge,
+             .myPageBody,
+             .myPageAccount,
+             .myPagePrivacy,
+             .myPageAppSettings,
+             .myPageNotifications,
+             .myPageProfileEdit,
+             .myPagePasswordChange,
+             .myPageLogout,
+             .myPageAccountDeletion,
+             .myPageBodyMeasurements,
+             .myPagePrivacyPolicy,
+             .myPageTerms,
+             .myPageContact,
+             .myPageBugReport:
+            3
+        }
+    }
+
+    var navigationDepth: Int {
+        switch self {
+        case .main01, .splash, .main04, .fitLabInput, .closetOverview, .myPage:
+            0
+        case .fitLabLoading,
+             .fitLabHistoryRegister,
+             .fitLabHistoryDetail,
+             .closetDetailTop,
+             .closetDetailBottom,
+             .closetAddMethod,
+             .myPageThreadCharge,
+             .myPageBody,
+             .myPageAccount,
+             .myPagePrivacy,
+             .myPageAppSettings,
+             .myPageNotifications:
+            1
+        case .fitLabResultTop,
+             .fitLabResultBottom,
+             .closetAddLink,
+             .closetAddPhoto,
+             .closetAddManual,
+             .myPageProfileEdit,
+             .myPagePasswordChange,
+             .myPageLogout,
+             .myPageAccountDeletion,
+             .myPageBodyMeasurements,
+             .myPagePrivacyPolicy,
+             .myPageTerms,
+             .myPageContact,
+             .myPageBugReport:
+            2
+        case .closetAddLoading:
+            3
+        case .closetAddResult:
+            4
+        }
+    }
 }
 #endif

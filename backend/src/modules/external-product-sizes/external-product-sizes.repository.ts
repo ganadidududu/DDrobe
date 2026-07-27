@@ -1,6 +1,10 @@
 import { supabase } from "../../config/supabase";
 import type { ExternalProductSizeRow, JsonObject, MeasurementMap } from "../../shared/types/database";
 import { createHttpError } from "../../shared/utils/http-error";
+import {
+  isMissingOutseamColumnError,
+  toLegacyMeasurementStorage
+} from "../../shared/utils/measurements";
 
 export interface ExternalProductSizeDto extends MeasurementMap {
   size_label: string;
@@ -16,11 +20,20 @@ export const insertExternalProductSize = async (
   externalProductId: string,
   dto: ExternalProductSizeDto
 ): Promise<ExternalProductSizeRow> => {
-  const { data, error } = await supabase
+  const payload = { ...dto, user_id: userId, external_product_id: externalProductId };
+  let response = await supabase
     .from("external_product_sizes")
-    .insert({ ...dto, user_id: userId, external_product_id: externalProductId })
+    .insert(payload)
     .select("*")
     .single<ExternalProductSizeRow>();
+  if (isMissingOutseamColumnError(response.error)) {
+    response = await supabase
+      .from("external_product_sizes")
+      .insert(toLegacyMeasurementStorage(payload))
+      .select("*")
+      .single<ExternalProductSizeRow>();
+  }
+  const { data, error } = response;
   if (error || !data) throw createHttpError(500, "Failed to create external product size");
   return data;
 };

@@ -4,8 +4,6 @@ import SwiftUI
 extension CoorditMyPageFamilyView {
     func bodyMeasurements(metrics: CoorditResponsiveMetrics) -> some View {
         VStack(spacing: metrics.value(18)) {
-            pageHeader("신체 치수 관리", metrics: metrics, backRoute: .myPageBody)
-
             CoorditSettingsCard(metrics: metrics) {
                 VStack(spacing: metrics.value(13)) {
                     measurementField("어깨", unit: "cm", text: $shoulderMeasurement, identifier: "mypage-measurement-shoulder", metrics: metrics)
@@ -43,8 +41,6 @@ extension CoorditMyPageFamilyView {
 
     func privacyPolicy(metrics: CoorditResponsiveMetrics) -> some View {
         VStack(spacing: metrics.value(18)) {
-            pageHeader("개인정보 처리방침", metrics: metrics, backRoute: .myPagePrivacy)
-
             CoorditSettingsInfoPanel(
                 symbol: "hand.raised.fill",
                 title: "개인정보를 투명하게 다룹니다",
@@ -82,8 +78,6 @@ extension CoorditMyPageFamilyView {
 
     func terms(metrics: CoorditResponsiveMetrics) -> some View {
         VStack(spacing: metrics.value(18)) {
-            pageHeader("서비스 이용약관", metrics: metrics, backRoute: .myPagePrivacy)
-
             CoorditSettingsInfoPanel(
                 symbol: "doc.text.fill",
                 title: "COORDIT 서비스 이용약관",
@@ -121,8 +115,6 @@ extension CoorditMyPageFamilyView {
 
     func contact(metrics: CoorditResponsiveMetrics) -> some View {
         VStack(spacing: metrics.value(18)) {
-            pageHeader("문의하기", metrics: metrics, backRoute: .myPageAppSettings)
-
             CoorditSettingsInfoPanel(
                 symbol: "envelope.fill",
                 title: "무엇을 도와드릴까요?",
@@ -172,8 +164,6 @@ extension CoorditMyPageFamilyView {
 
     func bugReport(metrics: CoorditResponsiveMetrics) -> some View {
         VStack(spacing: metrics.value(18)) {
-            pageHeader("버그 신고", metrics: metrics, backRoute: .myPageAppSettings)
-
             CoorditSettingsInfoPanel(
                 symbol: "ladybug.fill",
                 title: "문제를 알려주세요",

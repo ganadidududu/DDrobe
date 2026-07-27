@@ -105,7 +105,7 @@ final class CoorditFitLabUITests: XCTestCase {
         capture("final-deep-history-recovery", app: app)
     }
 
-    func testFinalBlockersRecommendationPartExplanationsDecodeAndDriveFallbackCopy() throws {
+    func testReportCopyComesFromCompletedLLMResponseInsteadOfFallback() throws {
         let app = launchFitLab(fixture: "submission-report-copy")
         XCTAssertTrue(element("fitlab-reference-selection", in: app).waitForExistence(timeout: 5))
         XCTAssertEqual(
@@ -114,13 +114,11 @@ final class CoorditFitLabUITests: XCTestCase {
         )
         element("fitlab-reference-reference-fixture-hoodie", in: app).tap()
         element("fitlab-submit-analysis", in: app).tap()
-        XCTAssertTrue(element("fitlab-submission-result", in: app).waitForExistence(timeout: 8))
+        XCTAssertTrue(element("fitlab-fixture-result-upper", in: app).waitForExistence(timeout: 8))
         let report = element("fitlab-report-description", in: app)
         XCTAssertTrue(report.waitForExistence(timeout: 3))
-        XCTAssertTrue(report.label.contains("어깨는 기준 옷보다 정확히 1cm 여유로워요."))
-        XCTAssertTrue(report.label.contains("가슴은 기준 옷과 거의 같아요."))
-        XCTAssertTrue(report.label.contains("기준 옷과 가장 비슷해요."))
-        XCTAssertFalse(report.label.contains("베스트 기준과"), "Diff synthesis is only allowed when partExplanations are absent.")
+        XCTAssertTrue(report.label.contains("기준 옷과 비슷한 실루엣이며 가슴은 조금 타이트해요."))
+        XCTAssertFalse(element("fitlab-report-fallback", in: app).exists)
     }
 
     func testMissingReferenceSelectionCanOpenClosetReferenceSelector() throws {
@@ -154,16 +152,16 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertEqual(element("fitlab-ocr-api-request-ledger", in: app).label, "[]")
     }
 
-    func testFinalBlockersReportFailureRoutesToFallbackResultWithSaveAndRetry() throws {
+    func testReportFailureStaysOnLoadingUntilARealReportIsReady() throws {
         let app = launchFitLab(fixture: "submission-report-failure")
         XCTAssertTrue(element("fitlab-reference-selection", in: app).waitForExistence(timeout: 5))
         element("fitlab-reference-reference-fixture-hoodie", in: app).tap()
         element("fitlab-submit-analysis", in: app).tap()
 
-        XCTAssertTrue(element("coordit-screen-fitlab-result-top", in: app).waitForExistence(timeout: 8))
-        XCTAssertTrue(element("fitlab-report-fallback", in: app).exists)
-        XCTAssertTrue(scrollIntoView("fitlab-add-history", in: app).isHittable)
-        XCTAssertTrue(scrollIntoView("fitlab-retry-report", in: app, direction: .down).isHittable)
+        XCTAssertTrue(element("coordit-screen-fitlab-loading", in: app).waitForExistence(timeout: 8))
+        XCTAssertTrue(element("fitlab-loading-error", in: app).waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["fitlab-loading-retry"].isHittable)
+        XCTAssertFalse(element("coordit-screen-fitlab-result-top", in: app).exists)
     }
 
     func testF2AsyncSessionAndMigrationIsolation() throws {
@@ -221,12 +219,15 @@ final class CoorditFitLabUITests: XCTestCase {
 
         let urlField = element("fitlab-url-field", in: app)
         XCTAssertTrue(urlField.waitForExistence(timeout: 3))
+        XCTAssertTrue(element("fitlab-url-kind-picker", in: app).exists)
+        tapWhenReachable("fitlab-url-category-picker", in: app)
+        app.buttons["셔츠"].tap()
         fill(urlField, with: "  https://shop.example/products/linen-shirt  ")
         dismissKeyboard(in: app)
         element("fitlab-url-import", in: app).tap()
 
         XCTAssertTrue(element("fitlab-url-review", in: app).waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["베타 자동 추출 · 저장 전 확인 필요"].exists)
+        XCTAssertTrue(app.staticTexts["추출 결과 · 저장 전 확인 필요"].exists)
         let productName = scrollIntoView("fitlab-url-product-name", in: app)
         XCTAssertEqual(productName.value as? String, "리넨 셔츠")
         XCTAssertEqual(scrollIntoView("fitlab-url-size-label-row-0", in: app).value as? String, "M")
@@ -259,6 +260,23 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertEqual(confirmed.label, "수정한 리넨 셔츠 · M · 가슴 단면 57.5")
         XCTAssertEqual(element("fitlab-url-request-ledger", in: app).label, "prefill=1|references=2|product=0|size=0|recommend=0|report=0")
         capture("url-confirmed-without-persistence", app: app)
+    }
+
+    func testURLReviewAcceptsACompatibleLowerReferenceCategory() throws {
+        let app = launchFitLab(fixture: "url-compatible-lower-reference")
+        app.buttons["링크로 불러오기"].tap()
+        app.buttons["하의"].tap()
+        capture("url-lower-category-before-import", app: app)
+        fill(element("fitlab-url-field", in: app), with: "https://shop.example/products/lower")
+        dismissKeyboard(in: app)
+        element("fitlab-url-import", in: app).tap()
+
+        XCTAssertTrue(element("fitlab-url-review", in: app).waitForExistence(timeout: 5))
+
+        let reference = element("fitlab-url-reference-result", in: app)
+        XCTAssertTrue(reference.waitForExistence(timeout: 3))
+        XCTAssertEqual(reference.label, "reference-fixture-jeans|jeans")
+        capture("url-lower-category-review", app: app)
     }
 
     func testURLValidationAndRetry() throws {
@@ -610,7 +628,7 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertEqual(element("fitlab-selected-reference-count", in: app).label, "선택한 기준 옷 1개")
         element("fitlab-submit-analysis", in: app).tap()
 
-        let result = element("fitlab-submission-result", in: app)
+        let result = element("fitlab-fixture-result-upper", in: app)
         XCTAssertTrue(result.waitForExistence(timeout: 8))
         XCTAssertEqual(result.label, "추천 M · 92점")
         XCTAssertEqual(
@@ -630,11 +648,14 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertTrue(reportReference.waitForExistence(timeout: 5))
         reportReference.tap()
         element("fitlab-submit-analysis", in: reportApp).tap()
-        XCTAssertTrue(element("fitlab-submission-result", in: reportApp).waitForExistence(timeout: 8))
-        XCTAssertTrue(element("fitlab-report-fallback", in: reportApp).exists)
-        XCTAssertTrue(appButton("리포트 다시 시도", in: reportApp).exists)
+        XCTAssertTrue(element("fitlab-loading-error", in: reportApp).waitForExistence(timeout: 8))
+        XCTAssertFalse(element("fitlab-fixture-result-upper", in: reportApp).exists)
         XCTAssertEqual(element("fitlab-submission-ledger", in: reportApp).label, "references=1|product=1|M-attempts=1|M-success=1|L-attempts=1|L-success=1|recommend=1|report=1")
-        capture("task-6-report-fallback", app: reportApp)
+        element("fitlab-loading-retry", in: reportApp).tap()
+        XCTAssertTrue(element("fitlab-fixture-result-upper", in: reportApp).waitForExistence(timeout: 8))
+        XCTAssertEqual(element("fitlab-submission-ledger", in: reportApp).label, "references=1|product=1|M-attempts=1|M-success=1|L-attempts=1|L-success=1|recommend=1|report=2")
+        XCTAssertFalse(element("fitlab-report-fallback", in: reportApp).exists)
+        capture("task-6-report-retry-result", app: reportApp)
     }
 
     func testSubmissionRetryDoesNotDuplicateCompletedWrites() throws {
@@ -645,16 +666,16 @@ final class CoorditFitLabUITests: XCTestCase {
         reference.tap()
 
         element("fitlab-submit-analysis", in: app).tap()
-        XCTAssertTrue(element("fitlab-submission-error", in: app).waitForExistence(timeout: 8))
-        XCTAssertTrue(element("fitlab-submission-error", in: app).label.contains("L 사이즈 저장"))
+        XCTAssertTrue(element("fitlab-loading-error", in: app).waitForExistence(timeout: 8))
+        XCTAssertTrue(element("fitlab-loading-error", in: app).label.contains("L 사이즈 저장"))
         XCTAssertEqual(
             element("fitlab-submission-ledger", in: app).label,
             "references=1|product=1|M-attempts=1|M-success=1|L-attempts=1|L-success=0|recommend=0|report=0"
         )
         capture("task-6-size-failure", app: app)
 
-        element("fitlab-retry-submission", in: app).tap()
-        XCTAssertTrue(element("fitlab-submission-result", in: app).waitForExistence(timeout: 8))
+        element("fitlab-loading-retry", in: app).tap()
+        XCTAssertTrue(element("fitlab-fixture-result-upper", in: app).waitForExistence(timeout: 8))
         XCTAssertEqual(
             element("fitlab-submission-ledger", in: app).label,
             "references=1|product=1|M-attempts=1|M-success=1|L-attempts=2|L-success=1|recommend=1|report=1"
@@ -665,10 +686,8 @@ final class CoorditFitLabUITests: XCTestCase {
         )
         capture("task-6-retry-result", app: app)
 
-        element("fitlab-discard-submission", in: app).tap()
-        XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 2))
-        app.alerts.firstMatch.buttons["취소"].tap()
-        XCTAssertTrue(element("fitlab-submission-result", in: app).exists)
+        XCTAssertFalse(element("fitlab-discard-submission", in: app).exists)
+        XCTAssertTrue(element("fitlab-fixture-result-upper", in: app).exists)
 
         app.terminate()
         let recommendationRaceApp = launchFitLab(fixture: "submission-recommendation-race")
@@ -680,9 +699,13 @@ final class CoorditFitLabUITests: XCTestCase {
         )
         element("fitlab-test-force-discard", in: recommendationRaceApp).tap()
         element("fitlab-test-release-recommendation", in: recommendationRaceApp).tap()
+        let recommendationState = element("fitlab-submission-state-probe", in: recommendationRaceApp)
         XCTAssertTrue(
-            waitForLabel("screen=input|checkpoint=empty|recommendation=empty|report=empty", element: element("fitlab-submission-state-probe", in: recommendationRaceApp)),
-            "A recommendation from a discarded generation must not restore result state."
+            waitForLabelContaining(
+                "checkpoint=empty|recommendation=empty|report=empty",
+                element: recommendationState
+            ),
+            "A recommendation from a discarded generation must not restore result state. Actual: \(recommendationState.label)"
         )
         XCTAssertFalse(element("fitlab-submission-result", in: recommendationRaceApp).exists)
 
@@ -691,19 +714,22 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertTrue(element("fitlab-reference-selection", in: reportRaceApp).waitForExistence(timeout: 5))
         element("fitlab-reference-reference-fixture-hoodie", in: reportRaceApp).tap()
         element("fitlab-submit-analysis", in: reportRaceApp).tap()
-        XCTAssertTrue(element("fitlab-report-fallback", in: reportRaceApp).waitForExistence(timeout: 8))
-        appButton("리포트 다시 시도", in: reportRaceApp).tap()
+        XCTAssertTrue(element("fitlab-loading-error", in: reportRaceApp).waitForExistence(timeout: 8))
+        element("fitlab-loading-retry", in: reportRaceApp).tap()
         XCTAssertTrue(
             waitForLabel("references=1|product=1|M-attempts=1|M-success=1|L-attempts=1|L-success=1|recommend=1|report=2", element: element("fitlab-submission-ledger", in: reportRaceApp))
         )
         XCTAssertFalse(
-            element("fitlab-discard-submission", in: reportRaceApp).isEnabled,
+            element("fitlab-discard-submission", in: reportRaceApp).exists,
             "Discard must be unavailable while a report retry is active."
         )
         element("fitlab-test-force-discard", in: reportRaceApp).tap()
         element("fitlab-test-release-report", in: reportRaceApp).tap()
         XCTAssertTrue(
-            waitForLabel("screen=input|checkpoint=empty|recommendation=empty|report=empty", element: element("fitlab-submission-state-probe", in: reportRaceApp)),
+            waitForLabelContaining(
+                "checkpoint=empty|recommendation=empty|report=empty",
+                element: element("fitlab-submission-state-probe", in: reportRaceApp)
+            ),
             "A report from a discarded retry must not restore result state or navigate."
         )
         XCTAssertFalse(element("fitlab-submission-result", in: reportRaceApp).exists)
@@ -1225,6 +1251,19 @@ final class CoorditFitLabUITests: XCTestCase {
             Thread.sleep(forTimeInterval: 0.05)
         } while Date() < deadline
         return element.label == label
+    }
+
+    private func waitForLabelContaining(
+        _ fragment: String,
+        element: XCUIElement,
+        timeout: TimeInterval = 3
+    ) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if element.label.contains(fragment) { return true }
+            Thread.sleep(forTimeInterval: 0.05)
+        } while Date() < deadline
+        return element.label.contains(fragment)
     }
 
     private func fill(_ field: XCUIElement, with value: String) {

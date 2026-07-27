@@ -6,6 +6,7 @@ alter table public.clothing_items enable row level security;
 alter table public.clothing_sizes enable row level security;
 alter table public.reference_clothing enable row level security;
 alter table public.external_products enable row level security;
+alter table public.product_import_logs enable row level security;
 alter table public.external_product_sizes enable row level security;
 alter table public.fit_analysis_results enable row level security;
 alter table public.clothing_fit_assessments enable row level security;
@@ -26,6 +27,7 @@ create policy "clothing items owner access" on public.clothing_items for all usi
 create policy "clothing sizes owner access" on public.clothing_sizes for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "reference clothing owner access" on public.reference_clothing for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "external products owner access" on public.external_products for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "product import logs owner read" on public.product_import_logs for select using (auth.uid() = user_id);
 create policy "external product sizes owner access" on public.external_product_sizes for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "fit results owner access" on public.fit_analysis_results for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "clothing fit assessments owner read" on public.clothing_fit_assessments for select using (auth.uid() = user_id);

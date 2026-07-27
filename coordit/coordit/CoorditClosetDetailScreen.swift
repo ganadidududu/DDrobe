@@ -10,12 +10,14 @@ extension CoorditClosetFamilyView {
         item: CoorditClosetItem,
         screenIdentifier: String
     ) -> some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: metrics.value(20)) {
-                CoorditClosetTitleBar(title: "FIT DETAIL", metrics: metrics, horizontalOutset: 11) {
-                    onRouteChange(.closetOverview)
-                }
+        VStack(spacing: 0) {
+            CoorditClosetTitleBar(title: "FIT DETAIL", metrics: metrics, horizontalOutset: 11) {
+                onRouteChange(.closetOverview)
+            }
+            .padding(.horizontal, metrics.value(27))
 
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: metrics.value(20)) {
                 HStack(alignment: .top, spacing: metrics.value(13)) {
                     CoorditClosetGarmentArtwork(imageData: item.imageData, category: item.category, metrics: metrics)
                         .frame(width: metrics.value(126), height: metrics.value(168))
@@ -50,12 +52,20 @@ extension CoorditClosetFamilyView {
                             loadDetailPhoto(newItem, for: item.id)
                         }
 
-                        detailAction("내 옷장에서 삭제하기", metrics: metrics) {}
+                        detailAction("내 옷장에서 삭제하기", metrics: metrics) {
+                            showsDeleteConfirmation = true
+                        }
+                        .accessibilityIdentifier("closet-detail-delete")
+                        .disabled(isDeletingDetailItem)
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: metrics.value(168), alignment: .top)
                 }
                 .padding(.top, metrics.value(18))
+
+                if let sizeChart = item.sizeChart {
+                    sizeChartCard(sizeChart, category: item.category, metrics: metrics)
+                }
 
                 #if DEBUG
                 if detailPhotoTestScenario != nil {
@@ -119,9 +129,15 @@ extension CoorditClosetFamilyView {
                         .frame(maxWidth: .infinity, alignment: .center)
                         .accessibilityIdentifier("closet-reassessment-status")
                 }
+                }
+                .padding(.top, metrics.value(20))
+                .padding(.horizontal, metrics.value(27))
+                .padding(
+                    .bottom,
+                    metrics.value(Main01DesignTokens.Metrics.navHeight + 28)
+                )
             }
-            .padding(.horizontal, metrics.value(27))
-            .padding(.bottom, metrics.value(28))
+            .coorditScrollEdgeTreatment(topFade: metrics.value(18))
         }
         .accessibilityIdentifier("coordit-screen-\(screenIdentifier)")
         .task(id: detailAssessmentTaskID(for: item)) {
@@ -144,6 +160,95 @@ extension CoorditClosetFamilyView {
         } message: {
             Text("옷장에 표시할 이름을 입력해 주세요.")
         }
+        .confirmationDialog(
+            "옷장에서 삭제할까요?",
+            isPresented: $showsDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("삭제", role: .destructive) {
+                Task { await deleteDetailItem(item) }
+            }
+            Button("취소", role: .cancel) {}
+        } message: {
+            Text("\"\(item.name)\"과 저장된 사이즈 정보를 함께 삭제합니다.")
+        }
+    }
+
+    private func sizeChartCard(
+        _ sizeChart: CoorditClosetSizeChart,
+        category: CoorditClosetCategory,
+        metrics: CoorditResponsiveMetrics
+    ) -> some View {
+        let values: [(key: String, label: String, value: Double?)] = category == .top
+            ? [
+                ("shoulder-width", "어깨", sizeChart.measurements.shoulderWidth),
+                ("chest-width", "가슴단면", sizeChart.measurements.chestWidth),
+                ("total-length", "총장", sizeChart.measurements.totalLength),
+                ("sleeve-length", "소매", sizeChart.measurements.sleeveLength),
+            ]
+            : [
+                ("waist-width", "허리단면", sizeChart.measurements.waistWidth),
+                ("hip-width", "엉덩이단면", sizeChart.measurements.hipWidth),
+                ("rise", "밑위", sizeChart.measurements.rise),
+                ("outseam", "총장", sizeChart.measurements.outseam),
+            ]
+
+        return VStack(alignment: .leading, spacing: metrics.value(12)) {
+            HStack {
+                Text("등록 사이즈표")
+                    .font(CoorditTypography.gmarketBold(size: metrics.value(14)))
+                    .foregroundStyle(CoorditClosetColors.navy)
+                Spacer(minLength: 0)
+                Text(sizeChart.sizeLabel.flatMap { $0.isEmpty ? nil : $0 } ?? "단일 사이즈")
+                    .font(CoorditTypography.gmarketMedium(size: metrics.value(11)))
+                    .foregroundStyle(CoorditClosetColors.navy.opacity(0.62))
+                    .accessibilityIdentifier("closet-detail-size-label")
+            }
+
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), spacing: metrics.value(8)), count: 2),
+                spacing: metrics.value(8)
+            ) {
+                ForEach(values, id: \.key) { measurement in
+                    VStack(alignment: .leading, spacing: metrics.value(3)) {
+                        Text(measurement.label)
+                            .font(CoorditTypography.gmarketLight(size: metrics.value(9)))
+                            .foregroundStyle(CoorditClosetColors.navy.opacity(0.55))
+                        Text(detailFormattedMeasurement(measurement.value))
+                            .font(CoorditTypography.gmarketBold(size: metrics.value(13)))
+                            .foregroundStyle(CoorditClosetColors.navy)
+                            .accessibilityIdentifier("closet-detail-measurement-\(measurement.key)")
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(metrics.value(10))
+                    .background(Color.white.opacity(0.72))
+                    .clipShape(RoundedRectangle(cornerRadius: metrics.value(7)))
+                }
+            }
+        }
+        .padding(metrics.value(14))
+        .background(CoorditClosetColors.card)
+        .clipShape(RoundedRectangle(cornerRadius: metrics.value(9)))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("closet-detail-size-chart")
+    }
+
+    private func detailFormattedMeasurement(_ value: Double?) -> String {
+        guard let value, value.isFinite else { return "—" }
+        return "\(value.formatted(.number.precision(.fractionLength(0...2)))) cm"
+    }
+
+    private func deleteDetailItem(_ item: CoorditClosetItem) async {
+        isDeletingDetailItem = true
+        defer { isDeletingDetailItem = false }
+
+        if let backendID = item.backendClothingItemId {
+            guard await backendSession.deleteClothingItem(id: backendID) else { return }
+        }
+        items.removeAll { $0.id == item.id }
+        selectedReferenceIDs.remove(item.id)
+        selectedItemID = nil
+        onRouteChange(.closetOverview)
     }
 
     private func scorePanel(metrics: CoorditResponsiveMetrics, item: CoorditClosetItem) -> some View {

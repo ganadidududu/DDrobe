@@ -9,13 +9,15 @@ enum CoorditFitLabInputDestination: Equatable {
 }
 
 struct CoorditFitLabInputScreen: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let metrics: CoorditResponsiveMetrics
     @Binding var draft: CoorditFitLabDraft
     @Binding var destination: CoorditFitLabInputDestination
+    let navigationDirection: CoorditNavigationDirection
     let fixtureName: String?
     let apiRequestLedger: [String]
     let urlRequestLedger: () -> [String]
-    let urlPrefill: (URL) async throws -> CoorditFitLabURLPrefillResponse
+    let urlPrefill: (URL, CoorditFitLabCategory) async throws -> CoorditFitLabURLPrefillResponse
     let urlReferences: (CoorditFitLabCategory) async throws -> [CoorditFitLabReferenceRow]
     let savedHistory: [CoorditFitLabHistorySnapshot]
     let historyRecoveryNotice: String?
@@ -25,10 +27,11 @@ struct CoorditFitLabInputScreen: View {
         metrics: CoorditResponsiveMetrics,
         draft: Binding<CoorditFitLabDraft>,
         destination: Binding<CoorditFitLabInputDestination>,
+        navigationDirection: CoorditNavigationDirection = .forward,
         fixtureName: String? = nil,
         apiRequestLedger: [String] = [],
         urlRequestLedger: @escaping () -> [String] = { [] },
-        urlPrefill: @escaping (URL) async throws -> CoorditFitLabURLPrefillResponse = { _ in
+        urlPrefill: @escaping (URL, CoorditFitLabCategory) async throws -> CoorditFitLabURLPrefillResponse = { _, _ in
             throw CoorditFitLabError.transport("상품 링크 API를 준비할 수 없어요.")
         },
         urlReferences: @escaping (CoorditFitLabCategory) async throws -> [CoorditFitLabReferenceRow] = { _ in
@@ -41,6 +44,7 @@ struct CoorditFitLabInputScreen: View {
         self.metrics = metrics
         _draft = draft
         _destination = destination
+        self.navigationDirection = navigationDirection
         self.fixtureName = fixtureName
         self.apiRequestLedger = apiRequestLedger
         self.urlRequestLedger = urlRequestLedger
@@ -52,6 +56,19 @@ struct CoorditFitLabInputScreen: View {
     }
 
     var body: some View {
+        ZStack(alignment: .top) {
+            destinationContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .id(destination)
+                .transition(destinationTransition)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .clipped()
+        .compositingGroup()
+    }
+
+    @ViewBuilder
+    private var destinationContent: some View {
         Group {
             switch destination {
             case .sources:
@@ -87,7 +104,10 @@ struct CoorditFitLabInputScreen: View {
                 )
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: destination)
+    }
+
+    private var destinationTransition: AnyTransition {
+        .coorditMenuPush(direction: navigationDirection, reduceMotion: reduceMotion)
     }
 
     private var sourceSelection: some View {
@@ -195,7 +215,7 @@ struct CoorditFitLabInputScreen: View {
                 )
             }
             .padding(.horizontal, metrics.value(33))
-            .padding(.bottom, metrics.value(28))
+            .padding(.bottom, metrics.value(120))
         }
         .scrollDismissesKeyboard(.interactively)
     }
@@ -437,6 +457,7 @@ private struct CoorditFitLabManualDraftView: View {
             .padding(.horizontal, metrics.value(33))
             .padding(.bottom, metrics.value(120))
         }
+        .coorditScrollEdgeTreatment(topFade: metrics.value(14))
         .scrollDismissesKeyboard(.interactively)
         .accessibilityIdentifier("fitlab-manual-form")
         .toolbar {
@@ -491,7 +512,9 @@ private struct CoorditFitLabManualDraftView: View {
                     .stroke(Color.black.opacity(0.12), lineWidth: 0.8)
             )
             .padding(.horizontal, metrics.value(33))
+            .padding(.bottom, metrics.value(120))
         }
+        .coorditScrollEdgeTreatment(topFade: metrics.value(14))
     }
 
     private func section<Content: View>(

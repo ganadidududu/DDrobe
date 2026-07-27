@@ -36,7 +36,7 @@ final class CoorditBackendSessionStore: ObservableObject {
         if Self.shouldUseAuthenticatedUITestFixture {
             usesAuthenticatedUITestFixture = true
             session = CoorditAuthSession(
-                accessToken: "",
+                accessToken: Self.uiTestingAccessToken ?? "",
                 refreshToken: "",
                 user: CoorditAuthUser(id: "coordit-ui-test-user", email: "ui-test@coordit.invalid")
             )
@@ -140,10 +140,22 @@ final class CoorditBackendSessionStore: ObservableObject {
         }
     }
 
-    func prefillClosetProduct(from url: URL) async throws -> CoorditFitLabURLPrefillResponse {
+    func prefillClosetProduct(
+        from url: URL,
+        category: CoorditFitLabCategory
+    ) async throws -> CoorditFitLabURLPrefillResponse {
+#if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--coordit-ui-testing") {
+            return try await CoorditFitLabFixtureAPI().prefillProduct(
+                from: CoorditFitLabURLPrefillRequest(url: url, category: category)
+            )
+        }
+#endif
         guard let token = session?.accessToken else { throw CoorditFitLabError.loginRequired }
         let api = CoorditFitLabHTTPAPI(baseURL: CoorditBackendConfig.baseURL(), accessToken: token)
-        return try await api.prefillProduct(from: CoorditFitLabURLPrefillRequest(url: url))
+        return try await api.prefillProduct(
+            from: CoorditFitLabURLPrefillRequest(url: url, category: category)
+        )
     }
 
     func saveReferenceClothing(from draft: CoorditClosetDraft) async -> CoorditReferenceSaveResult? {
@@ -159,7 +171,7 @@ final class CoorditBackendSessionStore: ObservableObject {
         do {
             let clothingItem = try await client.createClothingItem(token: token, request: draft.clothingItemRequest)
             let clothingSizeRequest = await CoorditFitLabSizeExtractor.referenceClothingSizeRequest(from: draft)
-            _ = try await client.createClothingSize(
+            let clothingSize = try await client.createClothingSize(
                 token: token,
                 clothingItemId: clothingItem.id,
                 request: clothingSizeRequest
@@ -172,7 +184,11 @@ final class CoorditBackendSessionStore: ObservableObject {
             isWarning = false
             return CoorditReferenceSaveResult(
                 clothingItemId: clothingItem.id,
-                referenceClothingId: reference.id
+                referenceClothingId: reference.id,
+                sizeChart: CoorditClosetSizeChart(
+                    sizeLabel: clothingSize.sizeLabel,
+                    measurements: clothingSize.measurements
+                )
             )
         } catch {
             statusText = error.localizedDescription
@@ -201,6 +217,17 @@ final class CoorditBackendSessionStore: ObservableObject {
                 },
                 uniquingKeysWith: { first, _ in first }
             )
+            var sizeChartByClothingID: [String: CoorditClosetSizeChart] = [:]
+            for response in clothing {
+                guard let size = try await client.listClothingSizes(
+                    token: token,
+                    clothingItemId: response.id
+                ).first else { continue }
+                sizeChartByClothingID[response.id] = CoorditClosetSizeChart(
+                    sizeLabel: size.sizeLabel,
+                    measurements: size.measurements
+                )
+            }
             let items = clothing.compactMap { response -> CoorditClosetItem? in
                 guard let exactCategory = CoorditFitLabCategory(rawValue: response.category) else { return nil }
                 let parent: CoorditClosetCategory = exactCategory.garmentKind == .upper ? .top : .bottom
@@ -216,6 +243,7 @@ final class CoorditBackendSessionStore: ObservableObject {
                     route: parent == .top ? .closetDetailTop : .closetDetailBottom,
                     imageData: local?.imageData,
                     fitDiffs: local?.fitDiffs,
+                    sizeChart: sizeChartByClothingID[response.id] ?? local?.sizeChart,
                     backendClothingItemId: response.id,
                     backendReferenceClothingId: reference?.id
                 )
@@ -232,6 +260,24 @@ final class CoorditBackendSessionStore: ObservableObject {
             statusText = error.localizedDescription
             isWarning = true
             return nil
+        }
+    }
+
+    func deleteClothingItem(id: String) async -> Bool {
+        guard let token = session?.accessToken else {
+            statusText = "로그인되지 않은 로컬 의류를 삭제했어요."
+            isWarning = false
+            return true
+        }
+        do {
+            try await client.deleteClothingItem(token: token, id: id)
+            statusText = "옷장에서 의류를 삭제했어요."
+            isWarning = false
+            return true
+        } catch {
+            statusText = error.localizedDescription
+            isWarning = true
+            return false
         }
     }
 
@@ -496,6 +542,17 @@ final class CoorditBackendSessionStore: ObservableObject {
         let arguments = ProcessInfo.processInfo.arguments
         return arguments.contains("--coordit-ui-testing")
             && arguments.contains("--coordit-ui-testing-authenticated")
+    }
+
+    private static var uiTestingAccessToken: String? {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard
+            let markerIndex = arguments.firstIndex(of: "--coordit-ui-testing-access-token"),
+            arguments.indices.contains(arguments.index(after: markerIndex))
+        else {
+            return nil
+        }
+        return arguments[arguments.index(after: markerIndex)]
     }
 #endif
 }

@@ -6,7 +6,7 @@ struct CoorditFitLabURLInputView: View {
     let metrics: CoorditResponsiveMetrics
     @Binding var draft: CoorditFitLabDraft
     let requestLedger: () -> [String]
-    let prefill: (URL) async throws -> CoorditFitLabURLPrefillResponse
+    let prefill: (URL, CoorditFitLabCategory) async throws -> CoorditFitLabURLPrefillResponse
     let loadReferences: (CoorditFitLabCategory) async throws -> [CoorditFitLabReferenceRow]
     let onSwitchToOCR: () -> Void
     let onSwitchToManual: () -> Void
@@ -50,6 +50,7 @@ struct CoorditFitLabURLInputView: View {
             .padding(.horizontal, metrics.value(33))
             .padding(.bottom, metrics.value(120))
         }
+        .coorditScrollEdgeTreatment(topFade: metrics.value(14))
         .id(stage)
         .scrollDismissesKeyboard(.interactively)
         .toolbar {
@@ -71,7 +72,7 @@ struct CoorditFitLabURLInputView: View {
             Text("상품 링크에서 사이즈표 가져오기")
                 .font(CoorditTypography.gmarketBold(size: metrics.value(18), relativeTo: .headline))
                 .foregroundStyle(Color.black)
-            Text("HTTP 또는 HTTPS 링크만 지원해요. 가져온 값은 저장 전에 직접 확인하고 수정할 수 있어요.")
+            Text("링크를 입력하고 옷 종류를 먼저 선택해 주세요.\n가져온 값은 저장 전에 수정할 수 있어요.")
                 .font(CoorditTypography.gmarketLight(size: metrics.value(12), relativeTo: .body))
                 .foregroundStyle(Color.black.opacity(0.65))
                 .fixedSize(horizontal: false, vertical: true)
@@ -86,6 +87,12 @@ struct CoorditFitLabURLInputView: View {
                 .focused($focusedField, equals: "url")
                 .accessibilityLabel("상품 링크")
                 .accessibilityIdentifier("fitlab-url-field")
+
+            Text("가져올 옷 분류")
+                .font(CoorditTypography.gmarketBold(size: metrics.value(13), relativeTo: .headline))
+                .foregroundStyle(Color.black)
+
+            classificationControls
 
             if let errorMessage {
                 Text(errorMessage)
@@ -165,27 +172,11 @@ struct CoorditFitLabURLInputView: View {
                 .opacity(0.01)
                 .accessibilityIdentifier("fitlab-url-review")
             #endif
-            Text("베타 자동 추출 · 저장 전 확인 필요")
+            Text("추출 결과 · 저장 전 확인 필요")
                 .font(CoorditTypography.gmarketBold(size: metrics.value(14), relativeTo: .headline))
                 .foregroundStyle(Color.black)
 
-            Picker("상의 또는 하의", selection: kindBinding) {
-                Text("상의").tag(CoorditFitLabGarmentKind.upper)
-                Text("하의").tag(CoorditFitLabGarmentKind.lower)
-            }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("fitlab-url-kind-picker")
-
-            Picker("카테고리", selection: categoryBinding) {
-                ForEach(availableCategories) { option in
-                    Text(title(for: option))
-                        .font(CoorditTypography.gmarketMedium(size: metrics.value(12)))
-                        .tag(option)
-                }
-            }
-            .pickerStyle(.menu)
-            .font(CoorditTypography.gmarketMedium(size: metrics.value(12)))
-            .accessibilityIdentifier("fitlab-url-category-picker")
+            classificationControls
 
             HStack {
                 Text("현재 카테고리 \(title(for: category))")
@@ -425,6 +416,29 @@ struct CoorditFitLabURLInputView: View {
         CoorditFitLabMeasurementKey.allCases.filter { $0.garmentKind == kind }
     }
 
+    private var classificationControls: some View {
+        VStack(alignment: .leading, spacing: metrics.value(10)) {
+            Picker("상의 또는 하의", selection: kindBinding) {
+                Text("상의").tag(CoorditFitLabGarmentKind.upper)
+                Text("하의").tag(CoorditFitLabGarmentKind.lower)
+            }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("fitlab-url-kind-picker")
+
+            Picker("세부 카테고리", selection: categoryBinding) {
+                ForEach(availableCategories) { option in
+                    Text(title(for: option))
+                        .font(CoorditTypography.gmarketMedium(size: metrics.value(12)))
+                        .tag(option)
+                }
+            }
+            .pickerStyle(.menu)
+            .font(CoorditTypography.gmarketMedium(size: metrics.value(12)))
+            .accessibilityIdentifier("fitlab-url-category-picker")
+        }
+        .disabled(isLoading)
+    }
+
     private var kindBinding: Binding<CoorditFitLabGarmentKind> {
         Binding(
             get: { kind },
@@ -432,8 +446,10 @@ struct CoorditFitLabURLInputView: View {
                 guard newKind != kind else { return }
                 kind = newKind
                 category = newKind == .upper ? .tshirt : .pants
-                rows = rows.map { EditableRow(id: $0.id, label: $0.label) }
-                invalidateReferences(for: category)
+                if stage == .review {
+                    rows = rows.map { EditableRow(id: $0.id, label: $0.label) }
+                    invalidateReferences(for: category)
+                }
             }
         )
     }
@@ -445,7 +461,9 @@ struct CoorditFitLabURLInputView: View {
                 guard newCategory != category else { return }
                 category = newCategory
                 kind = newCategory.garmentKind
-                invalidateReferences(for: newCategory)
+                if stage == .review {
+                    invalidateReferences(for: newCategory)
+                }
             }
         )
     }
@@ -468,7 +486,9 @@ struct CoorditFitLabURLInputView: View {
                     discardedReferenceCategory = category
                     return
                 }
-                compatibleReferences = loaded.filter { $0.category == category && $0.isActive }
+                compatibleReferences = loaded.filter {
+                    $0.category.isCompatible(with: category) && $0.isActive
+                }
             } catch {
                 guard !Task.isCancelled,
                       generation == referenceRequestGeneration,
@@ -492,7 +512,7 @@ struct CoorditFitLabURLInputView: View {
         isLoading = true
         importRequest = Task { @MainActor in
             do {
-                let response = try await prefill(url)
+                let response = try await prefill(url, category)
                 guard !Task.isCancelled, generation == importGeneration, stage == .entry else { return }
                 apply(response)
                 stage = .review

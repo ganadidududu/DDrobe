@@ -111,6 +111,14 @@ export interface ExternalProductRow {
   category: Category;
   fit_type: FitType;
   image_url: string | null;
+  source_url: string | null;
+  source_site: string | null;
+  source_product_id: string | null;
+  thumbnail_url: string | null;
+  raw_category: string | null;
+  normalized_category: string | null;
+  imported_from_url: boolean;
+  import_metadata: JsonObject;
   raw_product_data: JsonObject;
   created_at: string;
   updated_at: string;

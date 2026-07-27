@@ -16,6 +16,11 @@ enum CoorditClosetCategory: CaseIterable, Equatable {
     }
 }
 
+struct CoorditClosetSizeChart: Equatable {
+    let sizeLabel: String?
+    let measurements: CoorditMeasurementMap
+}
+
 struct CoorditClosetItem: Identifiable {
     let id: String
     var name: String
@@ -26,6 +31,7 @@ struct CoorditClosetItem: Identifiable {
     let route: CoorditFrameRoute
     var imageData: Data?
     var fitDiffs: CoorditMeasurementMap? = nil
+    var sizeChart: CoorditClosetSizeChart? = nil
     var backendClothingItemId: String? = nil
     var backendReferenceClothingId: String? = nil
 
@@ -39,6 +45,7 @@ struct CoorditClosetItem: Identifiable {
         route: CoorditFrameRoute,
         imageData: Data?,
         fitDiffs: CoorditMeasurementMap? = nil,
+        sizeChart: CoorditClosetSizeChart? = nil,
         backendClothingItemId: String? = nil,
         backendReferenceClothingId: String? = nil
     ) {
@@ -51,6 +58,7 @@ struct CoorditClosetItem: Identifiable {
         self.route = route
         self.imageData = imageData
         self.fitDiffs = fitDiffs
+        self.sizeChart = sizeChart
         self.backendClothingItemId = backendClothingItemId
         self.backendReferenceClothingId = backendReferenceClothingId
     }
@@ -58,7 +66,29 @@ struct CoorditClosetItem: Identifiable {
     static let seedItems = [
         CoorditClosetItem(id: "oxford", name: "Oxford Shirt", category: .top, exactCategory: .shirt, score: 94, scoreColor: CoorditClosetColors.blue, route: .closetDetailTop, imageData: nil),
         CoorditClosetItem(id: "knit", name: "Relaxed Knit", category: .top, exactCategory: .knit, score: 88, scoreColor: CoorditClosetColors.cyan, route: .closetDetailTop, imageData: nil),
-        CoorditClosetItem(id: "denim", name: "Wide Denim", category: .bottom, exactCategory: .jeans, score: 91, scoreColor: CoorditClosetColors.blue, route: .closetDetailBottom, imageData: nil),
+        CoorditClosetItem(
+            id: "denim",
+            name: "Wide Denim",
+            category: .bottom,
+            exactCategory: .jeans,
+            score: 91,
+            scoreColor: CoorditClosetColors.blue,
+            route: .closetDetailBottom,
+            imageData: nil,
+            sizeChart: CoorditClosetSizeChart(
+                sizeLabel: "M",
+                measurements: CoorditMeasurementMap(
+                    totalLength: nil,
+                    shoulderWidth: nil,
+                    chestWidth: nil,
+                    sleeveLength: nil,
+                    waistWidth: 40,
+                    hipWidth: 53,
+                    rise: 30,
+                    outseam: 101
+                )
+            )
+        ),
         CoorditClosetItem(id: "slacks", name: "Black Slacks", category: .bottom, exactCategory: .pants, score: 0, scoreColor: CoorditClosetColors.navy, route: .closetDetailBottom, imageData: nil),
     ]
 }
@@ -84,6 +114,8 @@ struct CoorditClosetFamilyView: View {
     @State var engineScoredItemIDs: Set<String>
     @State var isRenamingDetailItem: Bool
     @State var pendingDetailName: String
+    @State var showsDeleteConfirmation: Bool
+    @State var isDeletingDetailItem: Bool
 
     #if DEBUG
     @State var detailPhotoTestStates: [String: String]
@@ -113,6 +145,8 @@ struct CoorditClosetFamilyView: View {
         _engineScoredItemIDs = State(initialValue: [])
         _isRenamingDetailItem = State(initialValue: false)
         _pendingDetailName = State(initialValue: "")
+        _showsDeleteConfirmation = State(initialValue: false)
+        _isDeletingDetailItem = State(initialValue: false)
         #if DEBUG
         _detailPhotoTestStates = State(initialValue: [:])
         _detailPhotoTestRejections = State(initialValue: [:])
@@ -121,7 +155,12 @@ struct CoorditClosetFamilyView: View {
     }
 
     var body: some View {
-        CoorditScreenScaffold(route: route, onRouteChange: onRouteChange, contentTop: 115) { metrics in
+        CoorditScreenScaffold(
+            route: route,
+            onRouteChange: onRouteChange,
+            contentTop: 115,
+            contentBottom: 0
+        ) { metrics in
             switch route {
             case .closetDetailTop:
                 detailScreen(
@@ -176,12 +215,14 @@ struct CoorditClosetFamilyView: View {
     }
 
     private func overviewScreen(metrics: CoorditResponsiveMetrics) -> some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: metrics.value(22)) {
-                CoorditClosetTitleBar(title: "CLOSET", metrics: metrics) {
-                    onRouteChange(.main04)
-                }
+        VStack(spacing: 0) {
+            CoorditClosetTitleBar(title: "CLOSET", metrics: metrics) {
+                onRouteChange(.main04)
+            }
+            .padding(.horizontal, metrics.value(16))
 
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: metrics.value(22)) {
                 VStack(alignment: .leading, spacing: metrics.value(12)) {
                     VStack(alignment: .leading, spacing: metrics.value(4)) {
                         Text("\(activeReferenceProfile?.referenceCount ?? 0)개 기준 의류로 계산")
@@ -212,9 +253,15 @@ struct CoorditClosetFamilyView: View {
 
                 searchField(metrics: metrics)
                 garmentGrid(metrics: metrics)
+                }
+                .padding(.top, metrics.value(22))
+                .padding(.horizontal, metrics.value(16))
+                .padding(
+                    .bottom,
+                    metrics.value(Main01DesignTokens.Metrics.navHeight + 22)
+                )
             }
-            .padding(.horizontal, metrics.value(16))
-            .padding(.bottom, metrics.value(22))
+            .coorditScrollEdgeTreatment(topFade: metrics.value(18))
         }
         .accessibilityIdentifier("coordit-screen-closet-overview")
     }

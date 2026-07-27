@@ -7,6 +7,8 @@ const aliases: Record<string, MeasurementKey> = {
   어깨너비: "shoulder_width",
   가슴: "chest_width",
   가슴단면: "chest_width",
+  "가슴 너비": "chest_width",
+  가슴너비: "chest_width",
   소매: "sleeve_length",
   소매길이: "sleeve_length",
   허리: "waist_width",
