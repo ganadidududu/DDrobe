@@ -9,6 +9,8 @@ struct CoorditRootView: View {
     @State private var closetDraft = CoorditClosetDraft()
     @State private var selectedReferenceIDs: Set<String> = []
     @State private var showsFitLabReferenceSelection = false
+    @State private var threadBalance: Int
+    @State private var showsThreadRechargePrompt = false
     @EnvironmentObject private var backendSession: CoorditBackendSessionStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var fitLabCoordinator: CoorditFitLabCoordinator
@@ -16,6 +18,10 @@ struct CoorditRootView: View {
     init(startRoute: CoorditFrameRoute = .testingLaunchRoute()) {
         _route = State(initialValue: startRoute)
         _closetItems = State(initialValue: Self.initialClosetItems())
+        _threadBalance = State(initialValue: Self.initialThreadBalance())
+        _showsThreadRechargePrompt = State(
+            initialValue: Self.initialThreadRechargePrompt(startRoute: startRoute)
+        )
         _fitLabCoordinator = StateObject(
             wrappedValue: CoorditFitLabCoordinator.makeAppScoped(route: startRoute)
         )
@@ -71,7 +77,9 @@ struct CoorditRootView: View {
                 currentRoute: route,
                 onRouteChange: { navigate(to: $0) },
                 onManageReferences: { showsFitLabReferenceSelection = true },
-                coordinator: fitLabCoordinator
+                coordinator: fitLabCoordinator,
+                threadBalance: $threadBalance,
+                onInsufficientThread: handleInsufficientThreadForFitLab
             )
         case .myPage,
              .myPageThreadCharge,
@@ -89,7 +97,11 @@ struct CoorditRootView: View {
              .myPageTerms,
              .myPageContact,
              .myPageBugReport:
-            CoorditMyPageFamilyView(route: route) { navigate(to: $0) }
+            CoorditMyPageFamilyView(
+                route: route,
+                threadBalance: $threadBalance,
+                showsThreadRechargePrompt: $showsThreadRechargePrompt
+            ) { navigate(to: $0) }
         case .closetOverview,
              .closetDetailTop,
              .closetDetailBottom,
@@ -195,6 +207,33 @@ struct CoorditRootView: View {
         return []
     }
 
+    private static func initialThreadBalance(
+        arguments: [String] = ProcessInfo.processInfo.arguments
+    ) -> Int {
+        #if DEBUG
+        if arguments.contains("--coordit-ui-testing"),
+           let markerIndex = arguments.firstIndex(of: "--coordit-thread-balance"),
+           arguments.indices.contains(arguments.index(after: markerIndex)),
+           let value = Int(arguments[arguments.index(after: markerIndex)]) {
+            return max(0, value)
+        }
+        #endif
+        return 36
+    }
+
+    private static func initialThreadRechargePrompt(
+        startRoute: CoorditFrameRoute,
+        arguments: [String] = ProcessInfo.processInfo.arguments
+    ) -> Bool {
+        #if DEBUG
+        arguments.contains("--coordit-ui-testing")
+            && arguments.contains("--coordit-thread-recharge-prompt")
+            && startRoute == .myPageThreadCharge
+        #else
+        false
+        #endif
+    }
+
     private var showsScreenChrome: Bool {
         route != .splash && route != .main01
     }
@@ -245,6 +284,11 @@ struct CoorditRootView: View {
                 authenticatedUserID: session.user.id
             )
         }
+    }
+
+    private func handleInsufficientThreadForFitLab() {
+        showsThreadRechargePrompt = true
+        navigate(to: .myPageThreadCharge)
     }
 
     #if DEBUG

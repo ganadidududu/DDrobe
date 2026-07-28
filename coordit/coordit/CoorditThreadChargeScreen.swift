@@ -4,7 +4,8 @@ import SwiftUI
 extension CoorditMyPageFamilyView {
     func threadCharge(
         metrics: CoorditResponsiveMetrics,
-        contentMetrics: CoorditResponsiveMetrics
+        contentMetrics: CoorditResponsiveMetrics,
+        threadBalance: Int
     ) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: contentMetrics.value(12)) {
@@ -17,7 +18,7 @@ extension CoorditMyPageFamilyView {
                     Text("보유 실타래")
                         .font(CoorditTypography.gmarketBold(size: contentMetrics.value(12), relativeTo: .subheadline))
                         .foregroundStyle(CoorditSettingsStyle.muted)
-                    Text("36 실타래")
+                    Text("\(threadBalance) 실타래")
                         .font(CoorditTypography.gmarketBold(size: contentMetrics.value(29), relativeTo: .title))
                         .foregroundStyle(CoorditSettingsStyle.ink)
                 }
@@ -177,6 +178,66 @@ extension CoorditMyPageFamilyView {
         .coorditPressFeedback()
         .accessibilityLabel(amount)
         .accessibilityIdentifier(identifier)
+    }
+}
+
+struct CoorditThreadRechargeRequiredPopup: View {
+    let dismiss: () -> Void
+
+    var body: some View {
+        GeometryReader { proxy in
+            let metrics = CoorditResponsiveMetrics(size: proxy.size)
+
+            ZStack {
+                Color.black.opacity(0.24)
+                    .ignoresSafeArea()
+                    .onTapGesture(perform: dismiss)
+
+                VStack(spacing: metrics.value(15)) {
+                    Image(CoorditAssetNames.yarn)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: metrics.value(70), height: metrics.value(70))
+                        .accessibilityHidden(true)
+
+                    VStack(spacing: metrics.value(7)) {
+                        Text("실타래를 충전해주세요!")
+                            .font(CoorditTypography.gmarketBold(size: metrics.value(18), relativeTo: .headline))
+                            .foregroundStyle(CoorditSettingsStyle.ink)
+                            .multilineTextAlignment(.center)
+
+                        Text("FIT LAB 분석에는 실타래 1개가 필요해요.")
+                            .font(CoorditTypography.gmarketMedium(size: metrics.value(11), relativeTo: .caption))
+                            .foregroundStyle(CoorditSettingsStyle.muted)
+                            .multilineTextAlignment(.center)
+                    }
+
+                    Button(action: dismiss) {
+                        Text("충전하러 가기")
+                            .font(CoorditTypography.gmarketBold(size: metrics.value(13), relativeTo: .headline))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: metrics.value(48))
+                            .background(CoorditSettingsStyle.ink)
+                            .clipShape(RoundedRectangle(cornerRadius: metrics.value(8), style: .continuous))
+                    }
+                    .coorditPressFeedback()
+                    .accessibilityIdentifier("coordit-thread-recharge-required-confirm")
+                }
+                .padding(.horizontal, metrics.value(20))
+                .padding(.vertical, metrics.value(22))
+                .frame(width: min(proxy.size.width - metrics.value(56), metrics.value(318)))
+                .background(CoorditSettingsStyle.panel)
+                .clipShape(RoundedRectangle(cornerRadius: metrics.value(16), style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: metrics.value(16), style: .continuous)
+                        .stroke(CoorditSettingsStyle.line, lineWidth: metrics.value(1))
+                }
+                .shadow(color: .black.opacity(0.16), radius: metrics.value(24), y: metrics.value(12))
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("coordit-thread-recharge-required-popup")
+            }
+        }
     }
 }
 #endif
