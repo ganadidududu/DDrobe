@@ -145,7 +145,7 @@ final class CoorditBackendSessionStore: ObservableObject {
         category: CoorditFitLabCategory
     ) async throws -> CoorditFitLabURLPrefillResponse {
 #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("--coordit-ui-testing") {
+        if CoorditFitLabFixtureConfiguration.launch().name != nil {
             return try await CoorditFitLabFixtureAPI().prefillProduct(
                 from: CoorditFitLabURLPrefillRequest(url: url, category: category)
             )
