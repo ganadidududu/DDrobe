@@ -7,6 +7,8 @@ import UIKit
 #if os(iOS)
 struct CoorditMyPageFamilyView: View {
     let route: CoorditFrameRoute
+    @Binding var threadBalance: Int
+    @Binding var showsThreadRechargePrompt: Bool
     let onRouteChange: (CoorditFrameRoute) -> Void
 
     @EnvironmentObject var backendSession: CoorditBackendSessionStore
@@ -85,6 +87,14 @@ struct CoorditMyPageFamilyView: View {
             }
             .accessibilityIdentifier(routeIdentifier)
         }
+        .overlay {
+            if route == .myPageThreadCharge, showsThreadRechargePrompt {
+                CoorditThreadRechargeRequiredPopup {
+                    showsThreadRechargePrompt = false
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            }
+        }
         .task {
             await backendSession.bootstrap()
             syncBackendProfile()
@@ -137,7 +147,11 @@ struct CoorditMyPageFamilyView: View {
         case .myPage:
             myPageLanding(metrics: metrics, contentMetrics: compactContentMetrics(for: metrics))
         case .myPageThreadCharge:
-            threadCharge(metrics: metrics, contentMetrics: compactContentMetrics(for: metrics))
+            threadCharge(
+                metrics: metrics,
+                contentMetrics: compactContentMetrics(for: metrics),
+                threadBalance: threadBalance
+            )
         case .myPageBody:
             bodyInfo(metrics: metrics)
         case .myPageAccount:
@@ -306,7 +320,7 @@ struct CoorditMyPageFamilyView: View {
                     Text("보유 실타래")
                         .font(CoorditTypography.gmarketMedium(size: metrics.value(10), relativeTo: .caption))
                         .foregroundStyle(CoorditSettingsStyle.muted)
-                    Text("36 실타래")
+                    Text("\(threadBalance) 실타래")
                         .font(CoorditTypography.gmarketBold(size: metrics.value(20), relativeTo: .title3))
                         .foregroundStyle(CoorditSettingsStyle.ink)
                 }

@@ -10,6 +10,8 @@ struct CoorditFitLabFamilyView: View {
     let onManageReferences: () -> Void
     @EnvironmentObject private var backendSession: CoorditBackendSessionStore
     @ObservedObject var coordinator: CoorditFitLabCoordinator
+    @Binding var threadBalance: Int
+    let onInsufficientThread: () -> Void
     @State private var inputDestination: CoorditFitLabInputDestination = .sources
     @State private var inputNavigationDirection: CoorditNavigationDirection = .forward
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -340,6 +342,7 @@ struct CoorditFitLabFamilyView: View {
                 fixtureAPIRequestLedger.joined(separator: "|"),
                 identifier: "fitlab-submission-ledger-detail"
             )
+            debugProbe("\(threadBalance)", identifier: "coordit-thread-balance-probe")
             debugProbe(ocrPayloadMetadataProbe, identifier: "fitlab-ocr-payload-metadata")
             debugProbe(ocrSizeRequestProbe, identifier: "fitlab-ocr-size-request-probe")
             debugProbe(productRequestProbe, identifier: "fitlab-product-request-probe")
@@ -468,6 +471,10 @@ struct CoorditFitLabFamilyView: View {
     private func submitAnalysis() {
         #if DEBUG
         if coordinator.fixtureName != nil {
+            guard consumeThreadIfNeededForNewSubmission() else {
+                onInsufficientThread()
+                return
+            }
             coordinator.startSubmission()
             onRouteChange(.fitLabLoading)
             return
@@ -478,12 +485,26 @@ struct CoorditFitLabFamilyView: View {
             onRouteChange(.fitLabLoading)
             return
         }
+        guard consumeThreadIfNeededForNewSubmission() else {
+            onInsufficientThread()
+            return
+        }
         let api = CoorditFitLabHTTPAPI(
             baseURL: CoorditBackendConfig.baseURL(),
             accessToken: session.accessToken
         )
         coordinator.startSubmission(using: api, authenticatedUserID: session.user.id)
         onRouteChange(.fitLabLoading)
+    }
+
+    private func consumeThreadIfNeededForNewSubmission() -> Bool {
+        guard currentRoute == .fitLabInput else { return true }
+        guard CoorditFitLabDraftValidation.submissionError(for: coordinator.draft) == nil else {
+            return true
+        }
+        guard threadBalance > 0 else { return false }
+        threadBalance -= 1
+        return true
     }
 
     @ViewBuilder
@@ -609,13 +630,16 @@ struct CoorditFitLabScreens: View {
     let currentRoute: CoorditFrameRoute
     let onRouteChange: (CoorditFrameRoute) -> Void
     @ObservedObject var coordinator: CoorditFitLabCoordinator
+    @State private var threadBalance = 36
 
     var body: some View {
         CoorditFitLabFamilyView(
             currentRoute: currentRoute,
             onRouteChange: onRouteChange,
             onManageReferences: {},
-            coordinator: coordinator
+            coordinator: coordinator,
+            threadBalance: $threadBalance,
+            onInsufficientThread: { onRouteChange(.myPageThreadCharge) }
         )
     }
 }

@@ -121,6 +121,43 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertFalse(element("fitlab-report-fallback", in: app).exists)
     }
 
+    func testFitLabSubmissionConsumesOneThread() throws {
+        let app = launchFitLab(
+            fixture: "submission-success",
+            extraArguments: ["--coordit-thread-balance", "1"]
+        )
+        XCTAssertTrue(element("fitlab-reference-selection", in: app).waitForExistence(timeout: 5))
+        XCTAssertEqual(element("coordit-thread-balance-probe", in: app).label, "1")
+
+        element("fitlab-reference-reference-fixture-hoodie", in: app).tap()
+        element("fitlab-submit-analysis", in: app).tap()
+
+        XCTAssertTrue(element("fitlab-fixture-result-upper", in: app).waitForExistence(timeout: 8))
+        XCTAssertEqual(element("coordit-thread-balance-probe", in: app).label, "0")
+        XCTAssertEqual(
+            element("fitlab-submission-ledger", in: app).label,
+            "references=1|product=1|M-attempts=1|M-success=1|L-attempts=1|L-success=1|recommend=1|report=1"
+        )
+    }
+
+    func testFitLabSubmissionWithNoThreadRoutesToChargePrompt() throws {
+        let app = launchFitLab(
+            fixture: "submission-success",
+            extraArguments: ["--coordit-thread-balance", "0"]
+        )
+        XCTAssertTrue(element("fitlab-reference-selection", in: app).waitForExistence(timeout: 5))
+        XCTAssertEqual(element("coordit-thread-balance-probe", in: app).label, "0")
+
+        element("fitlab-reference-reference-fixture-hoodie", in: app).tap()
+        element("fitlab-submit-analysis", in: app).tap()
+
+        XCTAssertTrue(element("coordit-screen-mypage-thread-charge", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(element("coordit-thread-recharge-required-popup", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["실타래를 충전해주세요!"].exists)
+        XCTAssertFalse(element("coordit-screen-fitlab-loading", in: app).exists)
+        XCTAssertFalse(element("coordit-screen-fitlab-result-top", in: app).exists)
+    }
+
     func testMissingReferenceSelectionCanOpenClosetReferenceSelector() throws {
         let app = launchFitLab(fixture: "submission-success")
 
