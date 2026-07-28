@@ -935,20 +935,29 @@ private struct CoorditClosetAddLoadingScreen: View {
     let onComplete: () -> Void
 
     var body: some View {
-        VStack(spacing: metrics.value(18)) {
-            CoorditClosetTitleBar(title: "FIT CHECK", metrics: metrics, horizontalOutset: 6, onBack: onBack)
+        GeometryReader { proxy in
+            let loadingCenterY = min(
+                max(proxy.size.height * 0.38, metrics.value(360)),
+                proxy.size.height - metrics.value(285)
+            )
 
-            Spacer(minLength: metrics.value(120))
-            CoorditOrbitLoadingIndicator(metrics: metrics)
-            Text("보유 의류를 등록하고 있어요")
-                .font(CoorditTypography.gmarketMedium(size: metrics.value(15)))
-                .foregroundStyle(Color.black.opacity(0.76))
-            Text("선택한 사이즈와 실측 정보를 옷장에 저장하고 있어요.")
-                .font(CoorditTypography.gmarketMedium(size: metrics.value(9)))
-                .foregroundStyle(CoorditClosetColors.navy.opacity(0.42))
-            Spacer(minLength: 0)
+            ZStack(alignment: .top) {
+                CoorditClosetTitleBar(title: "FIT CHECK", metrics: metrics, horizontalOutset: 6, onBack: onBack)
+                    .padding(.horizontal, metrics.value(22))
+
+                VStack(spacing: metrics.value(13)) {
+                    CoorditOrbitLoadingIndicator(metrics: metrics)
+                    Text("보유 의류를 등록하고 있어요")
+                        .font(CoorditTypography.gmarketMedium(size: metrics.value(15)))
+                        .foregroundStyle(Color.black.opacity(0.76))
+                    Text("선택한 사이즈와 실측 정보를 옷장에 저장하고 있어요.")
+                        .font(CoorditTypography.gmarketMedium(size: metrics.value(9)))
+                        .foregroundStyle(CoorditClosetColors.navy.opacity(0.42))
+                }
+                .frame(width: proxy.size.width - metrics.value(44))
+                .position(x: proxy.size.width / 2, y: loadingCenterY)
+            }
         }
-        .padding(.horizontal, metrics.value(22))
         .accessibilityIdentifier("coordit-screen-closet-add-loading")
         .task {
             try? await Task.sleep(nanoseconds: 3_000_000_000)
