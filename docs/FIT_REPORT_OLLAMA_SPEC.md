@@ -124,8 +124,8 @@ Ollama는 다음 JSON만 반환한다.
 
 작성 기준:
 
-- `summary`: 추천 사이즈, fit score, 전체 실루엣과 핵심 장단점을 4~5문장으로 작성
-- `recommendationReason`: 다른 모든 사이즈 점수와 부위별 균형을 6~9문장으로 설명
+- `summary`: 추천 사이즈, fit score, 전체 실루엣과 핵심 장단점을 최소 4문장으로 작성
+- `recommendationReason`: 다른 모든 사이즈 점수와 부위별 균형을 최소 6문장으로 설명
 - `measurementAnalysis`: 모든 입력 부위를 순서대로 작성하고 기준값, 상품값,
   signed diff와 착용 의미를 포함
 - `cautions`: 데이터로 확정할 수 없는 구매 전 확인 사항 최대 2개
