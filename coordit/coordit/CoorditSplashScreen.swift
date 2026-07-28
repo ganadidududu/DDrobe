@@ -55,6 +55,17 @@ struct CoorditSplashScreen: View {
                     onRouteChange(.main04)
                 }
                 .accessibilityIdentifier("coordit-screen-splash")
+
+                Text("화면을 클릭해주세요")
+                    .font(CoorditTypography.gmarketMedium(size: metrics.value(14), relativeTo: .caption))
+                    .foregroundStyle(Main01DesignTokens.Colors.chrome.opacity(0.62))
+                    .shadow(color: .white.opacity(0.22), radius: metrics.value(3), x: 0, y: metrics.value(1))
+                    .opacity(logoVisible ? 1 : 0)
+                    .offset(y: logoVisible ? 0 : metrics.value(8))
+                    .position(x: geometry.size.width / 2, y: geometry.size.height * 0.82)
+                    .allowsHitTesting(false)
+                    .accessibilityLabel("화면을 클릭해주세요")
+                    .accessibilityIdentifier("coordit-splash-tap-hint")
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
             .ignoresSafeArea()
