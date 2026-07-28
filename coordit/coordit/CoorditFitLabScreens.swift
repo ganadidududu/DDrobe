@@ -616,7 +616,7 @@ private struct CoorditFitLabLoadingScreen: View {
 
     var body: some View {
         VStack(spacing: metrics.value(16)) {
-            Spacer(minLength: metrics.value(158))
+            Spacer(minLength: 0)
             CoorditOrbitLoadingIndicator(metrics: metrics)
             Text("핏 리포트를 만들고 있어요")
                 .font(CoorditTypography.gmarketMedium(size: metrics.value(16), relativeTo: .body))
@@ -648,7 +648,7 @@ private struct CoorditFitLabLoadingScreen: View {
                 }
                 .padding(.horizontal, metrics.value(30))
             }
-            Spacer(minLength: 0)
+            Spacer(minLength: metrics.value(288))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
