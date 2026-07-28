@@ -2,6 +2,7 @@ import type { FitReportInput, FitReportJson } from "./fit-report.types";
 
 const forbiddenNarrativePatterns = [
   /저신뢰도|신뢰도|confidence|피드백/i,
+  /가중\s*(?:거리|오차|차이|점수|값)|가중치|weighted\s*(?:fit\s*)?distance|weightedFitDistance|정규화\s*(?:거리|오차)|내부\s*(?:계산\s*)?(?:거리|가중치|점수)/i,
   /(?:기준|참조|참고|비교)[^.!?\n]{0,20}(?:의류|옷|샘플|표본|데이터)[^.!?\n]{0,40}(?:부족|적(?:다|음|습니다|어요)?|한\s*벌(?:뿐|만)?|하나(?:뿐|만)?|소수|충분(?:하지|치)\s*않)/i,
   /(?:판단|분석|비교)\s*(?:근거|자료|데이터)[^.!?\n]{0,30}(?:부족|제한|적(?:다|음|습니다|어요)?|충분(?:하지|치)\s*않)/i
 ] as const;

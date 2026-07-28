@@ -143,11 +143,12 @@ Ollama는 다음 JSON만 반환한다.
 - 신뢰도, 피드백, 기준 샘플 부족 서술이 있으면 해당 섹션을 교체한다.
 - 누락된 부위는 모두 측정 기반 문장으로 채운다.
 
-Ollama 호출이 성공하고 일부 섹션만 보정된 경우 `source`는 `ollama`다. HTTP 호출,
-JSON 파싱 등 생성 자체가 실패한 경우 백엔드는 진단 가능한 전체 fallback 응답을
-반환하며 `source`는 `fallback`이다. iOS Fit Lab은 LLM 작성까지 완료된 리포트만
-완료 화면으로 표시하므로 `fallback`을 최종 리포트로 열지 않고 로딩·재시도 상태를
-유지한다.
+Ollama가 만든 `summary`와 `recommendationReason`이 모두 상세도·금지 문구·숫자
+검사를 통과하고, 부위나 확인 항목 일부만 보정된 경우 `source`는 `ollama`다.
+두 핵심 서술 중 하나라도 fallback으로 교체되거나 HTTP 호출·JSON 파싱이 실패하면
+백엔드는 전체 deterministic fallback과 `source: "fallback"`을 반환한다. iOS Fit
+Lab은 LLM 작성까지 완료된 리포트만 완료 화면으로 표시하므로 `fallback`을 최종
+리포트로 열지 않고 로딩·재시도 상태를 유지한다.
 
 ## 6. API 계약
 

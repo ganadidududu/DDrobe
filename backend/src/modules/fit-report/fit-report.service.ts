@@ -140,17 +140,22 @@ export const generateFitReport = async (
   const modelName = options.model ?? env.ollamaModel;
 
   try {
+    const generatedReport = await callOllama(prompt, modelName);
+    const fallbackReport = buildFallbackFitReport(reportInput);
     const report = sanitizeGeneratedReport(
-      await callOllama(prompt, modelName),
+      generatedReport,
       reportInput,
-      buildFallbackFitReport(reportInput)
+      fallbackReport
     );
+    const coreNarrativeAccepted =
+      report.summary === generatedReport.summary &&
+      report.recommendationReason === generatedReport.recommendationReason;
     return {
       fitAnalysisResultId,
-      source: "ollama",
+      source: coreNarrativeAccepted ? "ollama" : "fallback",
       modelName,
       promptVersion: FIT_REPORT_PROMPT_VERSION,
-      report,
+      report: coreNarrativeAccepted ? report : fallbackReport,
       chartData: reportInput.chartData,
       ...(options.includeDebug ? { reportInput, prompt } : {})
     };

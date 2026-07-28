@@ -16,7 +16,7 @@ export const assertSanitizerContract = (
   sanitizeGeneratedReport: SanitizeGeneratedReport
 ): void => {
   const weightedDistanceSummary =
-    `${fallbackReport.summary} 내부 계산 거리는 ${reportInput.recommendation.weightedFitDistance}입니다.`;
+    `${fallbackReport.summary} 내부 가중 거리는 ${reportInput.recommendation.fitScore}입니다.`;
   const weightedDistanceSanitized = sanitizeGeneratedReport(
     { ...fallbackReport, summary: weightedDistanceSummary },
     reportInput,

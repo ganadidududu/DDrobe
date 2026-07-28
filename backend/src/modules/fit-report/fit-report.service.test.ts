@@ -216,7 +216,7 @@ const main = async (): Promise<void> => {
     });
 
   const sanitized = await reportService.generateFitReport(userId, fitResultId);
-  assert.equal(sanitized.source, "ollama");
+  assert.equal(sanitized.source, "fallback");
   assert.equal(sanitized.report.measurementAnalysis.length, reportInput.measurements.length);
   assert.equal(JSON.stringify(sanitized.report.measurementAnalysis).includes("999"), false);
   assert.ok(sanitized.report.measurementAnalysis[0]?.text.includes(`${reportInput.measurements[0]?.ideal}cm`));
