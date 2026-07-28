@@ -6,6 +6,16 @@
 
 이 문서는 추천 엔진의 변화와 다음 개선 후보를 기록합니다. 현재 실제 동작 기준 문서는 `FIT_ENGINE.md`입니다.
 
+## v1.6 Measurement-only Recommendation
+
+현재 코드에 반영된 주요 개선입니다.
+
+- `ALGORITHM_VERSION = "mvp_rule_v1_6"`로 변경
+- fit score와 추천 사이즈는 기준 의류 실측, 상품 실측, 카테고리/핏 타입만으로 계산
+- 사용자 피드백과 기준 샘플 수는 점수·추천 사이즈·리포트 품질 평가에 반영하지 않음
+- 피드백은 구매 후 기록 및 향후 오프라인 분석용 데이터로만 유지
+- Ollama 공개 리포트 계약을 `fit_report_v5`로 변경하고 신뢰도·피드백·샘플 부족 서술을 제외
+
 ## v1.0 MVP Rule Engine
 
 핵심 특징:
@@ -81,20 +91,20 @@
 
 ## 다음 개선 후보
 
-### v1.6 Measurement Input Normalization
+### v1.7 Measurement Input Normalization
 
 - camelCase 측정값 입력 지원
 - cm/mm 단위 정규화
 - 문자열 기반 치수 파싱
 - 필수 측정값 부족 시 더 명확한 에러 메시지
 
-### v1.7 Feedback-aware Score Adjustment
+### v1.8 Feedback-aware Score Adjustment
 
 - 사용자별 confidence calibration
 - 피드백 부족 사용자에 대한 cohort fallback
 - 충분한 검증 fixture 확보 후 score 자체의 보정 여부 판단
 
-### v1.8 Product Parsing Confidence Expansion
+### v1.9 Product Parsing Confidence Expansion
 
 - OCR/URL 파싱 원본 수집과 사용자 확인 workflow 강화
 - `measurement_source`별 품질 감사 리포트

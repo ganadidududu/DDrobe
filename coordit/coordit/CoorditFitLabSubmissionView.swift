@@ -51,6 +51,37 @@ struct CoorditFitLabSubmissionView: View {
                 .foregroundStyle(Color.black.opacity(0.66))
                 .fixedSize(horizontal: false, vertical: true)
 
+            HStack(alignment: .top, spacing: metrics.value(10)) {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .font(.system(size: metrics.value(17), weight: .semibold))
+                    .foregroundStyle(CoorditFitLabPalette.noticeAccent)
+                    .padding(.top, metrics.value(1))
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: metrics.value(5)) {
+                    Text("같은 종류·길이의 기준 옷을 골라 주세요")
+                        .font(CoorditTypography.gmarketBold(size: metrics.value(13), relativeTo: .headline))
+                        .foregroundStyle(.white)
+                    Text("사이즈표 실측끼리 비교하므로, 구조가 비슷해야 정확해요.")
+                        .font(CoorditTypography.gmarketMedium(size: metrics.value(11), relativeTo: .caption))
+                        .foregroundStyle(Color.white.opacity(0.86))
+                        .lineSpacing(metrics.value(2))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("반팔↔반팔 · 긴팔↔긴팔 · 아우터↔아우터\n반바지↔반바지 · 긴바지↔긴바지")
+                        .font(CoorditTypography.gmarketBold(size: metrics.value(10.5), relativeTo: .caption))
+                        .foregroundStyle(CoorditFitLabPalette.noticeAccent)
+                        .lineSpacing(metrics.value(3))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.horizontal, metrics.value(13))
+            .padding(.vertical, metrics.value(12))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(CoorditFitLabPalette.ink)
+            .clipShape(RoundedRectangle(cornerRadius: metrics.value(8), style: .continuous))
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("fitlab-similar-reference-notice")
+
             if coordinator.submissionStep == .loadingReferences, coordinator.loadState == .loading {
                 ProgressView("기준 옷을 불러오는 중")
                     .tint(CoorditFitLabPalette.ink)
@@ -180,20 +211,20 @@ struct CoorditFitLabSubmissionView: View {
                     report: coordinator.report,
                     metrics: metrics
                 )
-                HStack(alignment: .top, spacing: metrics.value(9)) {
-                    VStack(spacing: metrics.value(7)) {
-                        CoorditFitLabMannequinPanel(
-                            assetName: variant.assetName,
-                            metrics: metrics,
-                            measurements: scoreCard.measurements
-                        )
-                        .frame(height: metrics.value(218))
-                        CoorditFitLabOverlayLegend(metrics: metrics)
-                    }
-                    .frame(width: metrics.value(132))
-                    scoreCard
-                }
-                CoorditFitLabMeasurementRows(measurements: scoreCard.measurements, metrics: metrics)
+                scoreCard
+                CoorditFitLabMannequinPanel(
+                    assetName: variant.assetName,
+                    metrics: metrics,
+                    measurements: scoreCard.measurements
+                )
+                .frame(height: metrics.value(270))
+                CoorditFitLabOverlayLegend(metrics: metrics)
+                CoorditFitLabSizeScoreChart(
+                    report: coordinator.report,
+                    recommendation: recommendation,
+                    metrics: metrics
+                )
+                CoorditFitLabDifferenceChart(measurements: scoreCard.measurements, metrics: metrics)
                 CoorditFitLabReportCard(
                     report: coordinator.report,
                     fallbackMessage: coordinator.reportNeedsRetry ? "상세 리포트를 불러오지 못해 기본 설명을 표시해요." : nil,

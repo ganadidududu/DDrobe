@@ -64,7 +64,7 @@ enum CoorditFitLabHistoryFixtureResetRegistry {
 
 #if DEBUG
 enum CoorditFitLabContractProbe {
-    static let expectedStatus = "CONTRACT_OK url-request url-body size-keys reference product size recommendation-parts result report adversarial"
+    static let expectedStatus = "CONTRACT_OK url-request url-body size-keys reference product size recommendation-parts result report report-timeout adversarial"
 
     static let status: String = {
         do {
@@ -148,6 +148,15 @@ enum CoorditFitLabContractProbe {
                 decoded.chartData.idealVsProduct.count == 1,
                 decoded.chartData.idealVsProduct.first?.measurement == .shoulderWidth
             else { return "CONTRACT_ERROR adversarial" }
+
+            let reportRequest = try api.makeRequest(
+                path: "/fit-analysis-results/analysis-1/report",
+                method: "POST",
+                body: CoorditFitLabReportRequest(selectedSizeLabel: "M", style: "detailed")
+            )
+            guard reportRequest.timeoutInterval >= 180 else {
+                return "CONTRACT_ERROR report-timeout \(reportRequest.timeoutInterval)"
+            }
             return expectedStatus
         } catch {
             return "CONTRACT_ERROR \(String(describing: error))"
@@ -291,6 +300,16 @@ final class CoorditFitLabFixtureAPI: CoorditFitLabAPI {
         requestLedger.append("report:\(analysisID)")
         if fixtureName == "submission-report-failure", reportAttempts == 1 {
             throw CoorditFitLabError.server(statusCode: 503, message: "리포트 생성 지연")
+        }
+        if fixtureName == "submission-report-fallback", reportAttempts == 1 {
+            let completed = CoorditFitLabFixtures.report
+            return CoorditFitLabReportResponse(
+                fitAnalysisResultID: completed.fitAnalysisResultID,
+                source: "fallback",
+                modelName: nil,
+                report: completed.report,
+                chartData: completed.chartData
+            )
         }
         if fixtureName == "submission-report-race" {
             if reportAttempts == 1 {
@@ -495,12 +514,14 @@ enum CoorditFitLabFixtures {
         source: "ollama",
         modelName: "fixture-llm",
         report: .init(
-            title: "상의 핏 리포트",
-            summary: "기준 옷과 비슷한 실루엣이며 가슴은 조금 타이트해요.",
-            recommendationReason: "어깨와 총장 균형을 기준으로 M 사이즈를 추천해요.",
+            title: "M 사이즈 정밀 핏 리포트",
+            summary: "M 사이즈는 92점으로 전체 후보 중 가장 안정적인 균형을 보여요. 어깨에는 자연스러운 여유가 있고 총장은 기준과 같아 전체 실루엣이 익숙하게 떨어집니다. 가슴과 소매는 기준보다 조금 작아 상체 라인은 상대적으로 정돈되어 보일 수 있어요.",
+            recommendationReason: "S 사이즈는 가슴과 소매의 타이트함이 더 커질 수 있고, L 사이즈는 어깨와 몸통의 여유가 함께 증가합니다. M 사이즈는 어깨 1cm 여유와 동일한 총장을 유지하면서 가슴 차이를 1.5cm 안쪽으로 제한합니다. 폭과 길이 중 어느 한쪽으로 치우치지 않고 기준 의류의 실루엣에 가장 가깝게 접근한 후보이기 때문에 M을 추천해요.",
             measurementAnalysis: [
-                .init(measurement: "어깨", text: "베스트보다 1 cm 여유 있어요."),
-                .init(measurement: "가슴", text: "베스트보다 1.5 cm 타이트해요."),
+                .init(measurement: "어깨", text: "기준 53cm와 상품 54cm를 비교하면 1cm 여유가 있습니다. 어깨선이 지나치게 내려가지 않으면서 움직임에 필요한 공간을 확보하는 정도예요. 정사이즈 실루엣을 유지하면서 상체가 답답해 보이지 않는 차이입니다."),
+                .init(measurement: "가슴", text: "기준 58cm보다 상품이 1.5cm 작습니다. 몸통이 기준 의류보다 조금 더 정돈되어 보이고, 두꺼운 이너를 입으면 가슴 부위가 타이트하게 느껴질 수 있어요. 단독 착용에서는 슬림한 상체 실루엣을 만드는 방향입니다."),
+                .init(measurement: "총장", text: "기준과 상품이 모두 68cm로 동일합니다. 평소 익숙한 상의 길이와 밑단 위치를 그대로 기대할 수 있어요."),
+                .init(measurement: "소매", text: "상품 소매는 기준보다 0.5cm 짧습니다. 손목에 닿는 위치가 아주 조금 올라가지만 전체 비율을 바꿀 정도의 차이는 아닙니다."),
             ],
             cautions: ["세탁 후 수축 가능성을 확인해 주세요."],
             nextActions: ["M 사이즈의 실측표를 한 번 더 확인해 주세요."]
@@ -510,7 +531,12 @@ enum CoorditFitLabFixtures {
                 .init(measurement: .shoulderWidth, label: "어깨", ideal: 53, product: 54, diff: 1, status: "loose"),
                 .init(measurement: .chestWidth, label: "가슴", ideal: 58, product: 56.5, diff: -1.5, status: "tight"),
                 .init(measurement: .totalLength, label: "총장", ideal: 68, product: 68, diff: 0, status: "similar"),
-                .init(measurement: .sleeveLength, label: "소매", ideal: 61, product: 60.5, diff: -0.5, status: "tight"),
+                .init(measurement: .sleeveLength, label: "소매", ideal: 61, product: 60.5, diff: -0.5, status: "similar"),
+            ],
+            sizeScoreRanking: [
+                .init(sizeLabel: "S", fitScore: 76, fitLabel: "acceptable", weightedFitDistance: 2.8, recommendationConfidence: "high"),
+                .init(sizeLabel: "M", fitScore: 92, fitLabel: "good_fit", weightedFitDistance: 0.8, recommendationConfidence: "high"),
+                .init(sizeLabel: "L", fitScore: 81, fitLabel: "good_fit", weightedFitDistance: 2.1, recommendationConfidence: "high"),
             ]
         )
     )
@@ -520,9 +546,16 @@ enum CoorditFitLabFixtures {
         source: "ollama",
         modelName: "fixture-llm",
         report: .init(
-            title: "하의 핏 리포트",
-            summary: "허리와 총장은 여유 있고 힙은 기준과 비슷해요.",
-            recommendationReason: "허리와 힙 균형을 기준으로 L 사이즈를 추천해요.",
+            title: "L 사이즈 정밀 핏 리포트",
+            summary: "L 사이즈는 88점으로 허리와 총장에 편안한 여유를 확보하면서 힙은 기준 의류와 같은 균형을 유지합니다. 밑위는 기준보다 1cm 짧아 허리선의 위치가 조금 더 낮게 느껴질 수 있어요. 전체적으로 과하게 넓지 않으면서 다리 길이를 여유 있게 가져가는 실루엣입니다.",
+            recommendationReason: "M 사이즈는 허리와 힙의 여유가 줄어들어 앉거나 움직일 때 더 타이트하게 느껴질 수 있습니다. XL은 허리와 총장의 여유가 함께 커져 기준 의류보다 루즈한 인상이 강해질 수 있어요. L은 힙 50cm를 그대로 유지하면서 허리 1cm, 총장 2cm의 여유를 더해 폭과 길이의 균형이 가장 안정적입니다. 따라서 익숙한 힙 실루엣을 보존하면서 활동성과 길이를 확보하는 L 사이즈를 추천해요.",
+            measurementAnalysis: [
+                .init(measurement: "허리", text: "기준 39cm보다 상품이 1cm 큽니다. 허리를 강하게 조이지 않으면서도 밴드나 벨트로 조절하기 쉬운 정도의 여유예요."),
+                .init(measurement: "힙", text: "기준과 상품이 모두 50cm로 동일합니다. 골반과 힙 주변의 볼륨은 평소 잘 맞는 하의와 가장 비슷하게 유지될 가능성이 높아요."),
+                .init(measurement: "밑위", text: "상품 밑위는 기준보다 1cm 짧습니다. 허리선이 조금 낮게 자리하고 앉았을 때 복부를 감싸는 범위가 줄어들 수 있어요."),
+                .init(measurement: "총장", text: "상품 총장은 기준보다 2cm 깁니다. 신발 위로 떨어지는 길이가 늘어나 다리선이 길어 보일 수 있지만 밑단이 쌓이는지는 확인하는 편이 좋아요."),
+            ],
+            cautions: ["원단의 신축성과 허리 여밈 방식을 함께 확인해 주세요."],
             nextActions: ["밑위 착용감을 확인해 주세요."]
         ),
         chartData: .init(
@@ -531,6 +564,11 @@ enum CoorditFitLabFixtures {
                 .init(measurement: .hipWidth, label: "힙", ideal: 50, product: 50, diff: 0, status: "similar"),
                 .init(measurement: .rise, label: "밑위", ideal: 30, product: 29, diff: -1, status: "tight"),
                 .init(measurement: .outseam, label: "총장", ideal: 100, product: 102, diff: 2, status: "loose"),
+            ],
+            sizeScoreRanking: [
+                .init(sizeLabel: "M", fitScore: 72, fitLabel: "acceptable", weightedFitDistance: 3.1, recommendationConfidence: "high"),
+                .init(sizeLabel: "L", fitScore: 88, fitLabel: "good_fit", weightedFitDistance: 1.1, recommendationConfidence: "high"),
+                .init(sizeLabel: "XL", fitScore: 79, fitLabel: "acceptable", weightedFitDistance: 2.4, recommendationConfidence: "high"),
             ]
         )
     )

@@ -4,18 +4,18 @@ import SwiftUI
 struct CoorditRootView: View {
     @State private var route: CoorditFrameRoute
     @State private var navigationDirection: CoorditNavigationDirection = .forward
-    @State private var closetItems = CoorditClosetItem.seedItems
+    @State private var closetItems: [CoorditClosetItem]
     @State private var selectedClosetItemID: String?
     @State private var closetDraft = CoorditClosetDraft()
     @State private var selectedReferenceIDs: Set<String> = []
     @State private var showsFitLabReferenceSelection = false
-    @State private var showsFitLabBusyAlert = false
     @EnvironmentObject private var backendSession: CoorditBackendSessionStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var fitLabCoordinator: CoorditFitLabCoordinator
 
     init(startRoute: CoorditFrameRoute = .testingLaunchRoute()) {
         _route = State(initialValue: startRoute)
+        _closetItems = State(initialValue: Self.initialClosetItems())
         _fitLabCoordinator = StateObject(
             wrappedValue: CoorditFitLabCoordinator.makeAppScoped(route: startRoute)
         )
@@ -128,11 +128,6 @@ struct CoorditRootView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .buttonStyle(CoorditPressFeedbackButtonStyle())
-        .alert("핏 리포트를 만들고 있어요", isPresented: $showsFitLabBusyAlert) {
-            Button("확인", role: .cancel) {}
-        } message: {
-            Text("리포트 완성 후 새 옷을 분석해 주세요.")
-        }
         .task(id: backendSession.session?.user.id) {
             guard let snapshot = await backendSession.loadClosetSnapshot(preserving: closetItems) else { return }
             closetItems = snapshot.items
@@ -172,21 +167,32 @@ struct CoorditRootView: View {
     }
 
     private func navigate(to nextRoute: CoorditFrameRoute) {
-        if nextRoute == .fitLabInput, fitLabCoordinator.isAnalysisRunning {
-            showsFitLabBusyAlert = true
-            return
-        }
-        guard nextRoute != route else { return }
-        if nextRoute.navigationSection == route.navigationSection {
-            navigationDirection = nextRoute.navigationDepth >= route.navigationDepth ? .forward : .backward
-        } else if nextRoute.navigationSection == 0 {
+        let destination = nextRoute == .fitLabInput && fitLabCoordinator.isAnalysisRunning
+            ? CoorditFrameRoute.fitLabLoading
+            : nextRoute
+        guard destination != route else { return }
+        if destination.navigationSection == route.navigationSection {
+            navigationDirection = destination.navigationDepth >= route.navigationDepth ? .forward : .backward
+        } else if destination.navigationSection == 0 {
             navigationDirection = .backward
         } else {
             navigationDirection = .forward
         }
         withAnimation(.easeOut(duration: reduceMotion ? 0.14 : 0.22)) {
-            route = nextRoute
+            route = destination
         }
+    }
+
+    private static func initialClosetItems(
+        arguments: [String] = ProcessInfo.processInfo.arguments
+    ) -> [CoorditClosetItem] {
+        #if DEBUG
+        if arguments.contains("--coordit-ui-testing"),
+           !arguments.contains("--coordit-empty-closet") {
+            return CoorditClosetItem.seedItems
+        }
+        #endif
+        return []
     }
 
     private var showsScreenChrome: Bool {

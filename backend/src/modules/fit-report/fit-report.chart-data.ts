@@ -1,6 +1,6 @@
 import type { ExternalProductSizeRow, FitAnalysisResultRow, MeasurementMap } from "../../shared/types/database";
 import { measurementKeys } from "../../shared/utils/measurements";
-import { MEASUREMENT_LABELS } from "../fit/fit.constants";
+import { MEASUREMENT_BASE_TOLERANCES, MEASUREMENT_LABELS } from "../fit/fit.constants";
 import type { FitLabel, RecommendationConfidence } from "../fit/fit.types";
 import { asNumber, round, type ResultDetails } from "./fit-report.result-details";
 import type { FitReportChartData, MeasurementReportRow, SizeScoreReportRow } from "./fit-report.types";
@@ -110,10 +110,17 @@ const getDirection = (diff: number): "larger" | "smaller" | "same" => {
   return "same";
 };
 
-const getPartStatus = (diff: number): string => {
+const getPartStatus = (
+  key: keyof typeof MEASUREMENT_BASE_TOLERANCES,
+  diff: number,
+  learnedTolerance: number | null
+): string => {
   const absDiff = Math.abs(diff);
-  if (absDiff <= 1) return "good";
-  if (absDiff <= 3) return diff > 0 ? "loose" : "tight";
+  const similarLimit = learnedTolerance && learnedTolerance > 0
+    ? learnedTolerance
+    : MEASUREMENT_BASE_TOLERANCES[key];
+  if (absDiff <= similarLimit) return "good";
+  if (absDiff <= similarLimit * 2) return diff > 0 ? "loose" : "tight";
   return diff > 0 ? "too_loose" : "too_tight";
 };
 
@@ -151,6 +158,7 @@ export const buildMeasurementRows = (
     const product = productMeasurements[key];
     if (!isNumber(ideal) || !isNumber(product)) return [];
     const diff = round(product - ideal, 2);
+    const tolerance = asNumber(details.referenceProfile?.tolerances?.[key]);
     return [{
       key,
       label: MEASUREMENT_LABELS[key],
@@ -159,8 +167,8 @@ export const buildMeasurementRows = (
       diff,
       unit: "cm" as const,
       weight: asNumber(details.dynamicWeights?.[key]),
-      tolerance: asNumber(details.referenceProfile?.tolerances?.[key]),
-      status: getPartStatus(diff)
+      tolerance,
+      status: getPartStatus(key, diff, tolerance)
     }];
   });
 

@@ -2,6 +2,7 @@ import {
   ALGORITHM_VERSION,
   BOTTOM_CATEGORIES,
   BOTTOM_WEIGHTS,
+  MEASUREMENT_BASE_TOLERANCES,
   MEASUREMENT_LABELS,
   TOP_WEIGHTS
 } from "./fit.constants";
@@ -31,17 +32,6 @@ const round = (value: number, digits = 2): number => Number(value.toFixed(digits
 
 const PROFILE_SCORE_PENALTY_PER_TOLERANCE = 30;
 const HUBER_OUTLIER_THRESHOLD = 1.5;
-
-const PROFILE_MIN_TOLERANCES: Record<MeasurementKey, number> = {
-  shoulder_width: 0.5,
-  chest_width: 0.75,
-  total_length: 1,
-  sleeve_length: 0.75,
-  waist_width: 0.5,
-  hip_width: 0.75,
-  rise: 0.5,
-  outseam: 1
-};
 
 const PROFILE_MAX_TOLERANCES: Record<MeasurementKey, number> = {
   shoulder_width: 3,
@@ -210,7 +200,7 @@ export const calculateReferenceFitProfile = (
 
     const center = calculateWeightedMedian(values);
     const robustScale = round(calculateWeightedMad(values, center) * 1.4826, 3);
-    const toleranceFloor = PROFILE_MIN_TOLERANCES[key];
+    const toleranceFloor = MEASUREMENT_BASE_TOLERANCES[key];
     const tolerance = round(
       clamp(robustScale, toleranceFloor, PROFILE_MAX_TOLERANCES[key]),
       3
@@ -727,31 +717,28 @@ export const recommendBestSizeWithReferences = (
   const { dynamicWeights, referenceVariance } =
     calculateDynamicWeightsByReferenceVariance(baseWeights, referenceClothing);
   const referenceProfile = calculateReferenceFitProfile(referenceClothing, dynamicWeights);
-  const adjustedProfile = applyFeedbackOffsetsToProfile(referenceProfile, feedbackProfile);
-  const adjustedWeights = applyFeedbackWeightMultipliers(dynamicWeights, feedbackProfile);
-  const hasFeedbackAdjustment = isFeedbackProfileApplied(feedbackProfile);
 
   const allSizeScores = externalProductSizes
-    .map((size) => calculateFitScoreForReferenceProfile(adjustedProfile, size, category, adjustedWeights))
+    .map((size) => calculateFitScoreForReferenceProfile(referenceProfile, size, category, dynamicWeights))
     .sort((a, b) => b.finalFitScore - a.finalFitScore);
-  const measurementKeys = getMeasurementKeysFromWeights(adjustedWeights);
+  const measurementKeys = getMeasurementKeysFromWeights(dynamicWeights);
   const rankedScores = completeRankedScores(
     allSizeScores,
     measurementKeys,
-    adjustedProfile.sampleCounts,
-    feedbackProfile,
-    adjustedWeights,
-    adjustedProfile.tolerances
+    referenceProfile.sampleCounts,
+    undefined,
+    dynamicWeights,
+    referenceProfile.tolerances
   );
 
   return {
     recommended: rankedScores[0],
     allSizeScores: rankedScores,
     baseWeights,
-    dynamicWeights: adjustedWeights,
+    dynamicWeights,
     referenceVariance,
-    weightingStrategy: hasFeedbackAdjustment ? "feedback_adjusted_profile_v1" : "reference_profile_v1",
-    referenceProfile: adjustedProfile,
+    weightingStrategy: "reference_profile_v1",
+    referenceProfile,
     feedbackProfile
   };
 };

@@ -91,7 +91,7 @@ final class CoorditFitLabUITests: XCTestCase {
         )
         XCTAssertTrue(element("fitlab-add-history", in: app).waitForExistence(timeout: 5))
         element("fitlab-add-history", in: app).tap()
-        XCTAssertTrue(element("fitlab-history-saved-confirmation", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(element("fitlab-input", in: app).waitForExistence(timeout: 5))
         app.terminate()
 
         app = launchFitLab(
@@ -110,14 +110,14 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertTrue(element("fitlab-reference-selection", in: app).waitForExistence(timeout: 5))
         XCTAssertEqual(
             element("fitlab-dto-contract-status", in: app).label,
-            "CONTRACT_OK url-request url-body size-keys reference product size recommendation-parts result report adversarial"
+            "CONTRACT_OK url-request url-body size-keys reference product size recommendation-parts result report report-timeout adversarial"
         )
         element("fitlab-reference-reference-fixture-hoodie", in: app).tap()
         element("fitlab-submit-analysis", in: app).tap()
         XCTAssertTrue(element("fitlab-fixture-result-upper", in: app).waitForExistence(timeout: 8))
         let report = element("fitlab-report-description", in: app)
         XCTAssertTrue(report.waitForExistence(timeout: 3))
-        XCTAssertTrue(report.label.contains("기준 옷과 비슷한 실루엣이며 가슴은 조금 타이트해요."))
+        XCTAssertTrue(report.label.contains("M 사이즈는 92점으로 전체 후보 중 가장 안정적인 균형을 보여요."))
         XCTAssertFalse(element("fitlab-report-fallback", in: app).exists)
     }
 
@@ -162,6 +162,21 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertTrue(element("fitlab-loading-error", in: app).waitForExistence(timeout: 8))
         XCTAssertTrue(app.buttons["fitlab-loading-retry"].isHittable)
         XCTAssertFalse(element("coordit-screen-fitlab-result-top", in: app).exists)
+    }
+
+    func testFallbackReportStaysOnLoadingUntilOllamaReportIsReady() throws {
+        let app = launchFitLab(fixture: "submission-report-fallback")
+        XCTAssertTrue(element("fitlab-reference-selection", in: app).waitForExistence(timeout: 5))
+        element("fitlab-reference-reference-fixture-hoodie", in: app).tap()
+        element("fitlab-submit-analysis", in: app).tap()
+
+        XCTAssertTrue(element("coordit-screen-fitlab-loading", in: app).waitForExistence(timeout: 8))
+        XCTAssertTrue(element("fitlab-loading-error", in: app).waitForExistence(timeout: 8))
+        XCTAssertFalse(element("coordit-screen-fitlab-result-top", in: app).exists)
+
+        element("fitlab-loading-retry", in: app).tap()
+        XCTAssertTrue(element("fitlab-fixture-result-upper", in: app).waitForExistence(timeout: 8))
+        XCTAssertFalse(element("fitlab-report-fallback", in: app).exists)
     }
 
     func testF2AsyncSessionAndMigrationIsolation() throws {
@@ -407,8 +422,7 @@ final class CoorditFitLabUITests: XCTestCase {
         )
         XCTAssertTrue(element("fitlab-add-history", in: app).waitForExistence(timeout: 5))
         element("fitlab-add-history", in: app).tap()
-        XCTAssertTrue(element("fitlab-history-saved-confirmation", in: app).waitForExistence(timeout: 5))
-        app.buttons["FIT LAB 뒤로가기"].tap()
+        XCTAssertTrue(element("fitlab-input", in: app).waitForExistence(timeout: 5))
         XCTAssertTrue(element("fitlab-history-card-analysis-fixture-upper", in: app).waitForExistence(timeout: 5))
         XCTAssertEqual(element("fitlab-history-count", in: app).label, "1")
         capture("task-8-history-saved-list", app: app)
@@ -493,6 +507,21 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertEqual(element("fitlab-total-score", in: upper).label, "92")
         XCTAssertTrue(element("fitlab-mannequin-upper", in: upper).exists)
         XCTAssertFalse(element("fitlab-mannequin-lower", in: upper).exists)
+        XCTAssertTrue(element("fitlab-overlay-shoulder_width", in: upper).label.contains("여유"))
+        XCTAssertTrue(element("fitlab-overlay-chest_width", in: upper).label.contains("타이트"))
+        for _ in 0..<3 { upper.swipeDown() }
+        settleRendering()
+        capture("result-upper-overview", app: upper)
+        XCTAssertEqual(scrollIntoView("fitlab-size-score-M", in: upper).label, "M 사이즈 92점, 추천")
+        upper.swipeUp()
+        settleRendering()
+        capture("result-upper-comparison", app: upper)
+        upper.swipeUp()
+        settleRendering()
+        capture("result-upper-analysis", app: upper)
+        upper.swipeDown()
+        upper.swipeDown()
+        _ = scrollIntoView("fitlab-difference-chart", in: upper)
         XCTAssertEqual(
             element("fitlab-measurement-shoulder_width", in: upper).value as? String,
             "베스트 53 cm | 상품 54 cm | 차이 +1 cm | 여유"
@@ -507,12 +536,13 @@ final class CoorditFitLabUITests: XCTestCase {
         )
         XCTAssertEqual(
             element("fitlab-measurement-sleeve_length", in: upper).value as? String,
-            "베스트 61 cm | 상품 60.5 cm | 차이 -0.5 cm | 타이트"
+            "베스트 61 cm | 상품 60.5 cm | 차이 -0.5 cm | 비슷"
+        )
+        XCTAssertEqual(
+            element("fitlab-difference-bar-sleeve_length", in: upper).value as? String,
+            "negative"
         )
         XCTAssertFalse(element("fitlab-measurement-waist_width", in: upper).exists)
-        XCTAssertTrue(element("fitlab-overlay-shoulder_width", in: upper).label.contains("여유"))
-        XCTAssertTrue(element("fitlab-overlay-chest_width", in: upper).label.contains("타이트"))
-        capture("result-upper", app: upper)
         upper.terminate()
 
         let lower = launchFitLab(route: "fitlab-result-bottom", fixture: "lower-result")
@@ -520,6 +550,26 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertEqual(element("fitlab-total-score", in: lower).label, "88")
         XCTAssertTrue(element("fitlab-mannequin-lower", in: lower).exists)
         XCTAssertFalse(element("fitlab-mannequin-upper", in: lower).exists)
+        XCTAssertTrue(element("fitlab-overlay-waist_width", in: lower).label.contains("여유"))
+        XCTAssertTrue(element("fitlab-overlay-rise", in: lower).label.contains("타이트"))
+        _ = scrollIntoView("fitlab-difference-bar-outseam", in: lower)
+        XCTAssertEqual(
+            element("fitlab-difference-bar-outseam", in: lower).value as? String,
+            "positive"
+        )
+        for _ in 0..<3 { lower.swipeDown() }
+        settleRendering()
+        capture("result-lower-overview", app: lower)
+        XCTAssertEqual(scrollIntoView("fitlab-size-score-L", in: lower).label, "L 사이즈 88점, 추천")
+        lower.swipeUp()
+        settleRendering()
+        capture("result-lower-comparison", app: lower)
+        lower.swipeUp()
+        settleRendering()
+        capture("result-lower-analysis", app: lower)
+        lower.swipeDown()
+        lower.swipeDown()
+        _ = scrollIntoView("fitlab-difference-chart", in: lower)
         XCTAssertEqual(
             element("fitlab-measurement-waist_width", in: lower).value as? String,
             "베스트 39 cm | 상품 40 cm | 차이 +1 cm | 여유"
@@ -537,13 +587,11 @@ final class CoorditFitLabUITests: XCTestCase {
             "베스트 100 cm | 상품 102 cm | 차이 +2 cm | 여유"
         )
         XCTAssertFalse(element("fitlab-measurement-shoulder_width", in: lower).exists)
-        XCTAssertTrue(element("fitlab-overlay-waist_width", in: lower).label.contains("여유"))
-        XCTAssertTrue(element("fitlab-overlay-rise", in: lower).label.contains("타이트"))
-        capture("result-lower", app: lower)
     }
 
     func testLongDescriptionAndMissingMeasurementsRemainReachable() throws {
         let app = launchFitLab(route: "fitlab-result-top", fixture: "long-report")
+        _ = scrollIntoView("fitlab-difference-chart", in: app)
         XCTAssertEqual(
             element("fitlab-measurement-sleeve_length", in: app).value as? String,
             "비교 데이터 없음"
@@ -577,7 +625,7 @@ final class CoorditFitLabUITests: XCTestCase {
             XCTAssertEqual(state.label, expectedValue)
             XCTAssertEqual(
                 element("fitlab-dto-contract-status", in: app).label,
-                "CONTRACT_OK url-request url-body size-keys reference product size recommendation-parts result report adversarial"
+                "CONTRACT_OK url-request url-body size-keys reference product size recommendation-parts result report report-timeout adversarial"
             )
             app.terminate()
         }
@@ -587,7 +635,7 @@ final class CoorditFitLabUITests: XCTestCase {
             XCTAssertTrue(element("fitlab-history-detail", in: app).waitForExistence(timeout: 5))
             XCTAssertEqual(
                 element("fitlab-dto-contract-status", in: app).label,
-                "CONTRACT_OK url-request url-body size-keys reference product size recommendation-parts result report adversarial"
+                "CONTRACT_OK url-request url-body size-keys reference product size recommendation-parts result report report-timeout adversarial"
             )
             app.terminate()
         }
@@ -619,6 +667,7 @@ final class CoorditFitLabUITests: XCTestCase {
 
         XCTAssertTrue(element("fitlab-reference-selection", in: app).waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["비교할 기준 옷을 선택해 주세요"].exists)
+        XCTAssertTrue(element("fitlab-similar-reference-notice", in: app).exists)
         XCTAssertFalse(element("fitlab-submit-analysis", in: app).isEnabled)
         capture("task-6-reference-selection", app: app)
 
@@ -1298,6 +1347,12 @@ final class CoorditFitLabUITests: XCTestCase {
         screenshot.name = name
         screenshot.lifetime = .keepAlways
         add(screenshot)
+    }
+
+    private func settleRendering() {
+        let settled = expectation(description: "rendering settled")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { settled.fulfill() }
+        wait(for: [settled], timeout: 2)
     }
 
     private enum ScrollDirection {

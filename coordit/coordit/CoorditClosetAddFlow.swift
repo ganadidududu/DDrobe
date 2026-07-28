@@ -166,10 +166,9 @@ extension CoorditClosetFamilyView {
         onRouteChange(.closetAddLoading)
 
         Task { @MainActor in
-            guard let saved = await backendSession.saveReferenceClothing(from: submittedDraft) else { return }
+            guard let saved = await backendSession.saveClothing(from: submittedDraft) else { return }
             guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
             items[index].backendClothingItemId = saved.clothingItemId
-            items[index].backendReferenceClothingId = saved.referenceClothingId
             items[index].sizeChart = saved.sizeChart
         }
     }

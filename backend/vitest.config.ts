@@ -7,6 +7,9 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["src/modules/product-import/tests/**/*.test.ts"]
+    include: [
+      "src/modules/product-import/tests/**/*.test.ts",
+      "src/middleware/**/*.test.ts"
+    ]
   }
 });
