@@ -192,9 +192,53 @@ const feedbackRecommendation = recommendBestSizeWithReferences(
   "pants",
   feedbackProfile
 );
-assert.equal(feedbackRecommendation.recommended.sizeLabel, "Feedback fit");
-assert.equal(feedbackRecommendation.weightingStrategy, "feedback_adjusted_profile_v1");
+const feedbackFreeRecommendation = recommendBestSizeWithReferences(
+  bottomReferences,
+  [
+    {
+      id: "size-original",
+      sizeLabel: "Original",
+      fitType: "regular",
+      measurements: profile.measurements
+    },
+    {
+      id: "size-feedback-fit",
+      sizeLabel: "Feedback fit",
+      fitType: "regular",
+      measurements: feedbackAdjustedProfile.measurements
+    }
+  ],
+  "pants"
+);
+assert.equal(
+  feedbackRecommendation.recommended.sizeLabel,
+  feedbackFreeRecommendation.recommended.sizeLabel,
+  "Given identical size charts, feedback availability must not change the recommended size"
+);
+assert.deepEqual(
+  feedbackRecommendation.allSizeScores.map(({ sizeLabel, finalFitScore }) => ({ sizeLabel, finalFitScore })),
+  feedbackFreeRecommendation.allSizeScores.map(({ sizeLabel, finalFitScore }) => ({ sizeLabel, finalFitScore })),
+  "Given identical size charts, feedback availability must not change Fit Scores"
+);
+assert.equal(feedbackRecommendation.recommended.sizeLabel, "Original");
+assert.equal(feedbackRecommendation.weightingStrategy, "reference_profile_v1");
 assert.equal(feedbackRecommendation.feedbackProfile?.sampleCount, 2);
+
+const oneReferenceRecommendation = recommendBestSizeWithReferences(
+  [bottomReferences[0]],
+  externalSizes,
+  "pants"
+);
+const duplicatedReferenceRecommendation = recommendBestSizeWithReferences(
+  [bottomReferences[0], { ...bottomReferences[0], id: "pants-ref-a-duplicate" }],
+  externalSizes,
+  "pants"
+);
+assert.deepEqual(
+  oneReferenceRecommendation.allSizeScores.map(({ sizeLabel, finalFitScore }) => ({ sizeLabel, finalFitScore })),
+  duplicatedReferenceRecommendation.allSizeScores.map(({ sizeLabel, finalFitScore }) => ({ sizeLabel, finalFitScore })),
+  "Duplicating the same reference must not change Fit Scores"
+);
 
 const qualityReference: ReferenceClothingInput[] = [
   {

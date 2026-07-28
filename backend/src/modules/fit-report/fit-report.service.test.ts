@@ -47,13 +47,36 @@ const main = async (): Promise<void> => {
   assert.ok(reportInput.explanation.confidenceReasons.some((reason) => reason.code === "missing_measurements"));
 
   const prompt = promptModule.buildFitReportPrompt(reportInput);
+  const narrativeInputStart = prompt.indexOf('{\n  "locale"');
+  assert.ok(narrativeInputStart >= 0);
+  const narrativeInput: unknown = JSON.parse(prompt.slice(narrativeInputStart));
+  assert.ok(typeof narrativeInput === "object" && narrativeInput !== null && !Array.isArray(narrativeInput));
+  assert.equal("feedbackPersonalization" in narrativeInput, false);
+  assert.equal("chartData" in narrativeInput, false);
+  assert.equal("referenceClothingSummary" in narrativeInput, false);
+  const narrativeRecommendation = Reflect.get(narrativeInput, "recommendation");
+  assert.ok(
+    typeof narrativeRecommendation === "object" &&
+    narrativeRecommendation !== null &&
+    !Array.isArray(narrativeRecommendation)
+  );
+  assert.equal("recommendationConfidence" in narrativeRecommendation, false);
+  const narrativeExplanation = Reflect.get(narrativeInput, "explanation");
+  assert.ok(
+    typeof narrativeExplanation === "object" &&
+    narrativeExplanation !== null &&
+    !Array.isArray(narrativeExplanation)
+  );
+  assert.equal("confidenceReasons" in narrativeExplanation, false);
   for (const token of forbiddenTokens) {
     assert.equal(prompt.includes(token), false, `${token} leaked into prompt`);
   }
 
   const fallback = reportService.buildFallbackFitReport(reportInput);
-  assert.ok(fallback.recommendationReason.includes("누락된 측정값"));
-  assert.ok(fallback.cautions.some((caution) => caution.includes("점수 차이가 작음")));
+  assert.ok(fallback.recommendationReason.includes("균형"));
+  assert.equal(fallback.measurementAnalysis.length, reportInput.measurements.length);
+  assert.equal(JSON.stringify(fallback).includes("신뢰도"), false);
+  assert.equal(JSON.stringify(fallback).includes("피드백"), false);
 
   const assertFeedbackNotApplied = async (
     status: "insufficient_signal" | "conflicting_feedback",
@@ -66,11 +89,9 @@ const main = async (): Promise<void> => {
     assert.equal(blockedReportInput.explanation.feedbackReliability.status, status);
 
     const blockedFallback = reportService.buildFallbackFitReport(blockedReportInput);
-    assert.equal(blockedFallback.fitDnaSummary.includes("반영된 피드백 보정은 없습니다."), true);
-    assert.equal(blockedFallback.fitDnaSummary.includes("보정에 반영됐습니다"), false);
-    assert.equal(blockedFallback.feedbackPersonalization.includes("적용되지 않았습니다"), true);
-    assert.equal(blockedFallback.feedbackPersonalization.includes("reflected"), false);
-    assert.equal(blockedFallback.feedbackPersonalization.includes("applied"), false);
+    const serializedFallback = JSON.stringify(blockedFallback);
+    assert.equal(serializedFallback.includes("피드백"), false);
+    assert.equal(serializedFallback.includes("신뢰도"), false);
   };
 
   useInsufficientFeedbackFitResult();
@@ -145,10 +166,35 @@ const main = async (): Promise<void> => {
 
   const generated = await reportService.generateFitReport(userId, fitResultId, { includeDebug: true });
   assert.equal(generated.source, "fallback");
+  assert.equal(generated.promptVersion, "fit_report_v5");
   assert.equal(generated.report.summary.includes("S"), true);
   assert.equal(generated.report.summary.includes("67"), true);
   assert.equal(generated.reportInput?.explanation.feedbackReliability.status, "unavailable");
   assert.equal(generated.reportInput?.explanation.feedbackReliability.weightedSampleCount, 0);
+
+  globalThis.fetch = async (): Promise<Response> =>
+    new Response(JSON.stringify({
+      response: JSON.stringify({
+        title: "정밀 핏 리포트",
+        summary: "요약",
+        recommendationReason: "추천 이유",
+        measurementAnalysis: [{
+          measurement: reportInput.measurements[0]?.label,
+          text: "기준 999cm와 상품 888cm를 비교한 분석입니다."
+        }],
+        cautions: [],
+        nextActions: []
+      })
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+
+  const sanitized = await reportService.generateFitReport(userId, fitResultId);
+  assert.equal(sanitized.source, "ollama");
+  assert.equal(sanitized.report.measurementAnalysis.length, reportInput.measurements.length);
+  assert.equal(JSON.stringify(sanitized.report.measurementAnalysis).includes("999"), false);
+  assert.ok(sanitized.report.measurementAnalysis[0]?.text.includes(`${reportInput.measurements[0]?.ideal}cm`));
 
   const snapshotPath = resolve(process.cwd(), "../.omo/evidence/task-4-fit-score-engine-evolution.report.json");
   await mkdir(dirname(snapshotPath), { recursive: true });

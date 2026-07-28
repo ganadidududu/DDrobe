@@ -52,15 +52,6 @@ const getMissingMeasurementKeys = (
 ): MeasurementKey[] =>
   measurementKeys.filter((key) => !comparedMeasurements.includes(key));
 
-const getReferenceSampleMinimum = (
-  comparedMeasurements: MeasurementKey[],
-  sampleCounts: Partial<Record<MeasurementKey, number>>
-): number | null => {
-  const counts = comparedMeasurements.map((key) => sampleCounts[key] ?? 0);
-  if (counts.length === 0) return null;
-  return Math.min(...counts);
-};
-
 const isFeedbackProfileApplied = (feedbackProfile: FeedbackFitProfile | undefined): boolean =>
   feedbackProfile?.reliability?.applied ?? Boolean(feedbackProfile && feedbackProfile.sampleCount > 0);
 
@@ -68,8 +59,6 @@ const getScoreReasonCodes = (
   comparedMeasurements: MeasurementKey[],
   missingMeasurementKeys: MeasurementKey[],
   scoreGapToNextCandidate: number | null,
-  referenceSampleCounts: Partial<Record<MeasurementKey, number>>,
-  feedbackProfile: FeedbackFitProfile | undefined,
   productMeasurementQuality: ProductMeasurementQualitySummary | undefined
 ): FitScoreReasonCode[] => {
   const reasonCodes: FitScoreReasonCode[] = [];
@@ -80,17 +69,6 @@ const getScoreReasonCodes = (
   if (missingMeasurementKeys.length > 0) reasonCodes.push("missing_measurements");
   if (scoreGapToNextCandidate !== null && scoreGapToNextCandidate < CLEAR_SCORE_GAP) {
     reasonCodes.push("small_score_gap");
-  }
-
-  const referenceSampleMinimum = getReferenceSampleMinimum(comparedMeasurements, referenceSampleCounts);
-  if (referenceSampleMinimum !== null && referenceSampleMinimum < 2) {
-    reasonCodes.push("low_reference_sample_count");
-  }
-
-  if (isFeedbackProfileApplied(feedbackProfile)) {
-    reasonCodes.push("feedback_profile_applied");
-  } else {
-    reasonCodes.push("feedback_profile_unavailable");
   }
 
   if (
@@ -146,8 +124,6 @@ const buildScoreMetadata = (
     score.comparedMeasurements,
     missingMeasurementKeys,
     scoreGapToNextCandidate,
-    referenceSampleCounts,
-    feedbackProfile,
     productMeasurementQuality
   );
   const comparedMeasurementRatio = measurementKeys.length === 0

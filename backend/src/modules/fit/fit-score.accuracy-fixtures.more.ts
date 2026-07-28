@@ -29,10 +29,10 @@ export const fitAccuracyAdditionalFixtures: readonly AccuracyFixture[] = [
     expectedComparedMeasurements: comparedBottom,
     expectedConfidence: "medium",
     expectedWeightingStrategy: "reference_profile_v1",
-    expectedReasonCodes: ["small_score_gap", "feedback_profile_unavailable"]
+    expectedReasonCodes: ["small_score_gap"]
   },
   {
-    name: "feedback adjusted preferred size wins after bounded offsets",
+    name: "feedback metadata does not alter measurement-only recommendation",
     category: "pants",
     references: bottomReference,
     feedbackProfile: {
@@ -57,13 +57,13 @@ export const fitAccuracyAdditionalFixtures: readonly AccuracyFixture[] = [
         measurements: { waist_width: 41.2, hip_width: 53.3, rise: 30.1, outseam: 100.4 }
       })
     ],
-    expectedSizeLabel: "Feedback L",
+    expectedSizeLabel: "Original M",
     expectedScoreBand: { min: 90, max: 100 },
     expectedComparedMeasurements: comparedBottom,
     expectedConfidence: "high",
-    expectedWeightingStrategy: "feedback_adjusted_profile_v1",
+    expectedWeightingStrategy: "reference_profile_v1",
     expectedFeedbackSampleCount: 4,
-    expectedReasonCodes: ["feedback_profile_applied"]
+    expectedReasonCodes: []
   },
   {
     name: "low data confidence stays low when only two measurements are comparable",
@@ -82,7 +82,7 @@ export const fitAccuracyAdditionalFixtures: readonly AccuracyFixture[] = [
     expectedConfidence: "low",
     expectedWeightingStrategy: "reference_profile_v1",
     expectedReferenceSamples: { shoulder_width: 2, chest_width: 2 },
-    expectedReasonCodes: ["missing_measurements", "feedback_profile_unavailable"]
+    expectedReasonCodes: ["missing_measurements"]
   },
   {
     name: "data-quality degraded confidence follows sparse product measurements",
@@ -101,8 +101,7 @@ export const fitAccuracyAdditionalFixtures: readonly AccuracyFixture[] = [
     expectedReasonCodes: [
       "insufficient_comparable_measurements",
       "missing_measurements",
-      "data_quality_unverified_or_sparse",
-      "feedback_profile_unavailable"
+      "data_quality_unverified_or_sparse"
     ]
   }
 ];

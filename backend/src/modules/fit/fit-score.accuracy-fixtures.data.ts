@@ -120,7 +120,7 @@ export const fitAccuracyFixtures: readonly AccuracyFixture[] = [
     expectedConfidence: "high",
     expectedWeightingStrategy: "reference_profile_v1",
     expectedReferenceSamples: topSamples,
-    expectedReasonCodes: ["feedback_profile_unavailable"]
+    expectedReasonCodes: []
   },
   {
     name: "bottom category close match recommends the closest pants size with high confidence",
@@ -144,7 +144,7 @@ export const fitAccuracyFixtures: readonly AccuracyFixture[] = [
     expectedConfidence: "high",
     expectedWeightingStrategy: "reference_profile_v1",
     expectedReferenceSamples: bottomSamples,
-    expectedReasonCodes: ["feedback_profile_unavailable"]
+    expectedReasonCodes: []
   },
   {
     name: "missing measurements still recommends from comparable top measurements",
@@ -177,7 +177,7 @@ export const fitAccuracyFixtures: readonly AccuracyFixture[] = [
     expectedConfidence: "medium",
     expectedWeightingStrategy: "reference_profile_v1",
     expectedReferenceSamples: { shoulder_width: 2, chest_width: 2, total_length: 2 },
-    expectedReasonCodes: ["missing_measurements", "feedback_profile_unavailable"]
+    expectedReasonCodes: ["missing_measurements"]
   },
   {
     name: "outlier reference is dampened before ranking candidate sizes",
@@ -215,6 +215,6 @@ export const fitAccuracyFixtures: readonly AccuracyFixture[] = [
     expectedConfidence: "high",
     expectedWeightingStrategy: "reference_profile_v1",
     expectedReferenceSamples: { waist_width: 3, hip_width: 3, rise: 3, outseam: 3 },
-    expectedReasonCodes: ["feedback_profile_unavailable"]
+    expectedReasonCodes: []
   }
 ];

@@ -146,12 +146,10 @@ export interface FitReportJson {
   title: string;
   summary: string;
   recommendationReason: string;
-  fitDnaSummary: string;
   measurementAnalysis: Array<{
     measurement: string;
     text: string;
   }>;
-  feedbackPersonalization: string;
   cautions: string[];
   nextActions: string[];
 }
@@ -167,7 +165,7 @@ export interface GenerateFitReportResult {
   fitAnalysisResultId: string;
   source: "ollama" | "fallback";
   modelName: string;
-  promptVersion: "fit_report_v2";
+  promptVersion: "fit_report_v5";
   report: FitReportJson;
   chartData: FitReportChartData;
   reportInput?: FitReportInput;

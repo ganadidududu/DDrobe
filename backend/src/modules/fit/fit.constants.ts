@@ -1,4 +1,9 @@
-import type { Category, MeasurementKey, MeasurementWeights } from "./fit.types";
+import type {
+  Category,
+  MeasurementKey,
+  MeasurementToleranceMap,
+  MeasurementWeights
+} from "./fit.types";
 
 export const ALGORITHM_VERSION = "mvp_rule_v1_5";
 
@@ -26,6 +31,17 @@ export const BOTTOM_WEIGHTS: MeasurementWeights = {
   hip_width: 0.25,
   rise: 0.15,
   outseam: 0.25
+};
+
+export const MEASUREMENT_BASE_TOLERANCES: Required<MeasurementToleranceMap> = {
+  shoulder_width: 0.5,
+  chest_width: 0.75,
+  total_length: 1,
+  sleeve_length: 0.75,
+  waist_width: 0.5,
+  hip_width: 0.75,
+  rise: 0.5,
+  outseam: 1
 };
 
 export const MEASUREMENT_LABELS: Record<MeasurementKey, string> = {
