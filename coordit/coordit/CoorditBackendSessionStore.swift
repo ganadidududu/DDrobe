@@ -158,9 +158,9 @@ final class CoorditBackendSessionStore: ObservableObject {
         )
     }
 
-    func saveReferenceClothing(from draft: CoorditClosetDraft) async -> CoorditReferenceSaveResult? {
+    func saveClothing(from draft: CoorditClosetDraft) async -> CoorditClothingSaveResult? {
         guard let token = session?.accessToken else {
-            statusText = "기준 옷 저장은 로그인 후 백엔드에 반영돼요."
+            statusText = "보유 의류 저장은 로그인 후 백엔드에 반영돼요."
             isWarning = true
             return nil
         }
@@ -176,15 +176,10 @@ final class CoorditBackendSessionStore: ObservableObject {
                 clothingItemId: clothingItem.id,
                 request: clothingSizeRequest
             )
-            let reference = try await client.createReferenceClothing(
-                token: token,
-                request: draft.referenceRequest(clothingItemId: clothingItem.id)
-            )
-            statusText = "기준 옷을 핏 엔진에 저장했어요."
+            statusText = "보유 의류를 옷장에 저장했어요."
             isWarning = false
-            return CoorditReferenceSaveResult(
+            return CoorditClothingSaveResult(
                 clothingItemId: clothingItem.id,
-                referenceClothingId: reference.id,
                 sizeChart: CoorditClosetSizeChart(
                     sizeLabel: clothingSize.sizeLabel,
                     measurements: clothingSize.measurements

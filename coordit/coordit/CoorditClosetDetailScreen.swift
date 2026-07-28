@@ -83,22 +83,21 @@ extension CoorditClosetFamilyView {
                 }
                 #endif
 
-                HStack(spacing: metrics.value(9)) {
-                    Image(variant == .top ? CoorditAssetNames.fitUpper : CoorditAssetNames.fitLower)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: metrics.value(111), height: metrics.value(230))
-                        .background(CoorditClosetColors.card)
-                        .clipShape(RoundedRectangle(cornerRadius: metrics.value(8)))
-                        .accessibilityLabel(variant == .top ? "상의 핏 마네킹" : "하의 핏 마네킹")
-                        .accessibilityIdentifier(
-                            variant == .top
-                                ? "closet-mannequin-top"
-                                : "closet-mannequin-bottom"
-                        )
+                VStack(spacing: metrics.value(9)) {
+                    CoorditFitLabMannequinPanel(
+                        assetName: variant == .top ? CoorditAssetNames.fitUpper : CoorditAssetNames.fitLower,
+                        metrics: metrics,
+                        measurements: mannequinMeasurements(for: item),
+                        accessibilityIdentifier: variant == .top
+                            ? "closet-mannequin-top"
+                            : "closet-mannequin-bottom",
+                        overlayIdentifierPrefix: "closet-overlay"
+                    )
+                    .frame(height: metrics.value(286))
+
+                    CoorditFitLabOverlayLegend(metrics: metrics)
 
                     scorePanel(metrics: metrics, item: item)
-                        .frame(height: metrics.value(230))
                 }
                 .padding(.top, metrics.value(6))
 
@@ -286,6 +285,40 @@ extension CoorditClosetFamilyView {
             ]
         return values.map { value, label in
             (formattedDifference(value), label, CoorditClosetColors.navy)
+        }
+    }
+
+    private func mannequinMeasurements(for item: CoorditClosetItem) -> [CoorditFitLabResultMeasurement] {
+        let diffs = item.fitDiffs
+        let values: [(key: CoorditFitLabMeasurementKey, title: String, diff: Double?)] = item.category == .top
+            ? [
+                (.shoulderWidth, "어깨", diffs?.shoulderWidth),
+                (.chestWidth, "가슴", diffs?.chestWidth),
+                (.totalLength, "총장", diffs?.totalLength),
+                (.sleeveLength, "소매", diffs?.sleeveLength),
+            ]
+            : [
+                (.waistWidth, "허리", diffs?.waistWidth),
+                (.hipWidth, "힙", diffs?.hipWidth),
+                (.rise, "밑위", diffs?.rise),
+                (.outseam, "총장", diffs?.outseam),
+            ]
+
+        return values.map { value in
+            CoorditFitLabResultMeasurement(
+                key: value.key,
+                title: value.title,
+                comparison: value.diff.map {
+                    CoorditFitLabReportResponse.ChartData.Comparison(
+                        measurement: value.key,
+                        label: value.title,
+                        ideal: 0,
+                        product: $0,
+                        diff: $0,
+                        status: nil
+                    )
+                }
+            )
         }
     }
 

@@ -291,16 +291,44 @@ struct CoorditFitLabReportResponse: Codable, Equatable, Sendable {
             let status: String?
         }
 
-        let idealVsProduct: [Comparison]
+        struct Difference: Codable, Equatable, Sendable {
+            let measurement: CoorditFitLabMeasurementKey
+            let label: String
+            let diff: Double
+            let direction: String
+            let status: String?
+        }
 
-        init(idealVsProduct: [Comparison] = []) {
+        struct SizeScore: Codable, Equatable, Sendable {
+            let sizeLabel: String
+            let fitScore: Double
+            let fitLabel: String
+            let weightedFitDistance: Double
+            let recommendationConfidence: String
+        }
+
+        let idealVsProduct: [Comparison]
+        let differenceBar: [Difference]
+        let sizeScoreRanking: [SizeScore]
+
+        init(
+            idealVsProduct: [Comparison] = [],
+            differenceBar: [Difference] = [],
+            sizeScoreRanking: [SizeScore] = []
+        ) {
             self.idealVsProduct = idealVsProduct
+            self.differenceBar = differenceBar
+            self.sizeScoreRanking = sizeScoreRanking
         }
 
         init(from decoder: Decoder) throws {
             let values = try decoder.container(keyedBy: CodingKeys.self)
-            let rows = (try? values.decode([LossyDecodable<Comparison>].self, forKey: .idealVsProduct)) ?? []
-            idealVsProduct = rows.compactMap(\.value)
+            let comparisonRows = (try? values.decode([LossyDecodable<Comparison>].self, forKey: .idealVsProduct)) ?? []
+            let differenceRows = (try? values.decode([LossyDecodable<Difference>].self, forKey: .differenceBar)) ?? []
+            let scoreRows = (try? values.decode([LossyDecodable<SizeScore>].self, forKey: .sizeScoreRanking)) ?? []
+            idealVsProduct = comparisonRows.compactMap(\.value)
+            differenceBar = differenceRows.compactMap(\.value)
+            sizeScoreRanking = scoreRows.compactMap(\.value)
         }
     }
 

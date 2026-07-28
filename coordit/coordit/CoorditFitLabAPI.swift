@@ -12,6 +12,8 @@ protocol CoorditFitLabAPI: Sendable {
 }
 
 struct CoorditFitLabHTTPAPI: CoorditFitLabAPI {
+    private static let reportTimeoutInterval: TimeInterval = 180
+
     let baseURL: URL
     let accessToken: String
     var session: URLSession = .shared
@@ -70,6 +72,9 @@ struct CoorditFitLabHTTPAPI: CoorditFitLabAPI {
     func makeRequest<Body: Encodable>(path: String, method: String, body: Body?) throws -> URLRequest {
         var urlRequest = URLRequest(url: baseURL.appending(path: path))
         urlRequest.httpMethod = method
+        if path.hasSuffix("/report") {
+            urlRequest.timeoutInterval = Self.reportTimeoutInterval
+        }
         urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
         urlRequest.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         if let body {

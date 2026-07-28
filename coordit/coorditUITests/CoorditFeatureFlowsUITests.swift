@@ -74,11 +74,17 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         let addToHistory = app.buttons["히스토리에 추가"]
         XCTAssertTrue(addToHistory.waitForExistence(timeout: 5))
         addToHistory.tap()
-        XCTAssertTrue(element("fitlab-history-saved-confirmation", in: app).waitForExistence(timeout: 5))
-        app.buttons["FIT LAB 뒤로가기"].tap()
         assertScreen("fitlab-input", in: app)
+        XCTAssertEqual(
+            element("fitlab-draft-isolation-probe", in: app).label,
+            "source=manual|category=tshirt|product=|url=nil"
+        )
         let historyCard = element("fitlab-history-card-analysis-fixture-lower", in: app)
         XCTAssertTrue(historyCard.waitForExistence(timeout: 5))
+        let savedReturnCapture = XCTAttachment(screenshot: app.screenshot())
+        savedReturnCapture.name = "fitlab-save-returned-to-input"
+        savedReturnCapture.lifetime = .keepAlways
+        add(savedReturnCapture)
         historyCard.tap()
         assertScreen("fitlab-history-detail", in: app)
         XCTAssertEqual(element("fitlab-history-detail-analysis", in: app).label, "analysis-fixture-lower")
@@ -123,7 +129,7 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         waitForDisappearance(completedNotice)
     }
 
-    func testHomeBlocksNewFitWhileReportIsStillGenerating() throws {
+    func testHomeOpensFitLabLoadingWhileReportIsStillGenerating() throws {
         let app = launchApp(
             at: "main04",
             extraArguments: ["--coordit-test-analysis-running"]
@@ -131,13 +137,29 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
 
         app.buttons["새로운 옷 찾기"].tap()
 
-        XCTAssertTrue(app.alerts["핏 리포트를 만들고 있어요"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["리포트 완성 후 새 옷을 분석해 주세요."].exists)
-        assertScreen("main04", in: app)
+        assertScreen("fitlab-loading", in: app)
+        XCTAssertTrue(element("global-fit-analysis-running", in: app).exists)
+        XCTAssertTrue(app.staticTexts["핏 리포트를 만들고 있어요"].exists)
+        XCTAssertFalse(app.alerts["핏 리포트를 만들고 있어요"].exists)
         let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "home-fit-report-busy-alert"
+        screenshot.name = "fitlab-running-fullscreen"
         screenshot.lifetime = .keepAlways
         add(screenshot)
+    }
+
+    func testEmptyClosetFixtureHasNoStarterGarments() throws {
+        let app = launchApp(
+            at: "closet-overview",
+            extraArguments: ["--coordit-empty-closet"]
+        )
+
+        assertScreen("closet-overview", in: app)
+        XCTAssertFalse(app.buttons["Oxford Shirt"].exists)
+        XCTAssertFalse(app.buttons["Relaxed Knit"].exists)
+        app.buttons["closet-category-bottom"].tap()
+        XCTAssertFalse(app.buttons["Wide Denim"].exists)
+        XCTAssertFalse(app.buttons["Black Slacks"].exists)
+        XCTAssertTrue(app.buttons["closet-add-garment"].isHittable)
     }
 
     func testFitLabInputMethodsUseTheSharedTitleBackButton() throws {
@@ -185,7 +207,18 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         XCTAssertTrue(guide.label.contains("저장되지 않고"))
         element("fitlab-confirm-report", in: app).tap()
         assertScreen("fitlab-input", in: app)
+        XCTAssertEqual(
+            element("fitlab-draft-isolation-probe", in: app).label,
+            "source=manual|category=tshirt|product=|url=nil"
+        )
         XCTAssertTrue(element("fitlab-history-empty", in: app).waitForExistence(timeout: 5))
+        let transitionSettled = expectation(description: "FIT LAB input transition settled")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { transitionSettled.fulfill() }
+        wait(for: [transitionSettled], timeout: 2)
+        let confirmedReturnCapture = XCTAttachment(screenshot: app.screenshot())
+        confirmedReturnCapture.name = "fitlab-confirm-returned-to-input"
+        confirmedReturnCapture.lifetime = .keepAlways
+        add(confirmedReturnCapture)
         app.terminate()
 
         app = launchApp(
@@ -206,7 +239,7 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
             extraArguments: historyArguments + ["--coordit-fitlab-history-reset"]
         )
         element("fitlab-add-history", in: app).tap()
-        XCTAssertTrue(element("fitlab-history-saved-confirmation", in: app).waitForExistence(timeout: 5))
+        assertScreen("fitlab-input", in: app)
         app.terminate()
 
         app = launchApp(
@@ -215,7 +248,7 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
             extraArguments: historyArguments
         )
         element("fitlab-add-history", in: app).tap()
-        XCTAssertTrue(element("fitlab-history-saved-confirmation", in: app).waitForExistence(timeout: 5))
+        assertScreen("fitlab-input", in: app)
         app.terminate()
 
         app = launchApp(
@@ -342,9 +375,9 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
     }
 
     func testClosetDetailAutomaticallyLoadsEngineScoreForUpperAndLower() throws {
-        for (route, expectedScore) in [
-            ("closet-detail-top", "총점 | 89"),
-            ("closet-detail-bottom", "총점 | 92"),
+        for (route, expectedScore, tightOverlay, otherOverlay, otherDirection) in [
+            ("closet-detail-top", "총점 | 89", "closet-overlay-chest_width", "closet-overlay-shoulder_width", "여유"),
+            ("closet-detail-bottom", "총점 | 92", "closet-overlay-hip_width", "closet-overlay-waist_width", "비슷"),
         ] {
             let app = launchApp(at: route)
             assertScreen(route, in: app)
@@ -356,6 +389,20 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
                 object: totalScore
             )
             XCTAssertEqual(XCTWaiter.wait(for: [loaded], timeout: 5), .completed)
+            XCTAssertTrue(element(tightOverlay, in: app).label.contains("타이트"))
+            XCTAssertTrue(element(otherOverlay, in: app).label.contains(otherDirection))
+            let mannequin = element(
+                route == "closet-detail-top" ? "closet-mannequin-top" : "closet-mannequin-bottom",
+                in: app
+            )
+            let visibleBottom = app.windows.firstMatch.frame.maxY - 145
+            for _ in 0..<5 where mannequin.frame.maxY > visibleBottom {
+                app.swipeUp()
+            }
+            let capture = XCTAttachment(screenshot: app.screenshot())
+            capture.name = "\(route)-silhouette-overlay"
+            capture.lifetime = .keepAlways
+            add(capture)
             app.terminate()
         }
     }

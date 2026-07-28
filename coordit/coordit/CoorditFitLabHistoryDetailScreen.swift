@@ -42,17 +42,20 @@ struct CoorditFitLabHistoryDetailScreen: View {
                 .background(CoorditFitLabPalette.surface)
                 .clipShape(RoundedRectangle(cornerRadius: metrics.value(8)))
 
-                HStack(alignment: .top, spacing: metrics.value(9)) {
-                    CoorditFitLabMannequinPanel(
-                        assetName: variant.assetName,
-                        metrics: metrics,
-                        measurements: scoreCard.measurements
-                    )
-                    .frame(width: metrics.value(126), height: metrics.value(218))
-                    scoreCard
-                }
-
-                CoorditFitLabMeasurementRows(measurements: scoreCard.measurements, metrics: metrics)
+                scoreCard
+                CoorditFitLabMannequinPanel(
+                    assetName: variant.assetName,
+                    metrics: metrics,
+                    measurements: scoreCard.measurements
+                )
+                .frame(height: metrics.value(270))
+                CoorditFitLabOverlayLegend(metrics: metrics)
+                CoorditFitLabSizeScoreChart(
+                    report: snapshot.report,
+                    recommendation: snapshot.recommendation,
+                    metrics: metrics
+                )
+                CoorditFitLabDifferenceChart(measurements: scoreCard.measurements, metrics: metrics)
                 CoorditFitLabReportCard(report: snapshot.report, fallbackMessage: nil, metrics: metrics)
 
                 Button(isDeleting ? "삭제 중..." : "이 히스토리 삭제") {

@@ -43,33 +43,9 @@ struct CoorditFitLabFamilyView: View {
                             retry: submitAnalysis
                         )
                     case .fitLabResultTop:
-                        CoorditFitLabResultScreen(
-                            variant: .top,
-                            recommendation: coordinator.recommendation,
-                            report: coordinator.report,
-                            fallbackMessage: coordinator.reportNeedsRetry ? "상세 리포트를 불러오지 못해 기본 설명을 표시해요." : nil,
-                            isSaved: coordinator.savedHistory.contains {
-                                $0.analysisID == coordinator.recommendation?.fitAnalysisResultID
-                            },
-                            metrics: metrics,
-                            saveHistory: saveHistory,
-                            retryReport: submitAnalysis,
-                            onRouteChange: onRouteChange
-                        )
+                        completedReportContent(variant: .top, metrics: metrics)
                     case .fitLabResultBottom:
-                        CoorditFitLabResultScreen(
-                            variant: .bottom,
-                            recommendation: coordinator.recommendation,
-                            report: coordinator.report,
-                            fallbackMessage: coordinator.reportNeedsRetry ? "상세 리포트를 불러오지 못해 기본 설명을 표시해요." : nil,
-                            isSaved: coordinator.savedHistory.contains {
-                                $0.analysisID == coordinator.recommendation?.fitAnalysisResultID
-                            },
-                            metrics: metrics,
-                            saveHistory: saveHistory,
-                            retryReport: submitAnalysis,
-                            onRouteChange: onRouteChange
-                        )
+                        completedReportContent(variant: .bottom, metrics: metrics)
                     case .fitLabHistoryRegister:
                         historyDetail(metrics: metrics)
                     case .fitLabHistoryDetail:
@@ -142,6 +118,34 @@ struct CoorditFitLabFamilyView: View {
         #else
         false
         #endif
+    }
+
+    @ViewBuilder
+    private func completedReportContent(
+        variant: CoorditFitLabResultVariant,
+        metrics: CoorditResponsiveMetrics
+    ) -> some View {
+        if coordinator.report?.source == "ollama" {
+            CoorditFitLabResultScreen(
+                variant: variant,
+                recommendation: coordinator.recommendation,
+                report: coordinator.report,
+                fallbackMessage: nil,
+                isSaved: coordinator.savedHistory.contains {
+                    $0.analysisID == coordinator.recommendation?.fitAnalysisResultID
+                },
+                metrics: metrics,
+                saveHistory: saveHistory,
+                retryReport: submitAnalysis,
+                finishReport: finishReport
+            )
+        } else {
+            CoorditFitLabLoadingScreen(
+                metrics: metrics,
+                coordinator: coordinator,
+                retry: submitAnalysis
+            )
+        }
     }
 
     private func routeToCompletedAnalysis(_ state: CoorditFitLabAnalysisState) {
@@ -261,6 +265,13 @@ struct CoorditFitLabFamilyView: View {
         }
         #endif
         return await coordinator.saveCurrentAnalysis(authenticatedUserID: backendSession.session?.user.id)
+    }
+
+    private func finishReport() {
+        coordinator.discardAndRestart()
+        inputDestination = .sources
+        inputNavigationDirection = .forward
+        onRouteChange(.fitLabInput)
     }
 
     @ViewBuilder
@@ -676,7 +687,7 @@ private struct CoorditFitLabResultScreen: View {
     let metrics: CoorditResponsiveMetrics
     let saveHistory: () async -> Bool
     let retryReport: () async -> Void
-    let onRouteChange: (CoorditFrameRoute) -> Void
+    let finishReport: () -> Void
     @State private var didSave = false
     @State private var isSaving = false
     @State private var isRetryingReport = false
@@ -690,22 +701,26 @@ private struct CoorditFitLabResultScreen: View {
         )
         ScrollView {
             VStack(spacing: metrics.value(14)) {
-                HStack(alignment: .top, spacing: metrics.value(9)) {
-                    VStack(spacing: metrics.value(7)) {
-                        CoorditFitLabMannequinPanel(
-                            assetName: variant.assetName,
-                            metrics: metrics,
-                            measurements: scoreCard.measurements
-                        )
-                        .frame(height: metrics.value(218))
-                        CoorditFitLabOverlayLegend(metrics: metrics)
-                    }
-                    .frame(width: metrics.value(132))
+                scoreCard
 
-                    scoreCard
-                }
+                CoorditFitLabMannequinPanel(
+                    assetName: variant.assetName,
+                    metrics: metrics,
+                    measurements: scoreCard.measurements
+                )
+                .frame(height: metrics.value(270))
+                CoorditFitLabOverlayLegend(metrics: metrics)
 
-                CoorditFitLabMeasurementRows(measurements: scoreCard.measurements, metrics: metrics)
+                CoorditFitLabSizeScoreChart(
+                    report: report,
+                    recommendation: recommendation,
+                    metrics: metrics
+                )
+
+                CoorditFitLabDifferenceChart(
+                    measurements: scoreCard.measurements,
+                    metrics: metrics
+                )
 
                 CoorditFitLabReportCard(
                     report: report,
@@ -740,9 +755,12 @@ private struct CoorditFitLabResultScreen: View {
                 ) {
                     guard !isSaving, !didSave, !isSaved else { return }
                     isSaving = true
-                    Task {
-                        didSave = await saveHistory()
+                    Task { @MainActor in
+                        let saved = await saveHistory()
                         isSaving = false
+                        guard saved else { return }
+                        didSave = true
+                        finishReport()
                     }
                 }
                 .accessibilityIdentifier("fitlab-add-history")
@@ -755,7 +773,7 @@ private struct CoorditFitLabResultScreen: View {
                 }
 
                 Button("확인하기") {
-                    onRouteChange(.fitLabInput)
+                    finishReport()
                 }
                 .buttonStyle(
                     CoorditContentActionButtonStyle(

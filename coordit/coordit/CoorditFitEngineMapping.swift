@@ -1,9 +1,8 @@
 import Foundation
 
 #if os(iOS)
-struct CoorditReferenceSaveResult: Equatable {
+struct CoorditClothingSaveResult: Equatable {
     let clothingItemId: String
-    let referenceClothingId: String
     let sizeChart: CoorditClosetSizeChart
 }
 
