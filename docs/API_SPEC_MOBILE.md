@@ -630,7 +630,7 @@ Product Analysis는 외부 상품 정보를 자동으로 가져오거나 분석�
 | 목적 | 하나의 기준 의류와 외부 상품 사이즈표를 비교해 추천 사이즈를 계산한다. |
 | Endpoint | `POST /fit/recommend` |
 | 필수 입력 | `referenceClothingId`, `externalProductId` |
-| 주요 반환값 | 추천 사이즈, fit score, fit label, confidence, 부위별 차이, 사이즈별 점수, feedback profile |
+| 주요 반환값 | 추천 사이즈, fit score, fit label, confidence, 부위별 차이, 사이즈별 점수 |
 | 사용 화면 | Fit Lab |
 
 ### 다중 기준 의류 추천
@@ -641,15 +641,16 @@ Product Analysis는 외부 상품 정보를 자동으로 가져오거나 분석�
 | 목적 | 여러 기준 의류로 사용자의 핏 DNA를 만들고 외부 상품의 최적 사이즈를 추천한다. |
 | Endpoint | `POST /fit/recommend` 또는 `POST /fit/recommend/batch` |
 | 필수 입력 | `referenceClothingIds`, `externalProductId` |
-| 주요 반환값 | 추천 사이즈, fit score, confidence, 기준 의류 통계, 피드백 보정값, 부위별 차이, 사이즈별 점수 |
+| 주요 반환값 | 추천 사이즈, fit score, confidence, 기준 의류 통계, 부위별 차이, 사이즈별 점수 |
 | 사용 화면 | Fit Lab |
 
-추천 결과의 `feedbackProfile`은 최근 같은 카테고리 피드백이 있을 때만 포함된다.
+`feedbackProfile`은 기존 호환성과 오프라인 분석용 메타데이터로 포함될 수 있지만
+fit score, 추천 사이즈, 기준 프로필, 동적 가중치를 변경하지 않는다.
 
 추천 응답은 기존 필드를 유지한다. 클라이언트는 `fitScore`, `fitLabel`,
 `recommendationConfidence`, `diff`, `partExplanations`, `partStatuses`,
 `allSizeScores`를 계속 사용할 수 있다. 추가 설명 메타데이터는 선택 필드다.
-현재 추천 알고리즘 버전은 `mvp_rule_v1_5`이며 응답의 `algorithmVersion` 및
+현재 추천 알고리즘 버전은 `mvp_rule_v1_6`이며 응답의 `algorithmVersion` 및
 DB의 `algorithm_version`에 기록된다.
 
 | 선택 필드 | 설명 |
@@ -724,14 +725,12 @@ QA용 선택 메타데이터이며 모바일 클라이언트는 없어도 기존
   "fitAnalysisResultId": "uuid",
   "source": "ollama",
   "modelName": "llama3.1:8b",
-  "promptVersion": "fit_report_v2",
+  "promptVersion": "fit_report_v5",
   "report": {
     "title": "L 사이즈 핏 리포트",
     "summary": "...",
     "recommendationReason": "...",
-    "fitDnaSummary": "...",
     "measurementAnalysis": [],
-    "feedbackPersonalization": "...",
     "cautions": [],
     "nextActions": []
   },
@@ -755,10 +754,12 @@ QA용 선택 메타데이터이며 모바일 클라이언트는 없어도 기존
 - `OLLAMA_MODEL`: 기본값 `llama3.1:8b`
 
 `includeDebug = true`이면 테스트용으로 `reportInput`과 `prompt`를 응답에 포함한다.
-`fit_report_v2`는 `result_details.scoreExplanation`과
-`result_details.confidenceBreakdown`에서 계산된 요약만 LLM에 전달한다. Ollama는
-fit score 또는 추천 사이즈를 계산하지 않고, 실패 시 fallback 리포트도 기존
-엔진 결과를 그대로 설명한다.
+`fit_report_v5`는 추천 사이즈, 사이즈별 fit score, 기준/상품 실측과 부위별 차이,
+주요 설명 부위만 LLM에 전달한다. confidence, 신뢰도, 피드백, 데이터 품질,
+기준 의류 개수는 사용자용 서술에 전달하거나 노출하지 않는다. Ollama는 fit score
+또는 추천 사이즈를 계산하지 않으며, 부적합하거나 지나치게 짧은 출력은 측정 기반
+문장으로 보정한다. 호출이나 JSON 파싱 실패 시 fallback 리포트도 기존 엔진 결과를
+그대로 설명한다.
 
 ## 10. Feedback
 
@@ -767,7 +768,7 @@ fit score 또는 추천 사이즈를 계산하지 않고, 실패 시 fallback �
 | 항목 | 내용 |
 | --- | --- |
 | 기능명 | 추천 피드백 등록 |
-| 목적 | 실제 구매/착용 후 추천 결과가 맞았는지 저장하고 다음 추천의 사용자별 보정값으로 사용한다. |
+| 목적 | 실제 구매/착용 후 추천 결과가 맞았는지 저장해 이력과 향후 오프라인 분석에 사용한다. |
 | Endpoint | `POST /fit-analysis-results/:id/feedback` |
 | 필수 입력 | `id`, `actualFitLabel` |
 | 주요 반환값 | 저장된 피드백 |
@@ -804,11 +805,10 @@ fit score 또는 추천 사이즈를 계산하지 않고, 실패 시 fallback �
 }
 ```
 
-엔진 반영:
+현재 엔진 정책:
 
-- MVP+1: `actualFitLabel`로 카테고리별 전체 선호 여유분을 계산한다.
-- MVP+2: `partFeedback`으로 부위별 offset과 weight multiplier를 계산한다.
-- 다음 추천 실행 시 같은 카테고리의 최근 피드백이 `feedbackProfile`로 요약되어 추천 결과에 반영된다.
+- `actualFitLabel`과 `partFeedback`은 저장하지만 fit score와 추천 사이즈를 보정하지 않는다.
+- `feedbackProfile`이 메타데이터로 생성되어도 기준 프로필과 동적 가중치에는 적용하지 않는다.
 
 ### 사용자 피드백 목록 조회
 

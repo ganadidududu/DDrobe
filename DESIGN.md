@@ -19,7 +19,7 @@ The executable source of truth is `coordit/CoorditDesignTokens.swift` and `coord
 | Loading sparkle | `CoorditDesignTokens.ColorToken.loadingSparkle` | RGB 246, 215, 122 | Orbit loading indicator sparkle |
 | Positive / negative | `green`, `red`, `danger` | Token-defined | Fit direction and destructive states |
 
-Fit-report comparison semantics are fixed: `red` means smaller/tighter than the reference profile, `blue` means larger/roomier, and `green` means aligned with the reference. These colors never represent recommendation quality.
+Fit-report comparison direction is fixed: negative values extend left and positive values extend right. Charts use `red` for tight, `blue` for roomy, and `green` for the within-tolerance similar state. Mannequin contours use red and blue for directional differences and a neutral gray for similar measurements. These colors never represent recommendation quality.
 
 New shared UI must reference these tokens. Feature-specific gradients already present in the app may retain their local stops until a separate consolidation is approved.
 
@@ -105,15 +105,15 @@ Text scales through SwiftUI relative text styles. Feature titles use `.headline`
 ### Fit report decision actions
 
 - **Structure**: the result closes with a primary `히스토리에 추가` action, a secondary `확인하기` action, and an explicit persistence guide.
-- **States**: before saving, the guide states that `확인하기` returns to FitLab without saving. After saving, the guide states that the report is available from FitLab and Home history.
-- **Interaction**: saving persists the full report snapshot; confirming never writes history and returns to the FitLab input.
+- **States**: the guide states that `확인하기` returns to FitLab without saving and that saved reports remain available from FitLab and Home history.
+- **Interaction**: saving persists the full report snapshot and immediately returns to the FitLab input. Confirming never writes history and also returns to the FitLab input.
 - **Accessibility**: both actions use stable identifiers and retain at least a 44 pt touch target.
 
 ### Fit report analysis system
 
 - **Structure**: recommendation hero, full-width annotated mannequin, all-size score comparison, centered-zero measurement difference chart, overall verdict, recommendation rationale, part-by-part analysis cards, and purchase checks.
 - **Size score comparison**: every available size uses a shared 0–100 horizontal scale. The recommended size uses solid `ink`; alternatives use the existing `blue` token at reduced opacity. The chart must never hide lower-scoring candidates.
-- **Difference chart**: the midpoint is always 0 cm. Negative bars extend left in `red`, positive bars extend right in `blue`, and aligned values use a compact `green` center mark. Each row also states reference, product, and signed difference values.
+- **Difference chart**: the midpoint is always 0 cm. Negative bars always extend left and positive bars always extend right, including within-tolerance values. Tight values use `red`, roomy values use `blue`, and similar values use `green`; an exact zero uses a compact center mark. Each row also states reference, product, and signed difference values.
 - **Mannequin annotations**: pills show the measurement name and signed centimeter difference directly; raw plus/minus glyphs without a measurement label are prohibited.
 - **Narrative hierarchy**: major narrative sections use visible English eyebrow labels plus large Korean headings. Each body-part analysis occupies its own bordered panel with a semantic color rail.
 - **Content**: confidence, feedback reliability, and the number of reference garments are not presented as quality judgments. The report explains every available measured body part and then synthesizes why the recommended size is the most balanced candidate.

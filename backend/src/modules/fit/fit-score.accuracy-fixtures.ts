@@ -80,7 +80,7 @@ const assertObservableRecommendation = (
     fixture.expectedWeightingStrategy,
     `${fixture.name}: weighting strategy`
   );
-  assert.equal(recommended.algorithmVersion, "mvp_rule_v1_5", `${fixture.name}: algorithm version`);
+  assert.equal(recommended.algorithmVersion, "mvp_rule_v1_6", `${fixture.name}: algorithm version`);
   assert.ok(recommended.fitComment.length > 0, `${fixture.name}: fit comment metadata`);
   assert.ok(recommended.partExplanations.length > 0, `${fixture.name}: part explanation metadata`);
   assert.ok(

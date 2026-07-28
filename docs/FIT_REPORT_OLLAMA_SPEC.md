@@ -1,474 +1,66 @@
-# Fit Report with Ollama 8B Spec
+# Fit Report with Ollama Spec
 
-문서 상태: 테스트 브랜치 초안  
-기준일: 2026-07-03
-대상 브랜치: `codex/fit-report-ollama-spec`
+문서 상태: 현행 계약
+기준일: 2026-07-28
+엔진 버전: `mvp_rule_v1_6`
+프롬프트 버전: `fit_report_v5`
 
 ## 1. 목적
 
-Coordit Fit Score Engine이 계산한 수치 결과를 바탕으로, Ollama 8B LLM이 사용자가 이해하기 쉬운 핏 리포트를 작성하게 한다.
+Fit Score Engine이 계산한 추천 사이즈와 실측 차이를 Ollama가 자연스러운 한국어
+구매 리포트로 설명한다. LLM은 계산기가 아니라 설명 계층이다.
 
-핵심 목표는 다음이다.
+- fit score, 추천 사이즈, 부위별 차이는 엔진 결과를 그대로 사용한다.
+- 다른 사이즈의 점수도 함께 비교한다.
+- 기준 의류와 상품의 모든 비교 가능한 부위를 빠짐없이 설명한다.
+- confidence, 신뢰도, 피드백, 데이터 품질, 기준 의류 개수는 사용자용 품질
+  판단이나 추천 근거로 노출하지 않는다.
 
-- 엔진 수치를 문장에 자연스럽게 녹여낸다.
-- 기준 의류 기반으로 계산된 사용자 최적 수치와 구매하려는 의류 수치를 그래프로 비교한다.
-- 추천 사이즈, 부위별 차이, confidence, 피드백 보정값을 하나의 리포트로 설명한다.
-- LLM은 새로운 수치를 계산하지 않고, 전달된 숫자만 해석한다.
+## 2. 책임 경계
 
-현재 리포트 prompt 버전은 `fit_report_v2`다. `fit_report_v2`는
-`mvp_rule_v1_5`의 confidence reason, 누락 측정값, 데이터 품질, 피드백
-신뢰도 요약을 설명 입력으로 받는다. 이 버전 변경은 report generation
-contract 변경이며 fit score 또는 추천 사이즈 계산을 변경하지 않는다.
+Fit Score Engine:
 
-## 2. 핵심 원칙
+- 기준 의류의 가상 실측 프로필 생성
+- 상품의 모든 사이즈 점수 계산
+- 추천 사이즈 선택
+- 기준/상품 실측과 signed diff 계산
+- 차트용 숫자 시리즈 생성
 
-### 2.1 계산은 Fit Engine, 설명은 LLM
+Ollama:
 
-Fit Engine이 담당:
+- 제공된 수치의 의미를 자연스러운 한국어로 설명
+- 폭과 길이의 장단점을 구분
+- 모든 사이즈 점수와 부위별 차이를 종합해 추천 이유 작성
+- 소재, 신축성, 레이어링처럼 확정할 수 없는 항목을 구매 전 확인 사항으로 분리
 
-- 기준 의류 기반 가상 핏 프로필
-- 피드백 offset
-- 피드백 weight multiplier
-- 최종 adjusted profile
-- 후보 사이즈별 점수
-- 추천 사이즈
-- 부위별 diff
-- confidence
+Ollama가 하면 안 되는 일:
 
-LLM이 담당:
+- fit score, 추천 사이즈, diff 재계산
+- 입력에 없는 숫자·신체 정보·상품 정보 생성
+- confidence 또는 기준 샘플 수를 리포트 품질로 해석
+- 사용자 피드백이나 데이터 품질을 추천 근거로 사용
 
-- 수치를 한국어 문장으로 해석
-- 사용자에게 중요한 차이를 우선순위화
-- 리포트 섹션별 설명 작성
-- 구매 판단을 돕는 요약 작성
+## 3. LLM 입력 계약
 
-LLM이 하면 안 되는 것:
-
-- fit score 재계산
-- 추천 사이즈 변경
-- diff 임의 계산
-- 없는 신체/의류 정보 추측
-- 숫자 반올림 외 임의 변형
-
-### 2.2 그래프는 앱에서 생성
-
-그래프는 LLM이 생성하지 않는다. 앱 또는 백엔드가 numeric series를 만들고, UI에서 차트로 렌더링한다.
-
-LLM은 그래프를 설명하는 문장만 작성한다.
-
-## 3. 리포트 입력 데이터
-
-리포트 입력은 `POST /fit/recommend` 또는 `GET /fit-analysis-results/:id` 결과를 기반으로 만든다.
-
-### 3.1 필수 엔진 결과
-
-```json
-{
-  "fitAnalysisResultId": "uuid",
-  "recommendedSize": "L",
-  "fitScore": 92,
-  "fitLabel": "good_fit",
-  "fitComment": "L 사이즈를 추천합니다...",
-  "recommendationConfidence": "high",
-  "diff": {
-    "shoulder_width": 1,
-    "chest_width": 1,
-    "total_length": 0.5,
-    "sleeve_length": 0
-  },
-  "partExplanations": [],
-  "partStatuses": {},
-  "scoreExplanation": {
-    "comparedMeasurementCount": 4,
-    "comparedMeasurements": ["shoulder_width", "chest_width", "total_length", "sleeve_length"],
-    "missingMeasurementKeys": [],
-    "scoreGapToNextCandidate": 8,
-    "normalizedDistance": 0.42,
-    "penalty": 0,
-    "referenceSampleCounts": {
-      "shoulder_width": 2,
-      "chest_width": 2
-    },
-    "topContributingParts": [],
-    "reasonCodes": ["feedback_profile_unavailable"]
-  },
-  "confidenceBreakdown": {
-    "label": "high",
-    "score": 92,
-    "comparedMeasurementCount": 4,
-    "scoreGapToNextCandidate": 8,
-    "normalizedDistance": 0.42,
-    "penalty": 0,
-    "reasonCodes": ["feedback_profile_unavailable"],
-    "referenceSampleCounts": {
-      "shoulder_width": 2,
-      "chest_width": 2
-    },
-    "feedbackReliability": {
-      "applied": false,
-      "sampleCount": 0,
-      "overallSampleCount": 0,
-      "partSampleCount": 0,
-      "status": "unavailable",
-      "weightedSampleCount": 0,
-      "summary": "unavailable"
-    },
-    "dataQuality": {
-      "comparedMeasurementRatio": 1,
-      "missingMeasurementKeys": [],
-      "summary": "complete"
-    }
-  },
-  "baseWeights": {},
-  "dynamicWeights": {},
-  "referenceVariance": {},
-  "weightingStrategy": "feedback_adjusted_profile_v1",
-  "referenceProfile": {},
-  "feedbackProfile": {},
-  "allSizeScores": []
-}
-```
-
-### 3.2 리포트용 추가 메타데이터
-
-LLM 리포트 품질을 위해 앱/백엔드에서 다음 데이터를 함께 구성한다.
-
-```json
-{
-  "userContext": {
-    "displayName": "사용자",
-    "preferredFit": "regular",
-    "unit": "cm"
-  },
-  "referenceClothingSummary": [
-    {
-      "name": "잘 맞는 셔츠",
-      "category": "shirt",
-      "fitType": "regular",
-      "sizeLabel": "L",
-      "preferenceScore": 100,
-      "measurements": {
-        "shoulder_width": 48,
-        "chest_width": 57,
-        "total_length": 73,
-        "sleeve_length": 62
-      }
-    }
-  ],
-  "targetProduct": {
-    "productName": "Linen Shirt",
-    "brand": "Brand",
-    "mallName": "29CM",
-    "category": "shirt",
-    "fitType": "regular",
-    "selectedSizeLabel": "L",
-    "recommendedSizeLabel": "L"
-  }
-}
-```
-
-현재 API 응답만으로 부족할 수 있는 값:
-
-- 기준 의류 이름
-- 기준 의류별 원본 실측값
-- 외부 상품명/브랜드/쇼핑몰명
-- 사용자가 실제로 구매하려는 사이즈
-
-테스트 단계에서는 앱에서 이미 가지고 있는 목록 데이터를 합쳐 `reportInput`을 만든다. 운영 단계에서는 백엔드가 report용 aggregate endpoint를 제공할 수 있다.
-
-## 4. 기준 수치와 구매 의류 수치
-
-리포트에서 비교할 핵심 수치는 다음이다.
-
-### 4.1 Ideal Fit Numbers
-
-사용자에게 가장 잘 맞는 기준 수치다.
-
-우선순위:
-
-1. `referenceProfile.measurements`
-2. `feedbackProfile.measurementOffsets`가 있으면 적용된 adjusted profile
-3. fallback: 단일 기준 의류 실측값
-
-엔진 `mvp_rule_v1_5` (v1.5)에서는 최종 비교 기준이 다음이다.
-
-```text
-adjustedProfile = referenceProfile.measurements + feedbackProfile.measurementOffsets
-```
-
-### 4.2 Current Product Numbers
-
-구매하려는 의류의 실측값이다.
-
-추천 사이즈 기준 비교:
-
-```text
-productMeasurement = adjustedProfile + diff
-```
-
-단, 사용자가 구매하려는 사이즈가 추천 사이즈와 다르면 해당 사이즈의 실제 `external_product_sizes` row를 직접 사용해야 한다.
-
-### 4.3 Difference
-
-각 부위별 차이다.
-
-```text
-diff = productMeasurement - adjustedProfile
-```
-
-해석:
-
-- `diff < 0`: 기준보다 작음, 더 타이트할 수 있음
-- `diff = 0`: 기준과 동일
-- `diff > 0`: 기준보다 큼, 더 여유로울 수 있음
-
-## 5. 그래프 구성
-
-### 5.1 Ideal vs Product Bar Chart
-
-목적: 사용자 최적 수치와 구매 의류 수치를 직접 비교한다.
-
-데이터:
-
-```json
-{
-  "type": "ideal_vs_product_bar",
-  "unit": "cm",
-  "series": [
-    {
-      "measurement": "chest_width",
-      "label": "가슴단면",
-      "ideal": 58,
-      "product": 59,
-      "diff": 1,
-      "status": "slightly_large"
-    }
-  ]
-}
-```
-
-UI:
-
-- x축: 측정 항목
-- y축: cm
-- series 1: 나에게 맞는 기준 수치
-- series 2: 구매 의류 수치
-
-### 5.2 Difference Bar Chart
-
-목적: 어느 부위가 얼마나 차이 나는지 빠르게 보여준다.
-
-데이터:
-
-```json
-{
-  "type": "difference_bar",
-  "unit": "cm",
-  "series": [
-    {
-      "measurement": "chest_width",
-      "label": "가슴단면",
-      "diff": 1,
-      "direction": "larger",
-      "status": "slightly_large"
-    }
-  ]
-}
-```
-
-UI:
-
-- 0 기준선
-- 음수: 기준보다 작음
-- 양수: 기준보다 큼
-
-### 5.3 Size Score Ranking
-
-목적: 추천 사이즈가 왜 1위인지 보여준다.
-
-데이터:
-
-```json
-{
-  "type": "size_score_ranking",
-  "series": [
-    {
-      "sizeLabel": "M",
-      "fitScore": 78,
-      "fitLabel": "acceptable",
-      "weightedFitDistance": 0.72
-    },
-    {
-      "sizeLabel": "L",
-      "fitScore": 92,
-      "fitLabel": "good_fit",
-      "weightedFitDistance": 0.26
-    }
-  ]
-}
-```
-
-UI:
-
-- 사이즈별 horizontal bar
-- 추천 사이즈 강조
-- 1위와 2위 점수 차이 표시
-
-### 5.4 Feedback Adjustment Chart
-
-목적: 피드백이 실제로 어떤 부위를 어떻게 보정했는지 보여준다.
-
-데이터:
-
-```json
-{
-  "type": "feedback_adjustment",
-  "series": [
-    {
-      "measurement": "chest_width",
-      "label": "가슴단면",
-      "offset": 1,
-      "weightMultiplier": 1.2
-    }
-  ]
-}
-```
-
-UI:
-
-- offset cm bar
-- weight multiplier badge
-- 피드백이 없으면 숨김
-
-## 6. 리포트 섹션
-
-LLM 리포트는 아래 섹션을 기본으로 한다.
-
-### 6.1 한 줄 결론
-
-예:
-
-> 이 상품은 L 사이즈가 가장 적합하며, 기준 의류 대비 가슴과 어깨 차이가 작아 전체적으로 안정적인 핏이 예상됩니다.
-
-포함해야 할 수치:
-
-- 추천 사이즈
-- fit score
-- confidence
-
-### 6.2 추천 사이즈 판단
-
-설명:
-
-- 왜 해당 사이즈가 추천됐는지
-- 1위와 2위 점수 차이
-- confidence가 높거나 낮은 이유
-
-### 6.3 나에게 맞는 기준 수치
-
-설명:
-
-- 기준 의류들이 만든 ideal fit profile
-- 피드백이 반영된 adjusted profile
-- 사용자에게 가장 일관적인 부위
-
-### 6.4 구매 의류와 수치 비교
-
-설명:
-
-- 부위별 ideal vs product
-- 가장 차이가 큰 부위
-- 착용감 예측
-
-### 6.5 부위별 상세 분석
-
-항목별로 다음을 설명한다.
-
-- 기준 수치
-- 상품 수치
-- 차이
-- 상태
-- 예상 착용감
-
-### 6.6 피드백 개인화 설명
-
-피드백이 있을 때만 표시한다.
-
-설명:
-
-- 어떤 피드백이 반영됐는지
-- offset이 어디에 적용됐는지
-- weight multiplier가 어느 부위를 더 중요하게 만들었는지
-
-### 6.7 주의할 점
-
-설명:
-
-- confidence가 낮은 이유
-- 측정값 부족
-- 사이즈표 수동 입력/OCR/URL 파싱 신뢰도
-- 소재, 신축성, 핏 타입 차이
-
-### 6.8 최종 액션
-
-예:
-
-- 추천 사이즈 구매
-- 한 사이즈 업/다운도 함께 확인
-- 특정 부위 실측 재확인
-- 구매 후 피드백 남기기
-
-## 7. LLM 입력 Payload
-
-Ollama 8B에는 아래처럼 계산 완료된 payload만 전달한다.
+`buildFitReportNarrativeInput`은 다음 필드만 Ollama에 전달한다.
 
 ```json
 {
   "locale": "ko-KR",
   "reportStyle": "concise_but_explanatory",
-  "engineVersion": "mvp_rule_v1_5",
   "recommendation": {
     "recommendedSize": "L",
     "fitScore": 92,
     "fitLabel": "good_fit",
-    "recommendationConfidence": "high",
-    "weightedFitDistance": 0.26,
-    "scoreGapToSecond": 8,
-    "weightingStrategy": "feedback_adjusted_profile_v1"
+    "scoreGapToSecond": 8
   },
   "explanation": {
-    "confidenceReasons": [
-      {
-        "code": "small_score_gap",
-        "explanation": "1위와 2위 점수 차이가 작음"
-      }
-    ],
-    "missingMeasurementSummary": {
-      "comparedMeasurementCount": 3,
-      "comparedMeasurements": ["shoulder_width", "chest_width", "total_length"],
-      "missingMeasurementKeys": ["sleeve_length"],
-      "summary": "sparse"
-    },
-    "dataQualitySummary": {
-      "comparedMeasurementRatio": 0.75,
-      "missingMeasurementKeys": ["sleeve_length"],
-      "summary": "sparse"
-    },
-    "feedbackReliability": {
-      "applied": true,
-      "sampleCount": 5,
-      "overallSampleCount": 5,
-      "partSampleCount": 3,
-      "status": "applied",
-      "weightedSampleCount": 5,
-      "summary": "applied"
-    },
     "topExplanationFactors": [
       {
         "measurement": "chest_width",
         "label": "가슴단면",
         "diff": 1,
-        "weightedImpact": 0.32,
+        "weightedImpact": 0.4,
         "status": "slightly_large"
       }
     ]
@@ -476,6 +68,9 @@ Ollama 8B에는 아래처럼 계산 완료된 payload만 전달한다.
   "targetProduct": {
     "productName": "Linen Shirt",
     "brand": "Brand",
+    "mallName": "29CM",
+    "category": "shirt",
+    "fitType": "regular",
     "selectedSizeLabel": "L",
     "recommendedSizeLabel": "L"
   },
@@ -487,199 +82,104 @@ Ollama 8B에는 아래처럼 계산 완료된 payload만 전달한다.
       "product": 59,
       "diff": 1,
       "unit": "cm",
-      "weight": 0.32,
-      "tolerance": 1.4,
       "status": "slightly_large"
     }
   ],
   "sizeScores": [
     {
-      "sizeLabel": "M",
-      "fitScore": 78,
-      "fitLabel": "acceptable",
-      "weightedFitDistance": 0.72
-    },
-    {
       "sizeLabel": "L",
       "fitScore": 92,
-      "fitLabel": "good_fit",
-      "weightedFitDistance": 0.26
+      "fitLabel": "good_fit"
     }
-  ],
-  "feedbackPersonalization": {
-    "applied": true,
-    "sampleCount": 5,
-    "measurementOffsets": {
-      "chest_width": 1
-    },
-    "weightMultipliers": {
-      "chest_width": 1.2
-    }
-  },
-  "chartData": {
-    "idealVsProduct": [],
-    "differenceBar": [],
-    "sizeScoreRanking": [],
-    "feedbackAdjustment": []
-  }
+  ]
 }
 ```
 
-LLM 입력 payload는 위 구조처럼 백엔드가 계산한 요약값으로 제한한다. 원본 DB row, 사용자 피드백 원문, OCR 원문, raw payload, private identifier는 포함하지 않는다.
+다음 값은 내부 디버그 객체에 남아 있을 수 있지만 Ollama 입력에는 포함하지 않는다.
 
-## 8. Ollama 8B Prompt
+- `recommendationConfidence`, `confidenceReasons`
+- `feedbackPersonalization`, `feedbackReliability`
+- 내부 가중치와 weighted distance
+- 원본 DB row, 사용자 피드백 원문, OCR 원문, raw payload
+- 사용자 또는 데이터베이스 식별자
 
-### 8.1 System Prompt
+## 4. 출력 계약
 
-```text
-너는 Coordit의 핏 리포트 작성자다.
-너는 패션 핏 컨설턴트처럼 설명하지만, 반드시 제공된 숫자만 사용한다.
-절대 새로운 수치를 계산하거나 추측하지 마라.
-추천 사이즈, fit score, confidence는 입력값을 그대로 따른다.
-사용자가 이해하기 쉬운 한국어로 짧고 명확하게 작성한다.
-수치가 부족하면 부족하다고 말한다.
-소재, 신축성, 실제 착용감은 확정하지 말고 가능성으로만 표현한다.
-```
+Ollama는 다음 JSON만 반환한다.
 
-### 8.2 User Prompt Template
-
-```text
-아래 JSON은 Coordit Fit Score Engine의 계산 결과다.
-원본 DB row, 사용자 피드백 원문, OCR 원문, raw payload, private identifier는 포함하지 않은 계산 요약이다.
-이 숫자를 바탕으로 한국어 핏 리포트를 작성해라.
-
-요구사항:
-1. 추천 사이즈와 fit score를 첫 문단에 포함해라.
-2. 기준 수치와 상품 수치를 부위별로 자연스럽게 설명해라.
-3. 가장 중요한 차이 2~3개를 우선 설명해라.
-4. feedbackPersonalization.applied가 true면 피드백 보정이 어떻게 반영됐는지 설명해라.
-5. explanation.topExplanationFactors가 있으면 추천 판단에 크게 작용한 부위를 우선 설명해라.
-6. confidence가 low 또는 medium이면 explanation.confidenceReasons, missingMeasurementSummary, dataQualitySummary를 근거로 주의할 점을 분명히 써라.
-7. explanation.feedbackReliability는 피드백 보정 신뢰도를 설명할 때만 사용해라.
-8. JSON에 없는 숫자는 만들지 마라.
-9. 사용자 식별자, 원문 코멘트, OCR 원문, 원본 payload 같은 비공개 데이터는 요청하거나 추측하지 마라.
-10. 출력은 아래 JSON 형식으로만 해라.
-
-출력 형식:
+```json
 {
-  "title": "...",
+  "title": "L 사이즈 정밀 핏 리포트",
   "summary": "...",
   "recommendationReason": "...",
-  "fitDnaSummary": "...",
   "measurementAnalysis": [
     {
-      "measurement": "...",
+      "measurement": "가슴단면",
       "text": "..."
     }
   ],
-  "feedbackPersonalization": "...",
   "cautions": ["..."],
   "nextActions": ["..."]
 }
-
-입력 JSON:
-{{REPORT_INPUT_JSON}}
 ```
 
-### 8.3 Ollama 호출 예시
+작성 기준:
 
-```bash
-curl http://localhost:11434/api/generate \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "llama3.1:8b",
-    "prompt": "...",
-    "stream": false,
-    "options": {
-      "temperature": 0.2,
-      "top_p": 0.9
-    }
-  }'
-```
+- `summary`: 추천 사이즈, fit score, 전체 실루엣과 핵심 장단점을 4~5문장으로 작성
+- `recommendationReason`: 다른 모든 사이즈 점수와 부위별 균형을 6~9문장으로 설명
+- `measurementAnalysis`: 모든 입력 부위를 순서대로 작성하고 기준값, 상품값,
+  signed diff와 착용 의미를 포함
+- `cautions`: 데이터로 확정할 수 없는 구매 전 확인 사항 최대 2개
+- `nextActions`: 상품 상세나 보유 의류에서 확인할 수 있는 행동 최대 2개
 
-모델 후보:
+`fitDnaSummary`와 `feedbackPersonalization`은 `fit_report_v5` 공개 출력 필드가 아니다.
 
-- `llama3.1:8b`
-- `llama3:8b`
-- `qwen2.5:7b`
+## 5. 출력 보정
 
-테스트 시작은 `llama3.1:8b` 또는 설치된 8B급 모델로 한다.
+백엔드는 Ollama 출력을 그대로 신뢰하지 않는다.
 
-## 9. 구현 구조 제안
+- 부위별 문장에 입력과 다른 숫자가 있으면 해당 부위를 측정 기반 문장으로 교체한다.
+- 입력에 없는 숫자가 요약·추천 이유·확인 사항에 있으면 해당 섹션을 fallback으로 교체한다.
+- 지나치게 짧은 요약 또는 추천 이유는 상세 fallback 문장으로 교체한다.
+- 신뢰도, 피드백, 기준 샘플 부족 서술이 있으면 해당 섹션을 교체한다.
+- 누락된 부위는 모두 측정 기반 문장으로 채운다.
 
-### 9.1 테스트 단계
+Ollama 호출이 성공하고 일부 섹션만 보정된 경우 `source`는 `ollama`다. HTTP 호출,
+JSON 파싱 등 생성 자체가 실패한 경우 전체 fallback을 사용하며 `source`는
+`fallback`이다.
 
-현재 테스트 브랜치에서는 `fit-score-tester.html`이 아래 흐름을 한 파일 안에서 수행한다.
+## 6. API 계약
 
-1. 기준 의류, 피드백, 상품 사이즈 후보 입력
-2. Fit Score Engine `mvp_rule_v1_5` (v1.5) 계산 재현
-3. `reportInput` 생성
-4. `chartData` 생성
-5. Ollama prompt 생성
-6. 로컬 Ollama API 호출
-7. LLM JSON 응답 파싱
-8. 리포트 화면 렌더링
-9. Ollama 실패 시 fallback 리포트 표시
+Endpoint:
 
-테스트 단계에서는 DB 저장 없이 on-demand 생성으로 충분하다.
-
-테스터 기본값:
-
-- URL: `http://localhost:11434/api/generate`
-- Model: `llama3.1:8b`
-- Temperature: `0.2`
-- Stream: `false`
-
-실행 전 확인:
-
-```bash
-ollama run llama3.1:8b
-```
-
-브라우저에서 직접 Ollama를 호출하므로 로컬 환경에 따라 CORS 설정이 필요할 수 있다.
-
-### 9.2 백엔드 API
-
-1단계 구현에서는 아래 API를 사용한다. 리포트는 DB에 저장하지 않고 요청 시점에 생성해 반환한다.
-
-```text
+```http
 POST /fit-analysis-results/:id/report
 ```
 
-목적:
-
-- fit result id 기준으로 report input aggregate 생성
-- Ollama 호출
-- LLM 응답 검증
-- 리포트 반환
-- Ollama 실패 시 fallback 리포트 반환
-
-요청:
+요청 예:
 
 ```json
 {
   "selectedSizeLabel": "L",
   "style": "concise_but_explanatory",
-  "model": "llama3.1:8b",
+  "model": "qwen3:8b",
   "includeDebug": false
 }
 ```
 
-응답:
+응답 예:
 
 ```json
 {
   "fitAnalysisResultId": "uuid",
   "source": "ollama",
-  "modelName": "llama3.1:8b",
-  "promptVersion": "fit_report_v2",
+  "modelName": "qwen3:8b",
+  "promptVersion": "fit_report_v5",
   "report": {
-    "title": "...",
+    "title": "L 사이즈 정밀 핏 리포트",
     "summary": "...",
     "recommendationReason": "...",
-    "fitDnaSummary": "...",
     "measurementAnalysis": [],
-    "feedbackPersonalization": "...",
     "cautions": [],
     "nextActions": []
   },
@@ -692,133 +192,25 @@ POST /fit-analysis-results/:id/report
 }
 ```
 
-환경변수:
+`includeDebug = true`일 때만 `reportInput`과 최종 prompt를 추가한다. 모바일
+클라이언트는 디버그 필드 없이 `report`와 `chartData`만으로 렌더링해야 한다.
+
+## 7. 차트 계약
+
+차트는 LLM이 생성하지 않는다.
+
+- `idealVsProduct`: 기준 실측과 상품 실측
+- `differenceBar`: 0을 중심으로 한 signed cm 차이
+- `sizeScoreRanking`: 모든 후보 사이즈의 0~100 fit score
+- `feedbackAdjustment`: 기존 디버그 호환 필드이며 사용자 리포트 품질 판단에 사용하지 않음
+
+negative diff는 왼쪽, positive diff는 오른쪽으로 표시한다. 정확히 0이면 중앙 마크를
+사용한다. 색상과 무관하게 텍스트로 측정명, 기준값, 상품값, signed diff를 함께 제공한다.
+
+## 8. 환경 변수
 
 - `OLLAMA_GENERATE_URL`: 기본값 `http://localhost:11434/api/generate`
-- `OLLAMA_MODEL`: 기본값 `llama3.1:8b`
+- `OLLAMA_MODEL`: 로컬에 설치된 생성 모델 이름
 
-`includeDebug`가 `true`이면 테스트를 위해 `reportInput`과 `prompt`를 응답에 포함한다.
-`fit_report_v2`의 `reportInput.explanation`은 기존 `result_details`에 새
-설명 메타데이터가 없을 때 legacy-tolerant fallback 요약을 사용한다.
-리포트 생성은 `fit_analysis_results.result_details`를 읽기만 하며 no schema
-migration을 요구하지 않는다.
-
-### 9.3 저장 테이블 후보
-
-초기 테스트에서는 저장하지 않는다.
-
-리포트 재조회가 필요해지면 추후 테이블을 고려한다.
-
-```text
-fit_reports
-```
-
-후보 컬럼:
-
-- `id`
-- `user_id`
-- `fit_analysis_result_id`
-- `model_name`
-- `prompt_version`
-- `report_json`
-- `chart_data`
-- `created_at`
-
-## 10. Chart Data Builder
-
-엔진 응답에서 차트 데이터를 만드는 규칙이다.
-
-### 10.1 adjusted profile 계산
-
-엔진 응답의 `referenceProfile.measurements`는 이미 피드백 offset이 적용된 값이다. 따라서 리포트에서는 이를 ideal로 사용한다.
-
-```ts
-const ideal = result.referenceProfile.measurements;
-```
-
-### 10.2 recommended product measurement 계산
-
-추천 사이즈 기준이면 `diff`로 역산한다.
-
-```ts
-const productMeasurement = ideal[key] + result.diff[key];
-```
-
-사용자가 선택한 사이즈가 추천 사이즈와 다르면 해당 사이즈의 `external_product_sizes` row를 직접 사용한다.
-
-### 10.3 ideal vs product
-
-```ts
-const idealVsProduct = measurementKeys.map((key) => ({
-  measurement: key,
-  label: labels[key],
-  ideal: ideal[key],
-  product: productMeasurement[key],
-  diff: result.diff[key],
-  status: result.partStatuses[key]
-}));
-```
-
-### 10.4 size score ranking
-
-```ts
-const sizeScoreRanking = result.allSizeScores.map((size) => ({
-  sizeLabel: size.sizeLabel,
-  fitScore: size.fitScore,
-  fitLabel: size.fitLabel,
-  weightedFitDistance: size.weightedFitDistance,
-  recommendationConfidence: size.recommendationConfidence
-}));
-```
-
-## 11. 화면 구성 제안
-
-리포트 화면은 다음 순서가 좋다.
-
-1. 추천 요약 카드
-2. Ideal vs Product 그래프
-3. 부위별 diff 그래프
-4. 사이즈 점수 ranking
-5. LLM 리포트 본문
-6. 피드백 개인화 설명
-7. 구매 후 피드백 CTA
-
-## 12. 구현 시 주의사항
-
-- Ollama 8B는 긴 JSON을 넣으면 핵심을 놓칠 수 있으므로 payload를 압축한다.
-- LLM에 모든 원본 DB row를 주지 말고 report용 summary만 전달한다.
-- LLM 응답은 JSON parse를 시도하고 실패하면 fallback 문구를 사용한다.
-- 모델 온도는 낮게 유지한다.
-- 개인정보와 raw user data는 prompt에 넣지 않는다.
-- 그래프 수치는 LLM 응답이 아니라 `chartData`를 기준으로 렌더링한다.
-
-## 13. 테스트 체크리스트
-
-- 추천 사이즈와 LLM 문장 속 사이즈가 일치한다.
-- fit score가 입력값과 동일하게 출력된다.
-- ideal/product/diff 수치가 그래프와 문장에서 일치한다.
-- 피드백 보정이 있을 때만 개인화 설명이 나온다.
-- confidence가 low일 때 주의 문구가 나온다.
-- LLM이 없는 숫자를 만들어내지 않는다.
-- Ollama 서버가 꺼져 있으면 fallback UI가 나온다.
-
-## 14. 향후 ML 기반 분석으로 확장
-
-LLM 리포트는 설명 레이어이고, ML 기반 분석은 추천 계산 레이어다.
-
-장기적으로는 다음 순서로 확장한다.
-
-1. fit result와 user feedback을 분석용 데이터셋으로 축적
-2. 카테고리별 실패 패턴 분석
-3. 사용자별 선호 여유분 추정
-4. 브랜드별/쇼핑몰별 사이즈 편차 모델링
-5. OCR/URL parsing confidence를 추천 confidence에 반영
-6. rule-based score와 ML correction score를 결합
-7. LLM 리포트에는 ML 보정 이유를 설명 가능한 형태로 전달
-
-중요한 점:
-
-- ML은 최종 추천을 보정하되, 왜 보정됐는지 설명 가능해야 한다.
-- 분석용 export/data contract는 `docs/fit-engine/HYBRID_SCORING_READINESS.md`를 기준으로 한다. 현재 리포트 기능은 ML 학습, prediction serving, shadow recommendation, LLM 기반 점수 계산을 제공하지 않는다.
-- LLM은 ML 결과를 해석하는 역할이지, 모델 학습이나 점수 계산을 대신하지 않는다.
-- 사용자가 납득할 수 있는 부위별 수치 비교는 계속 유지한다.
+로컬 Ollama를 사용할 수 없어도 동일한 숫자 계약을 사용하는 deterministic fallback
+리포트가 생성되어야 한다.
