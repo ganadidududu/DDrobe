@@ -1,7 +1,11 @@
 import { env } from "../../config/env";
-import { createHttpError } from "../../shared/utils/http-error";
 import { buildFitReportInput } from "./fit-report.builder";
 import { buildFitReportPrompt, FIT_REPORT_PROMPT_VERSION } from "./fit-report.prompt";
+import {
+  buildMeasurementAnalysisText,
+  formatSigned,
+  sanitizeGeneratedReport
+} from "./fit-report.sanitizer";
 import type {
   FitReportInput,
   FitReportJson,
@@ -54,50 +58,6 @@ const extractJsonObject = (text: string): FitReportJson => {
     return normalizeReportJson(JSON.parse(text.slice(start, end + 1)));
   }
 };
-
-const formatSigned = (value: number): string => `${value > 0 ? "+" : ""}${value}`;
-
-const buildMeasurementAnalysisText = (row: FitReportInput["measurements"][number]): string =>
-  `${row.label}은 기준 ${row.ideal}cm와 상품 ${row.product}cm를 비교하면 ${formatSigned(row.diff)}cm 차이입니다. ` +
-  (row.diff < 0
-    ? "기준보다 작아 이 부위는 상대적으로 타이트하게 느껴질 수 있습니다."
-    : row.diff > 0
-      ? "기준보다 커 이 부위에는 상대적으로 여유가 생길 수 있습니다."
-      : "기준과 같은 수치로, 이 부위의 볼륨과 길이는 익숙한 핏에 가깝습니다.");
-
-const hasConsistentMeasurementNumbers = (
-  text: string,
-  row: FitReportInput["measurements"][number]
-): boolean => {
-  const numericValues = [...text.matchAll(/[+-]?\d+(?:\.\d+)?/g)]
-    .map((match) => Number(match[0]))
-    .filter(Number.isFinite);
-  const allowedValues = [row.ideal, row.product, row.diff, Math.abs(row.diff)];
-  const contains = (expected: number): boolean =>
-    numericValues.some((value) => Math.abs(value - expected) < 0.001);
-
-  return numericValues.every((value) =>
-    allowedValues.some((allowed) => Math.abs(value - allowed) < 0.001)
-  ) && contains(row.ideal) && contains(row.product) && contains(Math.abs(row.diff));
-};
-
-const alignMeasurementAnalysis = (
-  report: FitReportJson,
-  reportInput: FitReportInput
-): FitReportJson => ({
-  ...report,
-  measurementAnalysis: reportInput.measurements.map((row) => {
-    const generated = report.measurementAnalysis.find((item) =>
-      item.measurement === row.label || item.measurement === row.key
-    );
-    return {
-      measurement: row.label,
-      text: generated && hasConsistentMeasurementNumbers(generated.text, row)
-        ? generated.text
-        : buildMeasurementAnalysisText(row)
-    };
-  })
-});
 
 const formatTopExplanationFactors = (reportInput: FitReportInput): string => {
   const factors = reportInput.explanation.topExplanationFactors.map((factor) =>
@@ -176,7 +136,11 @@ export const generateFitReport = async (
   const modelName = options.model ?? env.ollamaModel;
 
   try {
-    const report = alignMeasurementAnalysis(await callOllama(prompt, modelName), reportInput);
+    const report = sanitizeGeneratedReport(
+      await callOllama(prompt, modelName),
+      reportInput,
+      buildFallbackFitReport(reportInput)
+    );
     return {
       fitAnalysisResultId,
       source: "ollama",

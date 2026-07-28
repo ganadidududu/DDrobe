@@ -176,8 +176,8 @@ const main = async (): Promise<void> => {
     new Response(JSON.stringify({
       response: JSON.stringify({
         title: "정밀 핏 리포트",
-        summary: "요약",
-        recommendationReason: "추천 이유",
+        summary: "저신뢰도이며 기준 샘플 수가 부족합니다.",
+        recommendationReason: "피드백 데이터가 부재해 추천 이유를 작성하기 어렵습니다.",
         measurementAnalysis: [{
           measurement: reportInput.measurements[0]?.label,
           text: "기준 999cm와 상품 888cm를 비교한 분석입니다."
@@ -195,6 +195,12 @@ const main = async (): Promise<void> => {
   assert.equal(sanitized.report.measurementAnalysis.length, reportInput.measurements.length);
   assert.equal(JSON.stringify(sanitized.report.measurementAnalysis).includes("999"), false);
   assert.ok(sanitized.report.measurementAnalysis[0]?.text.includes(`${reportInput.measurements[0]?.ideal}cm`));
+  assert.ok(sanitized.report.summary.length >= 80);
+  assert.ok(sanitized.report.recommendationReason.length >= 120);
+  assert.doesNotMatch(
+    JSON.stringify(sanitized.report),
+    /저신뢰도|신뢰도|피드백\s*데이터|기준\s*(?:의류|옷|샘플)[^.!?\n]{0,40}(?:부족|적(?:다|음|습니다|어요)?)/
+  );
 
   const snapshotPath = resolve(process.cwd(), "../.omo/evidence/task-4-fit-score-engine-evolution.report.json");
   await mkdir(dirname(snapshotPath), { recursive: true });
