@@ -26,7 +26,12 @@ export const buildFitReportNarrativeInput = (reportInput: FitReportInput) => ({
     scoreGapToSecond: reportInput.recommendation.scoreGapToSecond
   },
   explanation: {
-    topExplanationFactors: reportInput.explanation.topExplanationFactors
+    topExplanationFactors: reportInput.explanation.topExplanationFactors.map((factor) => ({
+      measurement: factor.measurement,
+      label: factor.label,
+      diff: factor.diff,
+      status: factor.status
+    }))
   },
   targetProduct: reportInput.targetProduct,
   measurements: reportInput.measurements.map((measurement) => ({

@@ -60,7 +60,6 @@ Ollama가 하면 안 되는 일:
         "measurement": "chest_width",
         "label": "가슴단면",
         "diff": 1,
-        "weightedImpact": 0.4,
         "status": "slightly_large"
       }
     ]
@@ -145,8 +144,10 @@ Ollama는 다음 JSON만 반환한다.
 - 누락된 부위는 모두 측정 기반 문장으로 채운다.
 
 Ollama 호출이 성공하고 일부 섹션만 보정된 경우 `source`는 `ollama`다. HTTP 호출,
-JSON 파싱 등 생성 자체가 실패한 경우 전체 fallback을 사용하며 `source`는
-`fallback`이다.
+JSON 파싱 등 생성 자체가 실패한 경우 백엔드는 진단 가능한 전체 fallback 응답을
+반환하며 `source`는 `fallback`이다. iOS Fit Lab은 LLM 작성까지 완료된 리포트만
+완료 화면으로 표시하므로 `fallback`을 최종 리포트로 열지 않고 로딩·재시도 상태를
+유지한다.
 
 ## 6. API 계약
 

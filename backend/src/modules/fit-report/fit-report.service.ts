@@ -77,6 +77,7 @@ export const buildFallbackFitReport = (reportInput: FitReportInput): FitReportJs
     summary:
       `${reportInput.recommendation.recommendedSize} 사이즈의 핏 스코어는 ${reportInput.recommendation.fitScore}점으로 가장 높은 균형을 보입니다. ` +
       `기준 의류에서 만들어진 부위별 베스트 수치와 상품 실측을 함께 비교한 결과입니다. ` +
+      `폭과 길이에서 생기는 차이를 나누어 보면 추천 사이즈의 실루엣과 타협점을 더 분명하게 이해할 수 있습니다. ` +
       `아래에서 각 부위의 차이와 다른 사이즈의 점수를 함께 확인하면 예상 실루엣을 더 구체적으로 판단할 수 있습니다.`,
     recommendationReason:
       `${reportInput.recommendation.recommendedSize} 사이즈는 비교 가능한 모든 부위를 종합했을 때 기준 수치에 가장 균형 있게 가까운 후보입니다.` +
@@ -87,7 +88,10 @@ export const buildFallbackFitReport = (reportInput: FitReportInput): FitReportJs
         ? ` 두 번째 후보와의 점수 차이는 ${reportInput.recommendation.scoreGapToSecond}점입니다.`
         : "") +
       ` 특히 ${topExplanationFactors}가 사이즈 선택을 가르는 핵심 차이였습니다. ` +
-      `한 부위만 맞추는 대신 폭과 길이의 균형을 함께 맞춘 선택이라는 점이 추천의 핵심입니다.`,
+      `폭 계열은 상체나 하체의 볼륨과 움직임 여유를 판단하는 기준으로 함께 살펴봤습니다. ` +
+      `길이 계열은 익숙한 비율과 비교했을 때 어느 부분이 달라지는지 중심으로 확인했습니다. ` +
+      `한 부위만 맞추는 대신 폭과 길이의 균형을 함께 맞춘 선택이라는 점이 추천의 핵심입니다. ` +
+      `따라서 아래 부위별 차이가 평소 선호와 맞는지 확인한 뒤 이 사이즈를 선택하는 것을 권합니다.`,
     measurementAnalysis: reportInput.measurements.map((row) => ({
       measurement: row.label,
       text: buildMeasurementAnalysisText(row)
