@@ -124,8 +124,8 @@ Ollama는 다음 JSON만 반환한다.
 
 작성 기준:
 
-- `summary`: 추천 사이즈, fit score, 전체 실루엣과 핵심 장단점을 최소 4문장으로 작성
-- `recommendationReason`: 다른 모든 사이즈 점수와 부위별 균형을 최소 6문장으로 설명
+- `summary`: 추천 사이즈, fit score, 전체 실루엣과 핵심 장단점을 4~5문장으로 작성
+- `recommendationReason`: 다른 모든 사이즈 점수와 부위별 균형을 6~9문장으로 설명
 - `measurementAnalysis`: 모든 입력 부위를 순서대로 작성하고 기준값, 상품값,
   signed diff와 착용 의미를 포함
 - `cautions`: 데이터로 확정할 수 없는 구매 전 확인 사항 최대 2개
@@ -141,14 +141,21 @@ Ollama는 다음 JSON만 반환한다.
 - 입력에 없는 숫자가 요약·추천 이유·확인 사항에 있으면 해당 섹션을 fallback으로 교체한다.
 - 지나치게 짧은 요약 또는 추천 이유는 상세 fallback 문장으로 교체한다.
 - 신뢰도, 피드백, 기준 샘플 부족 서술이 있으면 해당 섹션을 교체한다.
+- cm 수치가 요약이나 추천 이유에 섞이면 부위·숫자 오귀속을 막기 위해 해당 핵심
+  서술을 교체한다. cm 수치는 부위별 분석에서만 허용한다.
 - 누락된 부위는 모두 측정 기반 문장으로 채운다.
 
-Ollama가 만든 `summary`와 `recommendationReason`이 모두 상세도·금지 문구·숫자
-검사를 통과하고, 부위나 확인 항목 일부만 보정된 경우 `source`는 `ollama`다.
-두 핵심 서술 중 하나라도 fallback으로 교체되거나 HTTP 호출·JSON 파싱이 실패하면
-백엔드는 전체 deterministic fallback과 `source: "fallback"`을 반환한다. iOS Fit
-Lab은 LLM 작성까지 완료된 리포트만 완료 화면으로 표시하므로 `fallback`을 최종
-리포트로 열지 않고 로딩·재시도 상태를 유지한다.
+작성 목표는 위 문장 범위이며, 출력 보정의 하한은 summary 4문장,
+recommendationReason 6문장, 부위별 분석 3문장이다. 목표보다 긴 문장은 다른
+안전성·숫자 조건을 만족하면 불필요한 재시도를 피하기 위해 허용한다.
+
+Ollama가 만든 `summary`와 `recommendationReason`에 각각 안전한 모델 문장이 하나
+이상 있으면 그 문장을 보존하고, 제거되거나 부족한 문장만 deterministic 문장으로
+보완한 뒤 `source: "ollama"`를 반환한다. 두 핵심 서술 중 하나라도 보존할 수 있는
+모델 문장이 없거나 HTTP 호출·JSON 파싱이 실패하면 백엔드는 전체 deterministic
+fallback과 `source: "fallback"`을 반환한다. iOS Fit Lab은 LLM 작성까지 완료된
+리포트만 완료 화면으로 표시하므로 `fallback`을 최종 리포트로 열지 않고
+로딩·재시도 상태를 유지한다.
 
 ## 6. API 계약
 

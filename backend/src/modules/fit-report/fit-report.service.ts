@@ -4,6 +4,7 @@ import { buildFitReportPrompt, FIT_REPORT_PROMPT_VERSION } from "./fit-report.pr
 import {
   buildMeasurementAnalysisText,
   formatSigned,
+  hasAcceptedCoreNarrative,
   sanitizeGeneratedReport
 } from "./fit-report.sanitizer";
 import type {
@@ -112,6 +113,7 @@ const callOllama = async (prompt: string, modelName: string): Promise<FitReportJ
       model: modelName,
       prompt,
       stream: false,
+      think: false,
       options: {
         temperature: 0.2,
         top_p: 0.9
@@ -147,9 +149,7 @@ export const generateFitReport = async (
       reportInput,
       fallbackReport
     );
-    const coreNarrativeAccepted =
-      report.summary === generatedReport.summary &&
-      report.recommendationReason === generatedReport.recommendationReason;
+    const coreNarrativeAccepted = hasAcceptedCoreNarrative(generatedReport, reportInput);
     return {
       fitAnalysisResultId,
       source: coreNarrativeAccepted ? "ollama" : "fallback",

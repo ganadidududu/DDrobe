@@ -1,7 +1,4 @@
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { dirname, resolve } from "node:path";
 import {
   configureReportTestEnv,
   FakeSupabaseQuery,
@@ -15,10 +12,7 @@ import {
   useLegacyFitResult,
   userId
 } from "./fit-report.service.test-fixtures";
-import {
-  assertSanitizerContract,
-  countSentences
-} from "./fit-report.sanitizer.test-cases";
+import { assertSanitizerContract, countSentences } from "./fit-report.sanitizer.test-cases";
 
 const main = async (): Promise<void> => {
   configureReportTestEnv();
@@ -44,7 +38,10 @@ const main = async (): Promise<void> => {
 
   useEnrichedFitResult();
   const reportInput = await reportBuilder.buildFitReportInput(userId, fitResultId);
-  assert.deepEqual(reportInput.explanation.missingMeasurementSummary.missingMeasurementKeys, ["total_length"]);
+  assert.deepEqual(
+    reportInput.explanation.missingMeasurementSummary.missingMeasurementKeys,
+    ["total_length"]
+  );
   assert.equal(reportInput.explanation.dataQualitySummary.summary, "sparse");
   assert.equal(reportInput.explanation.feedbackReliability.summary, "unavailable");
   assert.equal(reportInput.explanation.feedbackReliability.status, "unavailable");
@@ -53,11 +50,7 @@ const main = async (): Promise<void> => {
   assert.ok(reportInput.explanation.confidenceReasons.some((reason) => reason.code === "missing_measurements"));
 
   const fallbackReport = reportService.buildFallbackFitReport(reportInput);
-  assertSanitizerContract(
-    reportInput,
-    fallbackReport,
-    reportSanitizer.sanitizeGeneratedReport
-  );
+  assertSanitizerContract(reportInput, fallbackReport, reportSanitizer);
 
   const prompt = promptModule.buildFitReportPrompt(reportInput);
   const narrativeInputStart = prompt.indexOf('{\n  "locale"');
@@ -125,10 +118,11 @@ const main = async (): Promise<void> => {
   usePartialConfidenceBreakdownFitResult();
   const partialMetadataReportInput = await reportBuilder.buildFitReportInput(userId, fitResultId);
   assert.equal(partialMetadataReportInput.feedbackPersonalization.applied, false);
+  const partialReliability = partialMetadataReportInput.explanation.feedbackReliability;
   assert.equal(partialMetadataReportInput.feedbackPersonalization.sampleCount, 9);
-  assert.equal(partialMetadataReportInput.explanation.feedbackReliability.applied, false);
-  assert.equal(partialMetadataReportInput.explanation.feedbackReliability.status, "insufficient_signal");
-  assert.equal(partialMetadataReportInput.explanation.feedbackReliability.weightedSampleCount, 9);
+  assert.equal(partialReliability.applied, false);
+  assert.equal(partialReliability.status, "insufficient_signal");
+  assert.equal(partialReliability.weightedSampleCount, 9);
 
   useAdversarialConsumedMetadataFitResult();
   const adversarialReportInput = await reportBuilder.buildFitReportInput(userId, fitResultId);
@@ -155,9 +149,10 @@ const main = async (): Promise<void> => {
       status: "large_gap"
     }
   ]);
-  assert.deepEqual(adversarialReportInput.explanation.missingMeasurementSummary.missingMeasurementKeys, [
-    "total_length"
-  ]);
+  assert.deepEqual(
+    adversarialReportInput.explanation.missingMeasurementSummary.missingMeasurementKeys,
+    ["total_length"]
+  );
   assert.equal(adversarialReportInput.recommendation.weightingStrategy, null);
   assert.deepEqual(adversarialReportInput.feedbackPersonalization.partFeedbackCounts, {
     chest_width: { too_small: 2, good: 1 }
@@ -180,19 +175,27 @@ const main = async (): Promise<void> => {
   ]);
 
   useEnrichedFitResult();
-  globalThis.fetch = async (): Promise<Response> =>
-    new Response(JSON.stringify({ response: "not valid json" }), {
+  let observedThink: unknown;
+  globalThis.fetch = async (_input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    assert.equal(typeof init?.body, "string");
+    const requestBody: unknown = JSON.parse(typeof init?.body === "string" ? init.body : "");
+    assert.ok(typeof requestBody === "object" && requestBody !== null && !Array.isArray(requestBody));
+    observedThink = Reflect.get(requestBody, "think");
+    return new Response(JSON.stringify({ response: "not valid json" }), {
       status: 200,
       headers: { "Content-Type": "application/json" }
     });
+  };
 
   const generated = await reportService.generateFitReport(userId, fitResultId, { includeDebug: true });
+  assert.equal(observedThink, false);
   assert.equal(generated.source, "fallback");
   assert.equal(generated.promptVersion, "fit_report_v5");
   assert.equal(generated.report.summary.includes("S"), true);
   assert.equal(generated.report.summary.includes("67"), true);
-  assert.equal(generated.reportInput?.explanation.feedbackReliability.status, "unavailable");
-  assert.equal(generated.reportInput?.explanation.feedbackReliability.weightedSampleCount, 0);
+  const generatedReliability = generated.reportInput?.explanation.feedbackReliability;
+  assert.equal(generatedReliability?.status, "unavailable");
+  assert.equal(generatedReliability?.weightedSampleCount, 0);
   assert.ok(countSentences(generated.report.summary) >= 4);
   assert.ok(countSentences(generated.report.recommendationReason) >= 6);
   assert.ok(generated.report.measurementAnalysis.every((row) => countSentences(row.text) >= 3));
@@ -201,8 +204,8 @@ const main = async (): Promise<void> => {
     new Response(JSON.stringify({
       response: JSON.stringify({
         title: "정밀 핏 리포트",
-        summary: "추천 사이즈의 전체 균형을 확인했습니다. 폭과 길이를 나누어 비교했습니다. 기준 의류가 한 벌뿐이라 판단 근거가 제한됩니다. 구매 전에는 상품 상세 정보를 다시 확인하는 편이 좋습니다.",
-        recommendationReason: "추천 후보의 점수를 비교했습니다. 폭 계열 차이를 확인했습니다. 길이 계열 차이도 확인했습니다. 피드백 데이터가 부재해 추천 근거는 약합니다. 가장 가까운 후보도 함께 살펴봤습니다. 최종 선택 전에는 소재를 확인하세요.",
+        summary: "기준 의류가 한 벌뿐입니다.",
+        recommendationReason: "피드백 데이터가 부재합니다.",
         measurementAnalysis: [{
           measurement: reportInput.measurements[0]?.label,
           text: "기준 999cm와 상품 888cm를 비교한 분석입니다."
@@ -219,7 +222,8 @@ const main = async (): Promise<void> => {
   assert.equal(sanitized.source, "fallback");
   assert.equal(sanitized.report.measurementAnalysis.length, reportInput.measurements.length);
   assert.equal(JSON.stringify(sanitized.report.measurementAnalysis).includes("999"), false);
-  assert.ok(sanitized.report.measurementAnalysis[0]?.text.includes(`${reportInput.measurements[0]?.ideal}cm`));
+  const firstMeasurement = sanitized.report.measurementAnalysis[0]?.text;
+  assert.ok(firstMeasurement?.includes(`${reportInput.measurements[0]?.ideal}cm`));
   assert.ok(sanitized.report.summary.length >= 80);
   assert.ok(sanitized.report.recommendationReason.length >= 120);
   assert.ok(countSentences(sanitized.report.summary) >= 4);
@@ -228,22 +232,6 @@ const main = async (): Promise<void> => {
   assert.doesNotMatch(
     JSON.stringify(sanitized.report),
     /저신뢰도|신뢰도|피드백|한\s*벌뿐|판단\s*근거[^.!?\n]{0,20}제한/
-  );
-
-  const snapshotPath = resolve(tmpdir(), "coordit-fit-report-tests", "fit-report.json");
-  await mkdir(dirname(snapshotPath), { recursive: true });
-  await writeFile(snapshotPath, `${JSON.stringify({
-    source: generated.source,
-    recommendedSize: generated.reportInput?.recommendation.recommendedSize,
-    fitScore: generated.reportInput?.recommendation.fitScore,
-    explanation: generated.reportInput?.explanation,
-    fallbackReport: generated.report
-  }, null, 2)}\n`);
-
-  const promptSafetyPath = resolve(tmpdir(), "coordit-fit-report-tests", "prompt-safety.log");
-  await writeFile(
-    promptSafetyPath,
-    `prompt safety passed\nforbidden raw/private token checks: ${forbiddenTokens.length}\nprompt length: ${prompt.length}\n`
   );
 
   console.log("fit-report tests passed");

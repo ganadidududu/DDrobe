@@ -44,17 +44,61 @@ const hasMinimumDetail = (text: string, minimumLength: number, minimumSentences:
   text.trim().length >= minimumLength &&
   text.split(/[.!?。]+/).filter((sentence) => sentence.trim().length > 0).length >= minimumSentences;
 
+const hasMeasurementUnit = (text: string): boolean => /[+-]?\d+(?:\.\d+)?\s*cm\b/i.test(text);
+
+type NarrativeMinimumDetail = {
+  readonly length: number;
+  readonly sentences: number;
+};
+
 const isUsableNarrative = (
   text: string,
   reportInput: FitReportInput,
-  minimumDetail: { readonly length: number; readonly sentences: number }
+  minimumDetail: NarrativeMinimumDetail
 ): boolean =>
   hasMinimumDetail(text, minimumDetail.length, minimumDetail.sentences) &&
   !hasForbiddenNarrative(text) &&
+  !hasMeasurementUnit(text) &&
   hasSupportedNumbers(text, reportInput);
 
 const summaryMinimumDetail = { length: 80, sentences: 4 } as const;
 const recommendationMinimumDetail = { length: 120, sentences: 6 } as const;
+
+const safeNarrativeSentences = (text: string, reportInput: FitReportInput): string[] =>
+  text.split(/[.!?。]+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) =>
+      sentence.length >= 20 &&
+      !hasForbiddenNarrative(sentence) &&
+      !hasMeasurementUnit(sentence) &&
+      hasSupportedNumbers(sentence, reportInput)
+    );
+
+const repairNarrative = (
+  text: string,
+  fallback: string,
+  reportInput: FitReportInput,
+  minimumDetail: NarrativeMinimumDetail
+): string => {
+  if (isUsableNarrative(text, reportInput, minimumDetail)) return text;
+
+  const repairedSentences = safeNarrativeSentences(text, reportInput);
+  for (const sentence of safeNarrativeSentences(fallback, reportInput)) {
+    if (repairedSentences.length >= minimumDetail.sentences) break;
+    if (!repairedSentences.includes(sentence)) repairedSentences.push(sentence);
+  }
+  const repaired = `${repairedSentences.join(". ")}.`;
+  return hasMinimumDetail(repaired, minimumDetail.length, minimumDetail.sentences)
+    ? repaired
+    : fallback;
+};
+
+export const hasAcceptedCoreNarrative = (
+  report: FitReportJson,
+  reportInput: FitReportInput
+): boolean =>
+  safeNarrativeSentences(report.summary, reportInput).length > 0 &&
+  safeNarrativeSentences(report.recommendationReason, reportInput).length > 0;
 
 export const formatSigned = (value: number): string => `${value > 0 ? "+" : ""}${value}`;
 
@@ -128,16 +172,18 @@ export const sanitizeGeneratedReport = (
       hasSupportedNumbers(report.title, reportInput)
       ? report.title
       : fallback.title,
-    summary: isUsableNarrative(report.summary, reportInput, summaryMinimumDetail)
-      ? report.summary
-      : fallback.summary,
-    recommendationReason: isUsableNarrative(
+    summary: repairNarrative(
+      report.summary,
+      fallback.summary,
+      reportInput,
+      summaryMinimumDetail
+    ),
+    recommendationReason: repairNarrative(
       report.recommendationReason,
+      fallback.recommendationReason,
       reportInput,
       recommendationMinimumDetail
-    )
-      ? report.recommendationReason
-      : fallback.recommendationReason,
+    ),
     cautions: sanitizeItems(report.cautions, fallback.cautions),
     nextActions: sanitizeItems(report.nextActions, fallback.nextActions)
   };
