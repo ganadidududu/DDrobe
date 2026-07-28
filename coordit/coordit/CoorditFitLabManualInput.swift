@@ -122,10 +122,7 @@ struct CoorditFitLabInputScreen: View {
                         .foregroundStyle(Color.black.opacity(0.64))
                 }
 
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: metrics.value(132)), spacing: metrics.value(10))],
-                    spacing: metrics.value(10)
-                ) {
+                VStack(alignment: .leading, spacing: metrics.value(8)) {
                     sourceCard(
                         title: "링크로 불러오기",
                         subtitle: "링크에서 베타 추출",
@@ -154,7 +151,7 @@ struct CoorditFitLabInputScreen: View {
                         destination = .manual
                     }
                 }
-                .padding(metrics.value(10))
+                .padding(metrics.value(8))
                 .background(CoorditFitLabTexturedPanel(cornerRadius: metrics.value(8), intensity: 1))
                 .clipShape(RoundedRectangle(cornerRadius: metrics.value(8), style: .continuous))
 
@@ -275,20 +272,33 @@ struct CoorditFitLabInputScreen: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: metrics.value(7)) {
+            HStack(alignment: .center, spacing: metrics.value(11)) {
                 Image(systemName: symbol)
-                    .font(.title3.weight(.semibold))
+                    .font(.system(size: metrics.value(19), weight: .semibold))
                     .foregroundStyle(CoorditFitLabPalette.ink)
-                Text(title)
-                    .font(CoorditTypography.gmarketBold(size: metrics.value(13), relativeTo: .headline))
-                    .foregroundStyle(Color.black)
-                    .multilineTextAlignment(.leading)
-                Text(subtitle)
-                    .font(CoorditTypography.gmarketLight(size: metrics.value(10), relativeTo: .caption))
-                    .foregroundStyle(Color.black.opacity(0.58))
+                    .frame(width: metrics.value(36), height: metrics.value(36))
+                    .background(CoorditFitLabPalette.field.opacity(0.86))
+                    .clipShape(RoundedRectangle(cornerRadius: metrics.value(7), style: .continuous))
+
+                VStack(alignment: .leading, spacing: metrics.value(3)) {
+                    Text(title)
+                        .font(CoorditTypography.gmarketBold(size: metrics.value(14), relativeTo: .headline))
+                        .foregroundStyle(Color.black)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.9)
+                        .multilineTextAlignment(.leading)
+                    Text(subtitle)
+                        .font(CoorditTypography.gmarketLight(size: metrics.value(11), relativeTo: .caption))
+                        .foregroundStyle(Color.black.opacity(0.58))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.9)
+                        .multilineTextAlignment(.leading)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, minHeight: metrics.value(88), alignment: .leading)
-            .padding(metrics.value(12))
+            .frame(maxWidth: .infinity, minHeight: metrics.value(60), alignment: .leading)
+            .padding(.horizontal, metrics.value(12))
+            .padding(.vertical, metrics.value(7))
             .background(
                 LinearGradient(
                     colors: [.white, CoorditFitLabPalette.empty],
