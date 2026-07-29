@@ -149,7 +149,7 @@ final class CoorditFitLabCoordinator: ObservableObject {
         submissionTask = nil
         if submissionStep == .complete,
            recommendation != nil,
-           report?.source == "ollama" {
+           report != nil {
             analysisState = .completed(
                 draft.garmentKind == .upper ? .fitLabResultTop : .fitLabResultBottom
             )
@@ -363,11 +363,6 @@ final class CoorditFitLabCoordinator: ObservableObject {
                         )
                     )
                     try ensureActive(generation)
-                    guard receivedReport.source == "ollama" else {
-                        throw CoorditFitLabError.transport(
-                            "상세 리포트 생성을 완료하지 못했어요. 다시 시도해 주세요."
-                        )
-                    }
                     report = receivedReport
                     reportNeedsRetry = false
                 } catch {

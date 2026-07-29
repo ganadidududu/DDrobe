@@ -2,6 +2,7 @@ import { errors as playwrightErrors } from "playwright";
 import { env } from "../../../config/env";
 import { normalizeCategory } from "../normalization/product-normalizer";
 import { ProductImportError } from "../product-import.error";
+import { assertPublicUrl, parseProductUrl } from "../security/url-validator";
 import type { ProductCrawlContext, ProductImportPreview, ProductSite } from "../product-import.types";
 import { browserManager } from "./browser-manager";
 import { extractDomProduct } from "./dom-parser";
@@ -40,11 +41,21 @@ const firstNetworkSizeImage = (candidates: readonly unknown[]): string | null =>
   return null;
 };
 
-const productIdFromUrl = (url: URL): string | null => {
-  const values = [...url.pathname.split("/"), ...url.searchParams.values()];
-  for (let index = values.length - 1; index >= 0; index -= 1) {
-    const value = values[index];
+export const productIdFromUrl = (url: URL): string | null => {
+  const pathSegments = url.pathname.split("/");
+  for (let index = pathSegments.length - 1; index >= 0; index -= 1) {
+    const value = pathSegments[index];
     if (value && /^\d{4,}$/.test(value)) return value;
+  }
+
+  const productIDParameterNames = new Set([
+    "productid", "product_id", "productno", "product_no",
+    "goodsid", "goods_id", "goodsno", "goods_no"
+  ]);
+  for (const [name, value] of url.searchParams) {
+    if (productIDParameterNames.has(name.toLowerCase()) && /^\d{4,}$/.test(value)) {
+      return value;
+    }
   }
   return null;
 };
@@ -71,6 +82,14 @@ export const navigationWaitUntil = (site: ProductSite): "commit" | "domcontentlo
   site === "musinsa" ? "commit" : "domcontentloaded";
 
 export const shouldRevealSizeContent = (site: ProductSite): boolean => site !== "musinsa";
+
+export const effectiveCrawlerSite = (requestedSite: ProductSite, resolvedUrl: URL): ProductSite => {
+  if (requestedSite !== "generic") return requestedSite;
+  const hostname = resolvedUrl.hostname.toLowerCase();
+  const isMusinsaProduct = (hostname === "musinsa.com" || hostname.endsWith(".musinsa.com"))
+    && resolvedUrl.pathname.includes("/products/");
+  return isMusinsaProduct ? "musinsa" : requestedSite;
+};
 
 const resolvePublicImages = (images: readonly string[], baseUrl: URL): readonly string[] => {
   const resolved: string[] = [];
@@ -151,18 +170,22 @@ export const crawlProductPage = async (
     if (response.status() === 401 || response.status() === 403) {
       throw new ProductImportError("SITE_BLOCKED_REQUEST", "쇼핑몰이 페이지 요청을 차단했습니다.", true, 502);
     }
-    if (site === "musinsa") {
+    const resolvedUrl = parseProductUrl(session.page.url());
+    await assertPublicUrl(resolvedUrl);
+    const effectiveSite = effectiveCrawlerSite(site, resolvedUrl);
+    const effectiveContext = { ...context, url: resolvedUrl };
+    if (effectiveSite === "musinsa") {
       const responseError = await response.finished();
       if (responseError) throw navigationError(responseError, session.blockedError());
     }
-    if (shouldRevealSizeContent(site)) await revealSizeContent(session.page);
+    if (shouldRevealSizeContent(effectiveSite)) await revealSizeContent(session.page);
     const html = await session.page.content();
     if (Buffer.byteLength(html, "utf8") > env.maxHtmlBytes) {
       throw new ProductImportError("RESPONSE_TOO_LARGE", "상품 페이지 응답이 너무 큽니다.", false, 413);
     }
     await observer.settle();
-    const musinsaSizeCandidate = site === "musinsa"
-      ? await fetchMusinsaSizeCandidate(session.page, context.url)
+    const musinsaSizeCandidate = effectiveSite === "musinsa"
+      ? await fetchMusinsaSizeCandidate(session.page, effectiveContext.url)
       : null;
     const networkCandidates = [
       ...(musinsaSizeCandidate ? [musinsaSizeCandidate] : []),
@@ -173,9 +196,9 @@ export const crawlProductPage = async (
     const networkSizeTable = firstNetworkSizeTable(networkCandidates);
     const dom = extractDomProduct({
       html,
-      baseUrl: context.url,
-      includeImages: context.includeImages,
-      includeDetailImages: context.includeDetailImages
+      baseUrl: effectiveContext.url,
+      includeImages: effectiveContext.includeImages,
+      includeDetailImages: effectiveContext.includeDetailImages
     });
     const name = structured?.name ?? network?.name ?? dom.name;
     if (!name) {
@@ -197,10 +220,10 @@ export const crawlProductPage = async (
       ...(network || networkSizeTable || sizeChartImage ? ["network-json" as const] : []),
       "dom" as const
     ];
-    const mainImages = context.includeImages
+    const mainImages = effectiveContext.includeImages
       ? [...new Set([
-        ...resolvePublicImages(structured?.images ?? [], context.url),
-        ...resolvePublicImages(network?.images ?? [], context.url),
+        ...resolvePublicImages(structured?.images ?? [], effectiveContext.url),
+        ...resolvePublicImages(network?.images ?? [], effectiveContext.url),
         ...dom.mainImages
       ])]
       : [];
@@ -208,9 +231,9 @@ export const crawlProductPage = async (
       success: true,
       partial: !sizeTable,
       source: {
-        site,
-        url: context.url.href,
-        productId: structured?.productId ?? network?.productId ?? productIdFromUrl(context.url),
+        site: effectiveSite,
+        url: effectiveContext.url.href,
+        productId: structured?.productId ?? network?.productId ?? productIdFromUrl(effectiveContext.url),
         crawledAt: context.crawledAt
       },
       product: {
@@ -254,7 +277,7 @@ export const crawlProductPage = async (
         ocrAvailable: false
       },
       metadata: {
-        adapter: site,
+        adapter: effectiveSite,
         extractionMethods: methods,
         confidence: sizeTable ? 0.9 : 0.55,
         warnings,

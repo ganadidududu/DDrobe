@@ -11,19 +11,28 @@ struct CoorditRootView: View {
     @State private var showsFitLabReferenceSelection = false
     @State private var threadBalance: Int
     @State private var showsThreadRechargePrompt = false
+    @State private var sharedFitLabImportURL: URL?
     @EnvironmentObject private var backendSession: CoorditBackendSessionStore
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var fitLabCoordinator: CoorditFitLabCoordinator
 
     init(startRoute: CoorditFrameRoute = .testingLaunchRoute()) {
-        _route = State(initialValue: startRoute)
+        Self.seedPendingSharedFitLabImportURLIfNeeded()
+        let initialSharedURL = Self.initialSharedFitLabImportURL()
+        if initialSharedURL != nil {
+            CoorditSharedFitLabImport.clearPendingProductURL()
+        }
+        let initialRoute = initialSharedURL == nil ? startRoute : CoorditFrameRoute.fitLabInput
+        _route = State(initialValue: initialRoute)
         _closetItems = State(initialValue: Self.initialClosetItems())
         _threadBalance = State(initialValue: Self.initialThreadBalance())
         _showsThreadRechargePrompt = State(
             initialValue: Self.initialThreadRechargePrompt(startRoute: startRoute)
         )
+        _sharedFitLabImportURL = State(initialValue: initialSharedURL)
         _fitLabCoordinator = StateObject(
-            wrappedValue: CoorditFitLabCoordinator.makeAppScoped(route: startRoute)
+            wrappedValue: CoorditFitLabCoordinator.makeAppScoped(route: initialRoute)
         )
     }
 
@@ -79,6 +88,7 @@ struct CoorditRootView: View {
                 onManageReferences: { showsFitLabReferenceSelection = true },
                 coordinator: fitLabCoordinator,
                 threadBalance: $threadBalance,
+                sharedImportURL: $sharedFitLabImportURL,
                 onInsufficientThread: handleInsufficientThreadForFitLab
             )
         case .myPage,
@@ -164,6 +174,16 @@ struct CoorditRootView: View {
                 }
             )
         }
+        .onReceive(NotificationCenter.default.publisher(for: CoorditSharedFitLabImport.didRequestOpenNotification)) { notification in
+            openSharedFitLabImport(notification.object as? URL)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            openPendingSharedFitLabImport()
+        }
+        .task {
+            openPendingSharedFitLabImport()
+        }
         .sheet(isPresented: $showsFitLabReferenceSelection) {
             CoorditHomeReferenceSelectionSheet(
                 items: closetItems,
@@ -234,6 +254,36 @@ struct CoorditRootView: View {
         #endif
     }
 
+    private static func initialSharedFitLabImportURL(
+        arguments: [String] = ProcessInfo.processInfo.arguments
+    ) -> URL? {
+        #if DEBUG
+        guard arguments.contains("--coordit-ui-testing"),
+              let markerIndex = arguments.firstIndex(of: "--coordit-shared-fitlab-url"),
+              arguments.indices.contains(arguments.index(after: markerIndex)),
+              let url = URL(string: arguments[arguments.index(after: markerIndex)]),
+              url.isHTTPOrHTTPSProductURL
+        else { return nil }
+        return url
+        #else
+        return nil
+        #endif
+    }
+
+    private static func seedPendingSharedFitLabImportURLIfNeeded(
+        arguments: [String] = ProcessInfo.processInfo.arguments
+    ) {
+        #if DEBUG
+        guard arguments.contains("--coordit-ui-testing"),
+              let markerIndex = arguments.firstIndex(of: "--coordit-pending-fitlab-url"),
+              arguments.indices.contains(arguments.index(after: markerIndex)),
+              let url = URL(string: arguments[arguments.index(after: markerIndex)]),
+              url.isHTTPOrHTTPSProductURL
+        else { return }
+        CoorditSharedFitLabImport.store(productURL: url, sourceApplication: "ui-test")
+        #endif
+    }
+
     private var showsScreenChrome: Bool {
         route != .splash && route != .main01
     }
@@ -289,6 +339,18 @@ struct CoorditRootView: View {
     private func handleInsufficientThreadForFitLab() {
         showsThreadRechargePrompt = true
         navigate(to: .myPageThreadCharge)
+    }
+
+    private func openPendingSharedFitLabImport() {
+        guard let url = CoorditSharedFitLabImport.consumePendingProductURL() else { return }
+        openSharedFitLabImport(url)
+    }
+
+    private func openSharedFitLabImport(_ url: URL?) {
+        guard let url else { return }
+        fitLabCoordinator.discardAndRestart()
+        sharedFitLabImportURL = url
+        navigate(to: .fitLabInput)
     }
 
     #if DEBUG

@@ -19,6 +19,7 @@ struct CoorditFitLabInputScreen: View {
     let urlRequestLedger: () -> [String]
     let urlPrefill: (URL, CoorditFitLabCategory) async throws -> CoorditFitLabURLPrefillResponse
     let urlReferences: (CoorditFitLabCategory) async throws -> [CoorditFitLabReferenceRow]
+    let sharedImportURL: URL?
     let savedHistory: [CoorditFitLabHistorySnapshot]
     let historyRecoveryNotice: String?
     let onOpenHistory: (CoorditFitLabHistorySnapshot) -> Void
@@ -37,6 +38,7 @@ struct CoorditFitLabInputScreen: View {
         urlReferences: @escaping (CoorditFitLabCategory) async throws -> [CoorditFitLabReferenceRow] = { _ in
             throw CoorditFitLabError.transport("기준 옷 API를 준비할 수 없어요.")
         },
+        sharedImportURL: URL? = nil,
         savedHistory: [CoorditFitLabHistorySnapshot] = [],
         historyRecoveryNotice: String? = nil,
         onOpenHistory: @escaping (CoorditFitLabHistorySnapshot) -> Void = { _ in }
@@ -50,6 +52,7 @@ struct CoorditFitLabInputScreen: View {
         self.urlRequestLedger = urlRequestLedger
         self.urlPrefill = urlPrefill
         self.urlReferences = urlReferences
+        self.sharedImportURL = sharedImportURL
         self.savedHistory = savedHistory
         self.historyRecoveryNotice = historyRecoveryNotice
         self.onOpenHistory = onOpenHistory
@@ -93,6 +96,7 @@ struct CoorditFitLabInputScreen: View {
                     requestLedger: urlRequestLedger,
                     prefill: urlPrefill,
                     loadReferences: urlReferences,
+                    initialURL: sharedImportURL,
                     onSwitchToOCR: {
                         draft.source = .ocr
                         destination = .ocr
