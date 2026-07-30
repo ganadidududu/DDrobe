@@ -175,21 +175,36 @@ const main = async (): Promise<void> => {
   ]);
 
   useEnrichedFitResult();
-  let observedThink: unknown;
-  globalThis.fetch = async (_input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+  let observedOpenRouterRequest: object | null = null;
+  globalThis.fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    assert.equal(String(input), "https://openrouter.ai/api/v1/chat/completions");
     assert.equal(typeof init?.body, "string");
     const requestBody: unknown = JSON.parse(typeof init?.body === "string" ? init.body : "");
     assert.ok(typeof requestBody === "object" && requestBody !== null && !Array.isArray(requestBody));
-    observedThink = Reflect.get(requestBody, "think");
-    return new Response(JSON.stringify({ response: "not valid json" }), {
+    observedOpenRouterRequest = requestBody;
+    return new Response(JSON.stringify({
+      choices: [{
+        message: { content: JSON.stringify(fallback) }
+      }]
+    }), {
       status: 200,
       headers: { "Content-Type": "application/json" }
     });
   };
 
   const generated = await reportService.generateFitReport(userId, fitResultId, { includeDebug: true });
-  assert.equal(observedThink, false);
-  assert.equal(generated.source, "fallback");
+  assert.equal(Reflect.get(observedOpenRouterRequest ?? {}, "model"), "google/gemini-2.5-flash");
+  assert.equal(Reflect.get(observedOpenRouterRequest ?? {}, "stream"), false);
+  const responseFormat = Reflect.get(observedOpenRouterRequest ?? {}, "response_format");
+  assert.ok(typeof responseFormat === "object" && responseFormat !== null && !Array.isArray(responseFormat));
+  assert.equal(Reflect.get(responseFormat, "type"), "json_schema");
+  const provider = Reflect.get(observedOpenRouterRequest ?? {}, "provider");
+  assert.ok(typeof provider === "object" && provider !== null && !Array.isArray(provider));
+  assert.equal(Reflect.get(provider, "require_parameters"), true);
+  assert.equal(Reflect.get(provider, "zdr"), true);
+  assert.equal(Reflect.get(provider, "data_collection"), "deny");
+  assert.equal(generated.source, "openrouter");
+  assert.equal(generated.modelName, "google/gemini-2.5-flash");
   assert.equal(generated.promptVersion, "fit_report_v5");
   assert.equal(generated.report.summary.includes("S"), true);
   assert.equal(generated.report.summary.includes("67"), true);
@@ -202,7 +217,7 @@ const main = async (): Promise<void> => {
 
   globalThis.fetch = async (): Promise<Response> =>
     new Response(JSON.stringify({
-      response: JSON.stringify({
+      choices: [{ message: { content: JSON.stringify({
         title: "정밀 핏 리포트",
         summary: "기준 의류가 한 벌뿐입니다.",
         recommendationReason: "피드백 데이터가 부재합니다.",
@@ -212,7 +227,7 @@ const main = async (): Promise<void> => {
         }],
         cautions: [],
         nextActions: []
-      })
+      }) } }]
     }), {
       status: 200,
       headers: { "Content-Type": "application/json" }

@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { env } from "../../config/env";
 import { buildFitReportInput } from "./fit-report.builder";
 import { buildFitReportPrompt, FIT_REPORT_PROMPT_VERSION } from "./fit-report.prompt";
@@ -14,51 +15,76 @@ import type {
   GenerateFitReportResult
 } from "./fit-report.types";
 
-interface OllamaGenerateResponse {
-  response?: string;
-}
+const openRouterChatCompletionsUrl = "https://openrouter.ai/api/v1/chat/completions";
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+const fitReportJsonSchema = z.object({
+  title: z.string(),
+  summary: z.string(),
+  recommendationReason: z.string(),
+  measurementAnalysis: z.array(z.object({
+    measurement: z.string(),
+    text: z.string()
+  })),
+  cautions: z.array(z.string()),
+  nextActions: z.array(z.string())
+});
 
-const asStringArray = (value: unknown): string[] =>
-  Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+const openRouterCompletionSchema = z.object({
+  choices: z.array(z.object({
+    message: z.object({ content: z.string() })
+  })).min(1)
+});
 
-const normalizeReportJson = (value: unknown): FitReportJson => {
-  if (!isRecord(value)) throw new Error("LLM report was not a JSON object");
-  const measurementAnalysisValue = value.measurementAnalysis;
-  const measurementAnalysis = Array.isArray(measurementAnalysisValue)
-    ? measurementAnalysisValue.flatMap((item) => {
-      if (!isRecord(item)) return [];
-      const measurement = item.measurement;
-      const text = item.text;
-      if (typeof measurement !== "string" || typeof text !== "string") return [];
-      return [{ measurement, text }];
-    })
-    : [];
-
-  return {
-    title: typeof value.title === "string" ? value.title : "핏 리포트",
-    summary: typeof value.summary === "string" ? value.summary : "",
-    recommendationReason: typeof value.recommendationReason === "string" ? value.recommendationReason : "",
-    measurementAnalysis,
-    cautions: asStringArray(value.cautions),
-    nextActions: asStringArray(value.nextActions)
-  };
-};
-
-const extractJsonObject = (text: string): FitReportJson => {
-  try {
-    return normalizeReportJson(JSON.parse(text));
-  } catch {
-    const start = text.indexOf("{");
-    const end = text.lastIndexOf("}");
-    if (start === -1 || end === -1 || end <= start) {
-      throw new Error("LLM response did not contain JSON");
+const fitReportResponseFormat = {
+  type: "json_schema",
+  json_schema: {
+    name: "fit_report",
+    strict: true,
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "title",
+        "summary",
+        "recommendationReason",
+        "measurementAnalysis",
+        "cautions",
+        "nextActions"
+      ],
+      properties: {
+        title: { type: "string" },
+        summary: { type: "string" },
+        recommendationReason: { type: "string" },
+        measurementAnalysis: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["measurement", "text"],
+            properties: {
+              measurement: { type: "string" },
+              text: { type: "string" }
+            }
+          }
+        },
+        cautions: {
+          type: "array",
+          items: { type: "string" },
+          maxItems: 2
+        },
+        nextActions: {
+          type: "array",
+          items: { type: "string" },
+          maxItems: 2
+        }
+      }
     }
-    return normalizeReportJson(JSON.parse(text.slice(start, end + 1)));
   }
-};
+} as const;
+
+class OpenRouterResponseError extends Error {
+  readonly name = "OpenRouterResponseError";
+}
 
 const formatTopExplanationFactors = (reportInput: FitReportInput): string => {
   const factors = reportInput.explanation.topExplanationFactors.map((factor) =>
@@ -105,31 +131,42 @@ export const buildFallbackFitReport = (reportInput: FitReportInput): FitReportJs
   };
 };
 
-const callOllama = async (prompt: string, modelName: string): Promise<FitReportJson> => {
-  const response = await fetch(env.ollamaGenerateUrl, {
+const callOpenRouter = async (prompt: string, modelName: string): Promise<FitReportJson> => {
+  if (!env.openRouterApiKey) {
+    throw new OpenRouterResponseError("OpenRouter is not configured");
+  }
+
+  const response = await fetch(openRouterChatCompletionsUrl, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Authorization": `Bearer ${env.openRouterApiKey}`,
+      "Content-Type": "application/json"
+    },
+    signal: AbortSignal.timeout(env.openRouterTimeoutMs),
     body: JSON.stringify({
       model: modelName,
-      prompt,
       stream: false,
-      think: false,
-      options: {
-        temperature: 0.2,
-        top_p: 0.9
+      temperature: 0.2,
+      messages: [{ role: "user", content: prompt }],
+      response_format: fitReportResponseFormat,
+      provider: {
+        require_parameters: true,
+        zdr: true,
+        data_collection: "deny"
       }
     })
   });
 
   if (!response.ok) {
-    throw new Error(`Ollama HTTP ${response.status}`);
+    throw new OpenRouterResponseError(`OpenRouter HTTP ${response.status}`);
   }
 
-  const data = await response.json() as OllamaGenerateResponse;
-  if (typeof data.response !== "string") {
-    throw new Error("Ollama response was missing response text");
+  const completion = openRouterCompletionSchema.parse(await response.json());
+  const firstChoice = completion.choices[0];
+  if (!firstChoice) {
+    throw new OpenRouterResponseError("OpenRouter response was missing a choice");
   }
-  return extractJsonObject(data.response);
+  return fitReportJsonSchema.parse(JSON.parse(firstChoice.message.content));
 };
 
 export const generateFitReport = async (
@@ -139,10 +176,10 @@ export const generateFitReport = async (
 ): Promise<GenerateFitReportResult> => {
   const reportInput = await buildFitReportInput(userId, fitAnalysisResultId, options);
   const prompt = buildFitReportPrompt(reportInput);
-  const modelName = options.model ?? env.ollamaModel;
+  const modelName = env.openRouterModel;
 
   try {
-    const generatedReport = await callOllama(prompt, modelName);
+    const generatedReport = await callOpenRouter(prompt, modelName);
     const fallbackReport = buildFallbackFitReport(reportInput);
     const report = sanitizeGeneratedReport(
       generatedReport,
@@ -152,7 +189,7 @@ export const generateFitReport = async (
     const coreNarrativeAccepted = hasAcceptedCoreNarrative(generatedReport, reportInput);
     return {
       fitAnalysisResultId,
-      source: coreNarrativeAccepted ? "ollama" : "fallback",
+      source: coreNarrativeAccepted ? "openrouter" : "fallback",
       modelName,
       promptVersion: FIT_REPORT_PROMPT_VERSION,
       report: coreNarrativeAccepted ? report : fallbackReport,

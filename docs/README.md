@@ -14,7 +14,7 @@ docs/
   PRODUCT_OVERVIEW.md
   API_SPEC_MOBILE.md
   DATABASE_SCHEMA.md
-  FIT_REPORT_OLLAMA_SPEC.md
+  FIT_REPORT_OPENROUTER_SPEC.md
   ROADMAP.md
   fit-engine/
     FIT_ENGINE.md
@@ -27,7 +27,7 @@ docs/
 | --- | --- |
 | 제품 기획, 문제 정의, MVP 범위 | `PRODUCT_OVERVIEW.md` |
 | 모바일 앱 API | `API_SPEC_MOBILE.md` |
-| Ollama 8B 핏 리포트 설계 | `FIT_REPORT_OLLAMA_SPEC.md` |
+| OpenRouter 핏 리포트 설계 | `FIT_REPORT_OPENROUTER_SPEC.md` |
 | 추천 알고리즘 | `fit-engine/FIT_ENGINE.md` |
 | 추천 엔진 변경 이력 | `fit-engine/FIT_ENGINE_CHANGELOG.md` |
 | DB, 관계, 인덱스, RLS, migration | `DATABASE_SCHEMA.md` |
@@ -54,9 +54,9 @@ SQL, 테이블 상세, repository/service/controller 구조는 설명하지 않�
 
 API 사용법과 DB schema는 설명하지 않는다.
 
-### `FIT_REPORT_OLLAMA_SPEC.md`
+### `FIT_REPORT_OPENROUTER_SPEC.md`
 
-Fit Score Engine 결과값을 Ollama 8B 리포트와 그래프 데이터로 변환하는 기준을 설명한다.
+Fit Score Engine 결과값을 OpenRouter JSON Schema 리포트와 그래프 데이터로 변환하는 기준을 설명한다.
 
 Fit score 계산 자체는 설명하지 않고, 계산된 수치를 어떻게 리포트 입력값, 차트 데이터, LLM prompt로 구성할지 설명한다.
 

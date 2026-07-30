@@ -710,11 +710,11 @@ migration이 필요하지 않다. 클라이언트와 report builder는 legacy-to
 | 주요 반환값 | 추천 결과 상세 |
 | 사용 화면 | Fit Lab, Styling |
 
-### Ollama 핏 리포트 생성
+### OpenRouter 핏 리포트 생성
 
 | 항목 | 내용 |
 | --- | --- |
-| 기능명 | Ollama 핏 리포트 생성 |
+| 기능명 | OpenRouter 핏 리포트 생성 |
 | 목적 | 저장된 추천 결과를 바탕으로 그래프 데이터와 한국어 핏 리포트를 생성한다. |
 | Endpoint | `POST /fit-analysis-results/:id/report` |
 | 필수 입력 | `id` |
@@ -732,7 +732,6 @@ QA용 선택 메타데이터이며 모바일 클라이언트는 없어도 기존
 {
   "selectedSizeLabel": "L",
   "style": "concise_but_explanatory",
-  "model": "llama3.1:8b",
   "includeDebug": false
 }
 ```
@@ -742,8 +741,8 @@ QA용 선택 메타데이터이며 모바일 클라이언트는 없어도 기존
 ```json
 {
   "fitAnalysisResultId": "uuid",
-  "source": "ollama",
-  "modelName": "llama3.1:8b",
+  "source": "openrouter",
+  "modelName": "google/gemini-2.5-flash",
   "promptVersion": "fit_report_v5",
   "report": {
     "title": "L 사이즈 핏 리포트",
@@ -764,18 +763,19 @@ QA용 선택 메타데이터이며 모바일 클라이언트는 없어도 기존
 
 `source` 값:
 
-- `ollama`: 로컬 Ollama 응답을 사용했다.
-- `fallback`: Ollama 호출 또는 JSON 파싱에 실패해 백엔드 fallback 리포트를 사용했다.
+- `openrouter`: OpenRouter의 JSON Schema 응답을 사용했다.
+- `fallback`: OpenRouter 호출 또는 응답 검증에 실패해 백엔드 fallback 리포트를 사용했다.
 
 백엔드 환경변수:
 
-- `OLLAMA_GENERATE_URL`: 기본값 `http://localhost:11434/api/generate`
-- `OLLAMA_MODEL`: 기본값 `llama3.1:8b`
+- `OPENROUTER_API_KEY`: OpenRouter API 키
+- `OPENROUTER_MODEL`: 기본값 `google/gemini-2.5-flash`
+- `OPENROUTER_TIMEOUT_MS`: 기본값 `20000`
 
 `includeDebug = true`이면 테스트용으로 `reportInput`과 `prompt`를 응답에 포함한다.
 `fit_report_v5`는 추천 사이즈, 사이즈별 fit score, 기준/상품 실측과 부위별 차이,
 주요 설명 부위만 LLM에 전달한다. confidence, 신뢰도, 피드백, 데이터 품질,
-기준 의류 개수는 사용자용 서술에 전달하거나 노출하지 않는다. Ollama는 fit score
+기준 의류 개수는 사용자용 서술에 전달하거나 노출하지 않는다. OpenRouter는 fit score
 또는 추천 사이즈를 계산하지 않으며, 부적합하거나 지나치게 짧은 출력은 측정 기반
 문장으로 보정한다. 호출이나 JSON 파싱 실패 시 fallback 리포트도 기존 엔진 결과를
 그대로 설명한다.

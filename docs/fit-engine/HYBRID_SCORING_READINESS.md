@@ -2,7 +2,7 @@
 
 This artifact defines a bounded, privacy-preserving export shape for future fit recommendation analysis. It is a data contract only.
 
-T8 does not ship ML training, model evaluation, prediction serving, shadow recommendations, report-model calculation of recommendations, or any change to the production recommendation path. The live engine remains the rule-based fit score engine, and Ollama remains a report-writing layer that consumes computed summaries only.
+T8 does not ship ML training, model evaluation, prediction serving, shadow recommendations, report-model calculation of recommendations, or any change to the production recommendation path. The live engine remains the rule-based fit score engine, and OpenRouter remains a report-writing layer that consumes computed summaries only.
 
 ## Scope
 
