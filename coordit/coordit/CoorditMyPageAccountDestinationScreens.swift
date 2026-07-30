@@ -156,7 +156,7 @@ extension CoorditMyPageFamilyView {
             CoorditSettingsInfoPanel(
                 symbol: "exclamationmark.triangle.fill",
                 title: "계정과 데이터를 삭제합니다",
-                detail: "탈퇴하면 저장한 신체 정보, 옷장, 핏 리포트를 복구할 수 없습니다. 실제 삭제는 계정 API 연결 후 실행됩니다.",
+                detail: "탈퇴하면 저장한 신체 정보, 옷장, 핏 리포트를 복구할 수 없습니다.",
                 metrics: metrics,
                 isDanger: true
             )
@@ -169,10 +169,12 @@ extension CoorditMyPageFamilyView {
 
             if deletionCompleted {
                 CoorditSettingsStatusBanner(
-                    text: "탈퇴 확인을 접수했어요. 현재는 미리보기 상태입니다.",
+                    text: deletionLocalCleanupFailed
+                        ? "계정은 삭제됐어요. 이 기기의 남은 기록 정리는 다음 실행 때 다시 시도합니다."
+                        : backendSession.statusText,
                     identifier: "mypage-account-deletion-complete",
                     metrics: metrics,
-                    isWarning: true
+                    isWarning: deletionLocalCleanupFailed || backendSession.isWarning
                 )
             }
 
@@ -183,7 +185,16 @@ extension CoorditMyPageFamilyView {
                 isEnabled: deletionAcknowledged,
                 isDanger: true
             ) {
-                deletionCompleted = true
+                Task {
+                    let deletedUserID = backendSession.session?.user.id
+                    guard await backendSession.deleteAccount() else { return }
+                    if let deletedUserID {
+                        deletionLocalCleanupFailed = !(await onAccountDeleted(deletedUserID))
+                    } else {
+                        deletionLocalCleanupFailed = true
+                    }
+                    deletionCompleted = true
+                }
             }
         }
     }

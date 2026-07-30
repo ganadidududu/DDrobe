@@ -84,6 +84,13 @@ struct CoorditFitLabFamilyView: View {
         .onChange(of: coordinator.analysisState) { _, state in
             routeToCompletedAnalysis(state)
         }
+        .onChange(of: coordinator.authoritativeThreadBalance) { _, balance in
+            if let balance { threadBalance = balance }
+        }
+        .onChange(of: coordinator.error) { _, error in
+            guard case .server(statusCode: 402, message: _) = error else { return }
+            onInsufficientThread()
+        }
         .onAppear {
             routeToCompletedAnalysis(coordinator.analysisState)
         }
@@ -502,10 +509,6 @@ struct CoorditFitLabFamilyView: View {
         guard let session = backendSession.session else {
             coordinator.startSubmission(authenticatedUserID: nil)
             onRouteChange(.fitLabLoading)
-            return
-        }
-        guard consumeThreadIfNeededForNewSubmission() else {
-            onInsufficientThread()
             return
         }
         let api = CoorditFitLabHTTPAPI(

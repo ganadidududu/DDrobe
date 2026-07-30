@@ -9,6 +9,7 @@ struct CoorditMyPageFamilyView: View {
     let route: CoorditFrameRoute
     @Binding var threadBalance: Int
     @Binding var showsThreadRechargePrompt: Bool
+    let onAccountDeleted: (String) async -> Bool
     let onRouteChange: (CoorditFrameRoute) -> Void
 
     @EnvironmentObject var backendSession: CoorditBackendSessionStore
@@ -28,6 +29,7 @@ struct CoorditMyPageFamilyView: View {
     @State var logoutCompleted = false
     @State var deletionAcknowledged = false
     @State var deletionCompleted = false
+    @State var deletionLocalCleanupFailed = false
     @State var shoulderMeasurement = "44.5"
     @State var chestMeasurement = "103.0"
     @State var waistMeasurement = "80.0"

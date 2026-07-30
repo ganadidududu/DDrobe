@@ -158,7 +158,10 @@ final class ShareViewController: UIViewController {
 
         // The App Group is the reliable hand-off: coordit reads this the next
         // time it opens and drops the link straight into Fit Lab.
-        CoorditShareImportBridge.store(productURL: productURL)
+        guard CoorditShareImportBridge.store(productURL: productURL) else {
+            showStorageFailure()
+            return
+        }
 
         // Best-effort launch in case the OS allows it (most don't for Share
         // extensions); the confirmation below is what the user actually relies on.
@@ -187,6 +190,17 @@ final class ShareViewController: UIViewController {
         iconView.isHidden = false
         titleLabel.text = "상품 링크를 찾지 못했어요"
         subtitleLabel.text = "무신사 상품 페이지의 공유에서 다시 시도해 주세요."
+        closeButton.isHidden = false
+    }
+
+    private func showStorageFailure() {
+        spinner.stopAnimating()
+        spinner.isHidden = true
+        iconView.image = UIImage(systemName: "exclamationmark.triangle.fill")
+        iconView.tintColor = UIColor.systemRed
+        iconView.isHidden = false
+        titleLabel.text = "링크를 저장하지 못했어요"
+        subtitleLabel.text = "coordit을 다시 열어 확인한 뒤, 공유를 한 번 더 시도해 주세요."
         closeButton.isHidden = false
     }
 
@@ -288,6 +302,12 @@ private enum CoorditShareImportBridge {
     static let openURL = URL(string: "coordit://fitlab/shared")!
     private static let pendingURLKey = "coordit.pendingFitLabShareURL"
     private static let sourceApplicationKey = "coordit.pendingFitLabShareSource"
+    private static let pendingQueueKey = "coordit.pendingFitLabShareQueue.v1"
+
+    private struct PendingImport: Codable, Equatable {
+        let url: String
+        let sourceApplication: String?
+    }
 
     @discardableResult
     static func store(productURL: URL) -> Bool {
@@ -295,6 +315,11 @@ private enum CoorditShareImportBridge {
               let defaults = UserDefaults(suiteName: appGroupIdentifier)
         else { return false }
 
+        var pending = pendingImports(in: defaults)
+        let entry = PendingImport(url: productURL.absoluteString, sourceApplication: "share-extension")
+        guard !pending.contains(where: { $0.url == entry.url }) else { return true }
+        pending.append(entry)
+        defaults.set(try? JSONEncoder().encode(pending), forKey: pendingQueueKey)
         defaults.set(productURL.absoluteString, forKey: pendingURLKey)
         defaults.set("share-extension", forKey: sourceApplicationKey)
         return defaults.synchronize()
@@ -304,6 +329,13 @@ private enum CoorditShareImportBridge {
         var components = URLComponents(url: openURL, resolvingAgainstBaseURL: false)
         components?.queryItems = [URLQueryItem(name: "url", value: productURL.absoluteString)]
         return components?.url ?? openURL
+    }
+
+    private static func pendingImports(in defaults: UserDefaults) -> [PendingImport] {
+        guard let data = defaults.data(forKey: pendingQueueKey),
+              let imports = try? JSONDecoder().decode([PendingImport].self, from: data)
+        else { return [] }
+        return imports.filter { URL(string: $0.url)?.isHTTPOrHTTPSProductURL == true }
     }
 }
 

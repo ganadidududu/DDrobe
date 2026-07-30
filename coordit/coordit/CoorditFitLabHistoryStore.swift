@@ -1,12 +1,13 @@
 import CryptoKit
 import Darwin
-import Foundation
+@preconcurrency import Foundation
 
 #if os(iOS)
 protocol CoorditFitLabHistoryStoring: Sendable {
     func load(userID: String) async throws -> [CoorditFitLabHistorySnapshot]
     func save(_ snapshot: CoorditFitLabHistorySnapshot) async throws
     func delete(snapshotID: String, userID: String) async throws
+    func deleteAll(userID: String) async throws
     func recoveryNotice(userID: String) async -> String?
 }
 
@@ -56,21 +57,19 @@ actor CoorditFitLabFileHistoryStore: CoorditFitLabHistoryStoring {
     }
 
     private let rootDirectory: URL
-    private let manager: FileManager
+    private let manager = FileManager.default
     private var notices: [String: String] = [:]
     private let failMigrationRewrite: Bool
 
     init(
         rootDirectory: URL? = nil,
-        fileManager: FileManager = .default,
         failMigrationRewrite: Bool = false
     ) {
-        self.manager = fileManager
         self.failMigrationRewrite = failMigrationRewrite
         if let rootDirectory {
             self.rootDirectory = rootDirectory.standardizedFileURL
         } else {
-            let applicationSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            let applicationSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             self.rootDirectory = applicationSupport.appendingPathComponent("CoorditFitLabHistory", isDirectory: true)
         }
     }
@@ -141,6 +140,26 @@ actor CoorditFitLabFileHistoryStore: CoorditFitLabHistoryStoring {
         snapshots.removeAll { $0.id == snapshotID }
         try Task.checkCancellation()
         try writeEnvelope(snapshots, userID: userID)
+    }
+
+    func deleteAll(userID: String) throws {
+        guard !userID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw CoorditFitLabHistoryStoreError.invalidUser
+        }
+        let directory = rootDirectory
+            .appendingPathComponent(Self.safeDirectoryName(userID), isDirectory: true)
+            .standardizedFileURL
+        let rootPath = rootDirectory.standardizedFileURL.path + "/"
+        guard directory.path.hasPrefix(rootPath) else {
+            throw CoorditFitLabHistoryStoreError.unsafeStorage
+        }
+        guard manager.fileExists(atPath: directory.path) else {
+            notices[userID] = nil
+            return
+        }
+        try rejectSymbolicLink(at: directory)
+        try manager.removeItem(at: directory)
+        notices[userID] = nil
     }
 
     func recoveryNotice(userID: String) async -> String? {
@@ -240,7 +259,7 @@ actor CoorditFitLabFileHistoryStore: CoorditFitLabHistoryStoring {
         notices[userID] = "손상된 히스토리를 격리하고 빈 목록으로 복구했어요."
     }
 
-    private static func safeDirectoryName(_ userID: String) -> String {
+    private nonisolated static func safeDirectoryName(_ userID: String) -> String {
         let normalized = userID.precomposedStringWithCanonicalMapping
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_") )
         let slug = String(normalized.unicodeScalars.map { allowed.contains($0) ? Character(String($0)) : "-" })
@@ -249,14 +268,14 @@ actor CoorditFitLabFileHistoryStore: CoorditFitLabHistoryStoring {
         return "user-\(slug)-\(digest)"
     }
 
-    private static var encoder: JSONEncoder {
+    private nonisolated static var encoder: JSONEncoder {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.sortedKeys]
         return encoder
     }
 
-    private static var decoder: JSONDecoder {
+    private nonisolated static var decoder: JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return decoder
@@ -379,7 +398,7 @@ actor CoorditFitLabFileHistoryStore: CoorditFitLabHistoryStoring {
         let auditRoot = rootDirectory.appendingPathComponent("migration-write-failure", isDirectory: true)
         try? manager.removeItem(at: auditRoot)
         defer { try? manager.removeItem(at: auditRoot) }
-        let store = CoorditFitLabFileHistoryStore(rootDirectory: auditRoot, failMigrationRewrite: true)
+        let store = await CoorditFitLabFileHistoryStore(rootDirectory: auditRoot, failMigrationRewrite: true)
         let userID = "audit-migration-write"
         do {
             let directory = try await store.validatedDirectory(for: userID)
@@ -399,7 +418,7 @@ actor CoorditFitLabFileHistoryStore: CoorditFitLabHistoryStoring {
         }
     }
 
-    private static func copy(
+    private nonisolated static func copy(
         _ snapshot: CoorditFitLabHistorySnapshot,
         userID: String,
         analysisID: String
@@ -423,6 +442,7 @@ actor CoorditFitLabFileHistoryStore: CoorditFitLabHistoryStoring {
 }
 
 extension CoorditFitLabHistoryStoring {
+    func deleteAll(userID: String) async throws {}
     func recoveryNotice(userID: String) async -> String? { nil }
 }
 #endif

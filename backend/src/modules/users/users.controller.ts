@@ -1,7 +1,7 @@
 import type { NextFunction, Response } from "express";
 import type { AuthenticatedRequest } from "../../shared/types/http";
 import { asOptionalNumber, asOptionalString, requireUser } from "../../shared/utils/request";
-import { findUserById, updateUserProfile } from "./users.service";
+import { deleteUserAccount, findUserById, updateUserProfile } from "./users.service";
 
 export const getMe = async (
   req: AuthenticatedRequest,
@@ -30,6 +30,19 @@ export const updateMe = async (
         birth_year: asOptionalNumber(req.body.birthYear ?? req.body.birth_year)
       })
     );
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteMe = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    await deleteUserAccount(requireUser(req).id);
+    res.status(204).send();
   } catch (error) {
     next(error);
   }

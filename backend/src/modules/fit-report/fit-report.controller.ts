@@ -20,7 +20,6 @@ export const generateFitReportController = async (
       {
         selectedSizeLabel: asOptionalString(req.body.selectedSizeLabel) ?? undefined,
         style: isReportStyle(style) ? style : undefined,
-        model: asOptionalString(req.body.model) ?? undefined,
         includeDebug: req.body.includeDebug === true
       }
     ));

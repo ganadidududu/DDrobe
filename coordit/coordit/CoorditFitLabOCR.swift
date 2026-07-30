@@ -21,7 +21,7 @@ struct CoorditFitLabOCRBox: Equatable, Sendable {
     let width: Double
     let height: Double
 
-    init(_ rectangle: CGRect) {
+    nonisolated init(_ rectangle: CGRect) {
         x = rectangle.origin.x
         y = rectangle.origin.y
         width = rectangle.width
@@ -109,7 +109,7 @@ struct CoorditFitLabVisionOCRService: CoorditFitLabOCRServicing {
     ) async throws -> CoorditFitLabOCRResult {
         let recognitionTask = Task.detached(priority: .userInitiated) {
             #if DEBUG
-            await CoorditFitLabVisionExecutionProbe.shared.record(Thread.isMainThread)
+            await CoorditFitLabVisionExecutionProbe.shared.record(false)
             #endif
             if delayNanoseconds > 0 {
                 try await Task.sleep(nanoseconds: delayNanoseconds)
@@ -170,6 +170,8 @@ struct CoorditFitLabVisionOCRService: CoorditFitLabOCRServicing {
 }
 
 struct CoorditFitLabSizeChartOCRParser: CoorditFitLabOCRParsing {
+    nonisolated init() {}
+
     func parse(observations: [CoorditFitLabOCRObservation]) -> CoorditFitLabOCRResult {
         let tokens = expandedTokens(observations)
         let rows = clusteredRows(tokens)

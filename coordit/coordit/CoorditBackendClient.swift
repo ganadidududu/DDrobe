@@ -2,13 +2,32 @@ import Foundation
 
 #if os(iOS)
 enum CoorditBackendConfig {
+    private static let unavailableReleaseURL = URL(string: "https://api.coordit.invalid")!
+
     static func baseURL(arguments: [String] = ProcessInfo.processInfo.arguments) -> URL {
+        if let url = configuredURL(arguments: arguments) {
+            UserDefaults.standard.set(url.absoluteString, forKey: "coordit.apiBaseURL")
+            return url
+        }
+
+        #if DEBUG
+        return URL(string: "http://localhost:4000")!
+        #else
+        return unavailableReleaseURL
+        #endif
+    }
+
+    static var isConfigured: Bool {
+        configuredURL(arguments: ProcessInfo.processInfo.arguments) != nil
+    }
+
+    private static func configuredURL(arguments: [String]) -> URL? {
         if
             let markerIndex = arguments.firstIndex(of: "--coordit-api-base-url"),
             arguments.indices.contains(arguments.index(after: markerIndex)),
-            let url = URL(string: arguments[arguments.index(after: markerIndex)])
+            let url = URL(string: arguments[arguments.index(after: markerIndex)]),
+            isAllowed(url)
         {
-            UserDefaults.standard.set(url.absoluteString, forKey: "coordit.apiBaseURL")
             return url
         }
 
@@ -16,20 +35,29 @@ enum CoorditBackendConfig {
             let bundled = Bundle.main.object(forInfoDictionaryKey: "CoorditAPIBaseURL") as? String,
             !bundled.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
             !bundled.contains("$("),
-            let url = URL(string: bundled)
+            let url = URL(string: bundled),
+            isAllowed(url)
         {
-            UserDefaults.standard.set(url.absoluteString, forKey: "coordit.apiBaseURL")
             return url
         }
 
         if
             let saved = UserDefaults.standard.string(forKey: "coordit.apiBaseURL"),
-            let url = URL(string: saved)
+            let url = URL(string: saved),
+            isAllowed(url)
         {
             return url
         }
+        return nil
+    }
 
-        return URL(string: "http://localhost:4000")!
+    private static func isAllowed(_ url: URL) -> Bool {
+        guard url.host?.isEmpty == false else { return false }
+        #if DEBUG
+        return ["http", "https"].contains(url.scheme?.lowercased())
+        #else
+        return url.scheme?.lowercased() == "https"
+        #endif
     }
 }
 
@@ -75,6 +103,10 @@ struct CoorditBackendClient {
         try await send(path: "/users/me", method: "PATCH", token: token, body: UpdateProfileRequest(displayName: displayName))
     }
 
+    func deleteAccount(token: String) async throws {
+        try await sendWithoutResponse(path: "/users/me", method: "DELETE", token: token)
+    }
+
     func listBodyMeasurements(token: String) async throws -> [CoorditBodyMeasurement] {
         try await send(path: "/body-measurements", method: "GET", token: token, body: Optional<String>.none)
     }
@@ -83,8 +115,30 @@ struct CoorditBackendClient {
         try await send(path: "/body-measurements", method: "POST", token: token, body: request)
     }
 
+    func threadBalance(token: String) async throws -> CoorditThreadBalanceResponse {
+        try await send(path: "/thread-wallet/balance", method: "GET", token: token, body: Optional<String>.none)
+    }
+
     func createClothingItem(token: String, request: CreateClothingItemRequest) async throws -> CoorditClothingItemResponse {
         try await send(path: "/clothing-items", method: "POST", token: token, body: request)
+    }
+
+    func createClothingItemWithSize(
+        token: String,
+        clothingItem: CreateClothingItemRequest,
+        clothingSize: ClothingSizeRequest,
+        idempotencyKey: String
+    ) async throws -> CoorditClothingItemWithSizeResponse {
+        try await send(
+            path: "/clothing-items/with-size",
+            method: "POST",
+            token: token,
+            body: CreateClothingItemWithSizeRequest(
+                item: clothingItem,
+                size: clothingSize,
+                idempotencyKey: idempotencyKey
+            )
+        )
     }
 
     func listClothingItems(token: String) async throws -> [CoorditClothingItemResponse] {
@@ -257,6 +311,12 @@ struct CreateClothingItemRequest: Encodable {
     let rawProductData: [String: String]
 }
 
+private struct CreateClothingItemWithSizeRequest: Encodable {
+    let item: CreateClothingItemRequest
+    let size: ClothingSizeRequest
+    let idempotencyKey: String
+}
+
 struct ClothingSizeRequest: Encodable {
     let sizeLabel: String?
     let rawMeasurements: [String: String]
@@ -340,5 +400,6 @@ struct ExternalProductSizeRequest: Encodable {
 struct FitRecommendRequest: Encodable {
     let referenceClothingIds: [String]
     let externalProductId: String
+    let idempotencyKey: String
 }
 #endif

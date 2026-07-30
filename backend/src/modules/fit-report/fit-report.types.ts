@@ -157,13 +157,12 @@ export interface FitReportJson {
 export interface GenerateFitReportOptions {
   selectedSizeLabel?: string;
   style?: ReportStyle;
-  model?: string;
   includeDebug?: boolean;
 }
 
 export interface GenerateFitReportResult {
   fitAnalysisResultId: string;
-  source: "ollama" | "fallback";
+  source: "openrouter" | "fallback";
   modelName: string;
   promptVersion: "fit_report_v5";
   report: FitReportJson;

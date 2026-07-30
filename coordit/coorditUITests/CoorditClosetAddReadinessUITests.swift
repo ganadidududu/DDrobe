@@ -83,8 +83,11 @@ final class CoorditClosetAddReadinessUITests: XCTestCase {
         assertScreen("closet-add-photo", in: app)
     }
 
-    func testLinkImportUsesCrawledNameAndRequiresOwnedSizeSelection() throws {
-        let app = launchApp(at: "closet-add-link")
+    func testLinkImportFailureDoesNotPretendTheClosetSaveSucceeded() throws {
+        let app = launchApp(
+            at: "closet-add-link",
+            additionalArguments: ["--coordit-fitlab-fixture", "url-default"]
+        )
         assertScreen("closet-add-link", in: app)
 
         XCTAssertFalse(app.textFields["closet-garment-name"].exists)
@@ -107,10 +110,10 @@ final class CoorditClosetAddReadinessUITests: XCTestCase {
         app.swipeUp()
         app.buttons["closet-add-submit"].tap()
         assertScreen("closet-add-loading", in: app)
-        XCTAssertTrue(app.staticTexts["보유 의류를 등록하고 있어요"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["저장하지 못했어요"].waitForExistence(timeout: 5))
+        XCTAssertTrue(element("coordit-closet-save-retry", in: app).exists)
         XCTAssertFalse(app.staticTexts["새 의류의 핏 스코어 계산 중 . . ."].exists)
-        assertScreen("closet-add-result", in: app)
-        XCTAssertTrue(app.staticTexts["L"].waitForExistence(timeout: 5))
+        XCTAssertFalse(element("coordit-screen-closet-add-result", in: app).exists)
     }
 
     func testEmptyBottomGarmentsUsePantsArtworkInsteadOfTopArtwork() throws {
