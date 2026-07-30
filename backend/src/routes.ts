@@ -5,6 +5,7 @@ import { completeOnboardingController } from "./modules/auth/auth-onboarding.con
 import { createBodyMeasurement, listBodyMeasurements } from "./modules/body-measurements/body-measurements.controller";
 import {
   createClothingItem,
+  createClothingItemWithSize,
   deleteClothingItem,
   getClothingItem,
   listClothingItems,
@@ -51,7 +52,8 @@ import {
   markRecommendationClicked,
   markRecommendationPurchased
 } from "./modules/recommendation-logs/recommendation-logs.controller";
-import { getMe, updateMe } from "./modules/users/users.controller";
+import { deleteMe, getMe, updateMe } from "./modules/users/users.controller";
+import { getThreadBalanceController } from "./modules/thread-wallet/thread-wallet.controller";
 import {
   generateStylingController,
   listSavedStylingController,
@@ -72,10 +74,13 @@ routes.post("/auth/onboarding", completeOnboardingController);
 
 routes.get("/users/me", getMe);
 routes.patch("/users/me", updateMe);
+routes.delete("/users/me", deleteMe);
+routes.get("/thread-wallet/balance", getThreadBalanceController);
 routes.post("/body-measurements", createBodyMeasurement);
 routes.get("/body-measurements", listBodyMeasurements);
 
 routes.post("/clothing-items", createClothingItem);
+routes.post("/clothing-items/with-size", createClothingItemWithSize);
 routes.get("/clothing-items", listClothingItems);
 routes.get("/clothing-items/:id", getClothingItem);
 routes.patch("/clothing-items/:id", updateClothingItem);

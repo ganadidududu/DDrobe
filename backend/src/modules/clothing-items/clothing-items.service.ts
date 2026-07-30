@@ -1,13 +1,24 @@
 import type { ClothingItemRow } from "../../shared/types/database";
 import { asOptionalRecord, asOptionalString, asRequiredString } from "../../shared/utils/request";
+import { createHttpError } from "../../shared/utils/http-error";
 import {
   insertClothingItem,
+  insertClothingItemWithSize,
   patchClothingItem,
   removeClothingItem,
   selectClothingItemById,
   selectClothingItems
 } from "./clothing-items.repository";
 import type { CreateClothingItemDto, UpdateClothingItemDto } from "./clothing-items.types";
+import { toClothingSizeDto } from "../clothing-sizes/clothing-sizes.service";
+
+const asIdempotencyKey = (value: unknown): string => {
+  const key = asRequiredString(value, "idempotencyKey");
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(key)) {
+    throw createHttpError(400, "A valid idempotencyKey is required");
+  }
+  return key;
+};
 
 const toCreateDto = (body: Record<string, unknown>): CreateClothingItemDto => ({
   name: asRequiredString(body.name, "name"),
@@ -35,6 +46,14 @@ const toUpdateDto = (body: Record<string, unknown>): UpdateClothingItemDto => {
 
 export const createClothingItemForUser = (userId: string, body: Record<string, unknown>) =>
   insertClothingItem(userId, toCreateDto(body));
+
+export const createClothingItemWithSizeForUser = (userId: string, body: Record<string, unknown>) =>
+  insertClothingItemWithSize(
+    userId,
+    toCreateDto(asOptionalRecord(body.item)),
+    toClothingSizeDto(asOptionalRecord(body.size)),
+    asIdempotencyKey(body.idempotencyKey)
+  );
 
 export const listClothingItemsForUser = (userId: string): Promise<ClothingItemRow[]> =>
   selectClothingItems(userId);

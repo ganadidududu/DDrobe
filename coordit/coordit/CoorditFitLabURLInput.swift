@@ -742,7 +742,7 @@ struct CoorditFitLabURLInputView: View {
             self.measurements = measurements
         }
 
-        init(_ source: CoorditFitLabURLPrefillResponse.Size) {
+        nonisolated init(_ source: CoorditFitLabURLPrefillResponse.Size) {
             label = source.sizeLabel
             measurements = [
                 .shoulderWidth: source.shoulderWidth,

@@ -18,7 +18,7 @@ enum CoorditFitLabCategory: String, Codable, CaseIterable, Identifiable, Sendabl
 
     var id: Self { self }
 
-    var garmentKind: CoorditFitLabGarmentKind {
+    nonisolated var garmentKind: CoorditFitLabGarmentKind {
         switch self {
         case .tshirt, .shirt, .sweatshirt, .hoodie, .knit, .jacket, .coat: .upper
         case .pants, .jeans, .shorts, .skirt: .lower
@@ -58,7 +58,7 @@ enum CoorditFitLabMeasurementKey: String, Codable, CaseIterable, Identifiable, S
 
     var id: Self { self }
 
-    var garmentKind: CoorditFitLabGarmentKind {
+    nonisolated var garmentKind: CoorditFitLabGarmentKind {
         switch self {
         case .shoulderWidth, .chestWidth, .totalLength, .sleeveLength: .upper
         case .waistWidth, .hipWidth, .rise, .outseam: .lower
@@ -175,12 +175,13 @@ enum CoorditFitLabDraftValidation {
     }
 }
 
-struct CoorditFitLabSubmissionCheckpoint: Equatable, Sendable {
+struct CoorditFitLabSubmissionCheckpoint: Codable, Equatable, Sendable {
     var productID: String?
     var sizeIDsByDraftID: [UUID: String] = [:]
+    var idempotencyKey: String?
 
     var isEmpty: Bool {
-        productID == nil && sizeIDsByDraftID.isEmpty
+        productID == nil && sizeIDsByDraftID.isEmpty && idempotencyKey == nil
     }
 }
 
@@ -190,13 +191,20 @@ struct CoorditFitLabOCRMetadata: Codable, Equatable, Sendable {
 }
 
 struct CoorditFitLabHistorySnapshot: Identifiable, Codable, Equatable, Sendable {
-    static let currentSchemaVersion = 2
+    nonisolated static let currentSchemaVersion = 2
 
     struct ProductSummary: Codable, Equatable, Sendable {
         let name: String
         let brand: String?
         let mallName: String?
         let url: URL?
+
+        nonisolated init(name: String, brand: String?, mallName: String?, url: URL?) {
+            self.name = name
+            self.brand = brand
+            self.mallName = mallName
+            self.url = url
+        }
     }
 
     struct ReferenceSummary: Codable, Equatable, Sendable {
@@ -218,7 +226,7 @@ struct CoorditFitLabHistorySnapshot: Identifiable, Codable, Equatable, Sendable 
     let report: CoorditFitLabReportResponse?
     let chartData: CoorditFitLabReportResponse.ChartData
 
-    init(
+    nonisolated init(
         schemaVersion: Int = currentSchemaVersion,
         id: String,
         analysisID: String,

@@ -213,7 +213,7 @@ enum CoorditFitLabSizeExtractor {
         }
     }
 
-    private static func numberValue(_ token: String) -> Double? {
+    private nonisolated static func numberValue(_ token: String) -> Double? {
         let cleaned = token
             .replacingOccurrences(of: ",", with: ".")
             .filter { $0.isNumber || $0 == "." }

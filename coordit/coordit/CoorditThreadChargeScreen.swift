@@ -1,6 +1,12 @@
 import SwiftUI
 
 #if os(iOS)
+private enum CoorditThreadChargeAvailability {
+    // StoreKit verification and rewarded-ad settlement must be implemented before enabling either path.
+    static let rewardedAds = false
+    static let purchases = false
+}
+
 extension CoorditMyPageFamilyView {
     func threadCharge(
         metrics: CoorditResponsiveMetrics,
@@ -91,9 +97,21 @@ extension CoorditMyPageFamilyView {
                 )
             }
             .coorditPressFeedback()
+            .disabled(!CoorditThreadChargeAvailability.rewardedAds)
+            .opacity(CoorditThreadChargeAvailability.rewardedAds ? 1 : 0.48)
             .accessibilityLabel("광고 보고 실타래 충전하기")
             .accessibilityIdentifier("coordit-thread-charge-ad-cta")
             .padding(.bottom, contentMetrics.value(CoorditDesignTokens.ChargeMetrics.adToPackagesSpacing))
+
+            if !CoorditThreadChargeAvailability.rewardedAds || !CoorditThreadChargeAvailability.purchases {
+                Text("실타래 충전은 출시 준비 중이에요.")
+                    .font(CoorditTypography.gmarketMedium(size: contentMetrics.value(10), relativeTo: .caption))
+                    .foregroundStyle(CoorditSettingsStyle.muted)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("coordit-thread-charge-notice")
+                    .padding(.bottom, contentMetrics.value(10))
+            }
 
             VStack(spacing: contentMetrics.value(CoorditDesignTokens.ChargeMetrics.packageSpacing)) {
                 yarnPurchaseRow(
@@ -176,6 +194,8 @@ extension CoorditMyPageFamilyView {
             .shadow(color: .black.opacity(0.035), radius: metrics.value(8), y: metrics.value(3))
         }
         .coorditPressFeedback()
+        .disabled(!CoorditThreadChargeAvailability.purchases)
+        .opacity(CoorditThreadChargeAvailability.purchases ? 1 : 0.48)
         .accessibilityLabel(amount)
         .accessibilityIdentifier(identifier)
     }

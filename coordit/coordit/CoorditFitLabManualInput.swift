@@ -808,7 +808,7 @@ private struct CoorditFitLabManualDraftView: View {
 
         init() { }
 
-        init(_ source: CoorditFitLabSizeDraft) {
+        nonisolated init(_ source: CoorditFitLabSizeDraft) {
             id = source.id
             label = source.label
             measurements = source.measurements.mapValues { value in

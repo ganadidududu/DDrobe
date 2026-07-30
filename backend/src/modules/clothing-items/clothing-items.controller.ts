@@ -3,6 +3,7 @@ import type { AuthenticatedRequest } from "../../shared/types/http";
 import { asRequiredString, requireUser, sendCreated } from "../../shared/utils/request";
 import {
   createClothingItemForUser,
+  createClothingItemWithSizeForUser,
   deleteClothingItemForUser,
   getClothingItemForUser,
   listClothingItemsForUser,
@@ -12,6 +13,18 @@ import {
 export const createClothingItem = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     sendCreated(res, await createClothingItemForUser(requireUser(req).id, req.body));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createClothingItemWithSize = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    sendCreated(res, await createClothingItemWithSizeForUser(requireUser(req).id, req.body));
   } catch (error) {
     next(error);
   }

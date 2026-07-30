@@ -143,10 +143,12 @@ struct CoorditFitLabExternalProductSizeRow: Codable, Identifiable, Equatable, Se
 struct CoorditFitLabRecommendationRequest: Codable, Equatable, Sendable {
     let referenceClothingIDs: [String]
     let externalProductID: String
+    let idempotencyKey: String
 
     enum CodingKeys: String, CodingKey {
         case referenceClothingIDs = "referenceClothingIds"
         case externalProductID = "externalProductId"
+        case idempotencyKey
     }
 }
 
@@ -159,10 +161,11 @@ struct CoorditFitLabRecommendationResponse: Codable, Equatable, Sendable {
     let recommendationConfidence: String
     let diff: [CoorditFitLabMeasurementKey: Double]
     let partExplanations: [String]
+    let availableThreads: Int?
 
     enum CodingKeys: String, CodingKey {
         case fitAnalysisResultID = "fitAnalysisResultId"
-        case recommendedSize, fitScore, fitLabel, fitComment, recommendationConfidence, diff, partExplanations
+        case recommendedSize, fitScore, fitLabel, fitComment, recommendationConfidence, diff, partExplanations, availableThreads
     }
 
     init(
@@ -173,7 +176,8 @@ struct CoorditFitLabRecommendationResponse: Codable, Equatable, Sendable {
         fitComment: String,
         recommendationConfidence: String,
         diff: [CoorditFitLabMeasurementKey: Double],
-        partExplanations: [String] = []
+        partExplanations: [String] = [],
+        availableThreads: Int? = nil
     ) {
         self.fitAnalysisResultID = fitAnalysisResultID
         self.recommendedSize = recommendedSize
@@ -183,6 +187,7 @@ struct CoorditFitLabRecommendationResponse: Codable, Equatable, Sendable {
         self.recommendationConfidence = recommendationConfidence
         self.diff = diff
         self.partExplanations = partExplanations
+        self.availableThreads = availableThreads
     }
 
     init(from decoder: Decoder) throws {
@@ -198,6 +203,7 @@ struct CoorditFitLabRecommendationResponse: Codable, Equatable, Sendable {
             CoorditFitLabMeasurementKey(rawValue: rawKey).map { ($0, value) }
         })
         partExplanations = (try? values.decode([String].self, forKey: .partExplanations)) ?? []
+        availableThreads = try? values.decode(Int.self, forKey: .availableThreads)
     }
 }
 
@@ -311,7 +317,7 @@ struct CoorditFitLabReportResponse: Codable, Equatable, Sendable {
         let differenceBar: [Difference]
         let sizeScoreRanking: [SizeScore]
 
-        init(
+        nonisolated init(
             idealVsProduct: [Comparison] = [],
             differenceBar: [Difference] = [],
             sizeScoreRanking: [SizeScore] = []

@@ -47,7 +47,7 @@ extension CoorditMyPageFamilyView {
                 CoorditSettingsGoogleButton(
                     identifier: "mypage-backend-google-login",
                     metrics: metrics,
-                    isEnabled: !backendSession.isWorking
+                    isEnabled: !backendSession.isWorking && CoorditGoogleSignIn.isConfigured
                 ) {
                     Task {
                         await backendSession.loginWithGoogle()

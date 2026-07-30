@@ -57,6 +57,10 @@ struct CoorditBackendHealth: Codable, Equatable {
     let service: String
 }
 
+struct CoorditThreadBalanceResponse: Codable, Equatable {
+    let availableThreads: Int
+}
+
 struct CoorditBackendErrorResponse: Codable, Equatable {
     let message: String
 }
@@ -75,6 +79,11 @@ struct CoorditClothingItemResponse: Codable, Equatable {
         case fitType = "fit_type"
         case sizeLabel = "size_label"
     }
+}
+
+struct CoorditClothingItemWithSizeResponse: Codable, Equatable {
+    let clothingItem: CoorditClothingItemResponse
+    let clothingSize: CoorditClothingSizeResponse
 }
 
 struct CoorditReferenceClothingResponse: Codable, Equatable {

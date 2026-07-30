@@ -12,7 +12,11 @@ npm run typecheck
 
 ## Key Endpoint
 
-`POST /fit/recommend` performs the MVP recommendation flow with Supabase persistence.
+`POST /fit/recommend` performs one metered MVP recommendation with Supabase persistence.
+It requires a UUID `idempotencyKey`; clients must reuse that key while retrying the same analysis.
+
+`POST /clothing-items/with-size` atomically saves a closet item and its selected measurements.
+It also requires a UUID `idempotencyKey` so a retry returns the first saved pair instead of creating duplicates.
 
 `POST /fit-analysis-results/:id/report` builds a fit report from a saved fit result, calls local Ollama, and falls back to a deterministic report if Ollama is unavailable.
 

@@ -95,6 +95,17 @@ final class CoorditBackendSessionStore: ObservableObject {
         }
     }
 
+    func fetchThreadBalance() async -> Int? {
+        guard let token = session?.accessToken else { return nil }
+        do {
+            return try await client.threadBalance(token: token).availableThreads
+        } catch {
+            statusText = error.localizedDescription
+            isWarning = true
+            return nil
+        }
+    }
+
     func login(email: String, password: String) async {
         await authenticate {
             try await client.login(email: email, password: password)
@@ -122,6 +133,32 @@ final class CoorditBackendSessionStore: ObservableObject {
         referenceFitProfiles = [:]
         statusText = "이 기기에서 로그아웃했어요."
         isWarning = false
+    }
+
+    func deleteAccount() async -> Bool {
+        guard let token = session?.accessToken else {
+            statusText = "회원 탈퇴는 로그인 후 진행할 수 있어요."
+            isWarning = true
+            return false
+        }
+
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            try await client.deleteAccount(token: token)
+            tokenStore.delete()
+            session = nil
+            profile = nil
+            latestBodyMeasurement = nil
+            referenceFitProfiles = [:]
+            statusText = "계정과 저장된 데이터를 삭제했어요."
+            isWarning = false
+            return true
+        } catch {
+            statusText = error.localizedDescription
+            isWarning = true
+            return false
+        }
     }
 
     func saveProfile(displayName: String) async {
@@ -158,7 +195,10 @@ final class CoorditBackendSessionStore: ObservableObject {
         )
     }
 
-    func saveClothing(from draft: CoorditClosetDraft) async -> CoorditClothingSaveResult? {
+    func saveClothing(
+        from draft: CoorditClosetDraft,
+        idempotencyKey: String
+    ) async -> CoorditClothingSaveResult? {
         guard let token = session?.accessToken else {
             statusText = "보유 의류 저장은 로그인 후 백엔드에 반영돼요."
             isWarning = true
@@ -169,20 +209,20 @@ final class CoorditBackendSessionStore: ObservableObject {
         defer { isWorking = false }
 
         do {
-            let clothingItem = try await client.createClothingItem(token: token, request: draft.clothingItemRequest)
             let clothingSizeRequest = await CoorditFitLabSizeExtractor.referenceClothingSizeRequest(from: draft)
-            let clothingSize = try await client.createClothingSize(
+            let saved = try await client.createClothingItemWithSize(
                 token: token,
-                clothingItemId: clothingItem.id,
-                request: clothingSizeRequest
+                clothingItem: draft.clothingItemRequest,
+                clothingSize: clothingSizeRequest,
+                idempotencyKey: idempotencyKey
             )
             statusText = "보유 의류를 옷장에 저장했어요."
             isWarning = false
             return CoorditClothingSaveResult(
-                clothingItemId: clothingItem.id,
+                clothingItemId: saved.clothingItem.id,
                 sizeChart: CoorditClosetSizeChart(
-                    sizeLabel: clothingSize.sizeLabel,
-                    measurements: clothingSize.measurements
+                    sizeLabel: saved.clothingSize.sizeLabel,
+                    measurements: saved.clothingSize.measurements
                 )
             )
         } catch {
@@ -476,7 +516,8 @@ final class CoorditBackendSessionStore: ObservableObject {
                 token: token,
                 request: FitRecommendRequest(
                     referenceClothingIds: [reference.id],
-                    externalProductId: externalProduct.id
+                    externalProductId: externalProduct.id,
+                    idempotencyKey: UUID().uuidString
                 )
             )
             let usedFallbackMeasurements = candidateSizes.contains { $0.measurementSource != "ocr" }

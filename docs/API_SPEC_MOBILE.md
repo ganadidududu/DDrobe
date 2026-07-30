@@ -2,7 +2,7 @@
 
 문서 상태: 모바일 MVP 기준 정리본  
 기준일: 2026-06-25  
-Base URL: `http://localhost:4000`
+Base URL: 배포된 HTTPS API URL (`COORDIT_API_BASE_URL`)
 
 ## 1. 문서 목적
 
@@ -274,6 +274,19 @@ Wardrobe API는 모바일 앱의 `Closet` 탭에서 사용한다.
 - `fitType`
 - `notes`
 - `imageUrl`
+
+### 보유 의류와 실측값 원자적 등록
+
+| 항목 | 내용 |
+| --- | --- |
+| 기능명 | 보유 의류와 선택한 실측값 함께 등록 |
+| 목적 | 저장 중 네트워크가 끊겨도 의류와 실측값이 분리되거나 중복 저장되지 않게 한다. |
+| Endpoint | `POST /clothing-items/with-size` |
+| 필수 입력 | `item`, `size`, UUID 형식의 `idempotencyKey` |
+| 주요 반환값 | 저장된 `clothingItem`, `clothingSize` |
+| 사용 화면 | Closet 의류 추가 완료 |
+
+같은 `idempotencyKey`로 다시 요청하면 처음 저장한 의류와 실측값을 `200`으로 다시 반환한다. 앱은 같은 저장 작업을 재시도하는 동안 키를 유지해야 한다.
 
 ### 보유 의류 목록 조회
 
@@ -629,7 +642,7 @@ Product Analysis는 외부 상품 정보를 자동으로 가져오거나 분석�
 | 기능명 | 단일 기준 의류 추천 |
 | 목적 | 하나의 기준 의류와 외부 상품 사이즈표를 비교해 추천 사이즈를 계산한다. |
 | Endpoint | `POST /fit/recommend` |
-| 필수 입력 | `referenceClothingId`, `externalProductId` |
+| 필수 입력 | `referenceClothingId` 또는 `referenceClothingIds`, `externalProductId`, UUID 형식의 `idempotencyKey` |
 | 주요 반환값 | 추천 사이즈, fit score, fit label, confidence, 부위별 차이, 사이즈별 점수 |
 | 사용 화면 | Fit Lab |
 
@@ -639,8 +652,8 @@ Product Analysis는 외부 상품 정보를 자동으로 가져오거나 분석�
 | --- | --- |
 | 기능명 | 다중 기준 의류 추천 |
 | 목적 | 여러 기준 의류로 사용자의 핏 DNA를 만들고 외부 상품의 최적 사이즈를 추천한다. |
-| Endpoint | `POST /fit/recommend` 또는 `POST /fit/recommend/batch` |
-| 필수 입력 | `referenceClothingIds`, `externalProductId` |
+| Endpoint | `POST /fit/recommend` |
+| 필수 입력 | `referenceClothingIds`, `externalProductId`, UUID 형식의 `idempotencyKey` |
 | 주요 반환값 | 추천 사이즈, fit score, confidence, 기준 의류 통계, 부위별 차이, 사이즈별 점수 |
 | 사용 화면 | Fit Lab |
 
@@ -652,6 +665,12 @@ fit score, 추천 사이즈, 기준 프로필, 동적 가중치를 변경하지 
 `allSizeScores`를 계속 사용할 수 있다. 추가 설명 메타데이터는 선택 필드다.
 현재 추천 알고리즘 버전은 `mvp_rule_v1_6`이며 응답의 `algorithmVersion` 및
 DB의 `algorithm_version`에 기록된다.
+
+Fit Lab 분석은 실타래를 사용하는 요청이다. 하나의 사용자가 같은
+`idempotencyKey`를 다시 보내면 API는 새 분석을 만들지 않고 이미 저장한 결과와 남은
+실타래를 `200`으로 다시 반환한다. 클라이언트는 네트워크 재시도 동안 같은 키를 유지해야 한다. 여러 상품을 한 번에
+분석하는 `/fit/recommend/batch`는 모든 항목의 원자적 과금이 구현되기 전까지 `410`으로
+비활성화되어 있다.
 
 | 선택 필드 | 설명 |
 | --- | --- |

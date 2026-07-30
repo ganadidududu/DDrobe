@@ -2,6 +2,12 @@ import { supabase } from "../../config/supabase";
 import type { ClothingItemRow } from "../../shared/types/database";
 import { createHttpError } from "../../shared/utils/http-error";
 import type { CreateClothingItemDto, UpdateClothingItemDto } from "./clothing-items.types";
+import type { ClothingSizeDto } from "../clothing-sizes/clothing-sizes.repository";
+
+interface ClothingItemWithSizeRow {
+  clothingItem: ClothingItemRow;
+  clothingSize: import("../../shared/types/database").ClothingSizeRow;
+}
 
 export const insertClothingItem = async (
   userId: string,
@@ -13,6 +19,24 @@ export const insertClothingItem = async (
     .select("*")
     .single<ClothingItemRow>();
   if (error || !data) throw createHttpError(500, "Failed to create clothing item");
+  return data;
+};
+
+export const insertClothingItemWithSize = async (
+  userId: string,
+  clothingItem: CreateClothingItemDto,
+  clothingSize: ClothingSizeDto,
+  idempotencyKey: string
+): Promise<ClothingItemWithSizeRow> => {
+  const { data, error } = await supabase
+    .rpc("create_clothing_item_with_size", {
+      p_user_id: userId,
+      p_item: clothingItem,
+      p_size: clothingSize,
+      p_idempotency_key: idempotencyKey
+    })
+    .single<ClothingItemWithSizeRow>();
+  if (error || !data) throw createHttpError(500, "Failed to save clothing item and size");
   return data;
 };
 

@@ -21,9 +21,13 @@ enum CoorditGoogleSignInError: LocalizedError {
 }
 
 enum CoorditGoogleSignIn {
+    static var isConfigured: Bool {
+        infoValue("GIDClientID") != nil && infoValue("GIDServerClientID") != nil
+    }
+
     @MainActor
     static func signInIDToken() async throws -> String {
-        guard let clientID = infoValue("GIDClientID") else {
+        guard isConfigured, let clientID = infoValue("GIDClientID") else {
             throw CoorditGoogleSignInError.missingConfiguration
         }
 

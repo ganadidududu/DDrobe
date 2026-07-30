@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import CryptoKit
 
 #if os(iOS)
 enum CoorditFitLabAnalysisState: Equatable {
@@ -11,6 +12,21 @@ enum CoorditFitLabAnalysisState: Equatable {
 
 @MainActor
 final class CoorditFitLabCoordinator: ObservableObject {
+    private struct PendingSubmissionKey: Codable {
+        let fingerprint: String
+        let idempotencyKey: String
+    }
+
+    private struct SubmissionFingerprint: Codable {
+        let userID: String
+        let source: CoorditFitLabSource
+        let category: CoorditFitLabCategory
+        let productName: String
+        let productURL: URL?
+        let sizes: [CoorditFitLabSizeDraft]
+        let referenceIDs: [String]
+    }
+
     @Published var draft: CoorditFitLabDraft
     @Published private(set) var references: [CoorditFitLabReferenceRow] = []
     @Published private(set) var createdProductID: String?
@@ -30,6 +46,7 @@ final class CoorditFitLabCoordinator: ObservableObject {
     @Published private(set) var reportNeedsRetry = false
     @Published private(set) var analysisState: CoorditFitLabAnalysisState = .idle
     @Published private(set) var isAnalysisNoticeVisible = false
+    @Published private(set) var authoritativeThreadBalance: Int?
 
     let userID: String?
     let fixtureName: String?
@@ -43,6 +60,7 @@ final class CoorditFitLabCoordinator: ObservableObject {
     private var historyGeneration = 0
     private var historyMutationTask: Task<Bool, Never>?
     private var historyMutationGeneration = 0
+    private static let pendingIdempotencyKeyDefaultsKey = "coordit.fitLab.pendingIdempotencyKey.v1"
     #if DEBUG
     @Published private(set) var historyEdgeProbe = "idle"
     @Published private(set) var historyUserProbe = "idle"
@@ -341,14 +359,21 @@ final class CoorditFitLabCoordinator: ObservableObject {
 
             if recommendation == nil {
                 submissionStep = .recommending
+                let idempotencyKey = submissionIdempotencyKey(
+                    for: authenticatedUserID ?? userID ?? "coordit-fitlab-unknown-user"
+                )
+                checkpoint.idempotencyKey = idempotencyKey
                 let receivedRecommendation = try await selectedAPI.recommend(
                     CoorditFitLabRecommendationRequest(
                         referenceClothingIDs: draft.selectedReferenceIDs.sorted(),
-                        externalProductID: productID
+                        externalProductID: productID,
+                        idempotencyKey: idempotencyKey
                     )
                 )
                 try ensureActive(generation)
                 recommendation = receivedRecommendation
+                authoritativeThreadBalance = receivedRecommendation.availableThreads
+                clearPendingSubmissionIdempotencyKey()
             }
 
             guard let recommendation else { throw CoorditFitLabError.malformedResponse }
@@ -390,6 +415,7 @@ final class CoorditFitLabCoordinator: ObservableObject {
         submissionTask?.cancel()
         submissionTask = nil
         operationGeneration += 1
+        clearPendingSubmissionIdempotencyKey()
         checkpoint = CoorditFitLabSubmissionCheckpoint()
         createdProductID = nil
         createdSizeIDs = []
@@ -447,6 +473,51 @@ final class CoorditFitLabCoordinator: ObservableObject {
         }
     }
 
+    private func submissionIdempotencyKey(for authenticatedUserID: String) -> String {
+        if let idempotencyKey = checkpoint.idempotencyKey { return idempotencyKey }
+
+        let fingerprint = submissionFingerprint(for: authenticatedUserID)
+        if let pending = Self.pendingSubmissionKey(), pending.fingerprint == fingerprint {
+            checkpoint.idempotencyKey = pending.idempotencyKey
+            return pending.idempotencyKey
+        }
+
+        let idempotencyKey = UUID().uuidString
+        checkpoint.idempotencyKey = idempotencyKey
+        Self.savePendingSubmissionKey(.init(fingerprint: fingerprint, idempotencyKey: idempotencyKey))
+        return idempotencyKey
+    }
+
+    private func submissionFingerprint(for authenticatedUserID: String) -> String {
+        let payload = SubmissionFingerprint(
+            userID: authenticatedUserID,
+            source: draft.source,
+            category: draft.category,
+            productName: draft.productName,
+            productURL: draft.productURL,
+            sizes: draft.sizes,
+            referenceIDs: draft.selectedReferenceIDs.sorted()
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let data = (try? encoder.encode(payload)) ?? Data()
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func clearPendingSubmissionIdempotencyKey() {
+        UserDefaults.standard.removeObject(forKey: Self.pendingIdempotencyKeyDefaultsKey)
+    }
+
+    private static func pendingSubmissionKey() -> PendingSubmissionKey? {
+        guard let data = UserDefaults.standard.data(forKey: pendingIdempotencyKeyDefaultsKey) else { return nil }
+        return try? JSONDecoder().decode(PendingSubmissionKey.self, from: data)
+    }
+
+    private static func savePendingSubmissionKey(_ pending: PendingSubmissionKey) {
+        guard let data = try? JSONEncoder().encode(pending) else { return }
+        UserDefaults.standard.set(data, forKey: pendingIdempotencyKeyDefaultsKey)
+    }
+
     private func fail(_ failure: CoorditFitLabError, at step: CoorditFitLabSubmissionStep) {
         error = failure
         retryStep = step
@@ -477,6 +548,28 @@ final class CoorditFitLabCoordinator: ObservableObject {
 
     func prepareHistory(userID: String?) async {
         await switchHistoryUser(to: userID)
+    }
+
+    @discardableResult
+    func deleteLocalHistory(for userID: String) async -> Bool {
+        historyGeneration += 1
+        historyMutationGeneration += 1
+        historyMutationTask?.cancel()
+        historyMutationTask = nil
+        savedHistory = []
+        selectedHistory = nil
+        historyRecoveryNotice = nil
+        if activeHistoryUserID == userID {
+            activeHistoryUserID = nil
+        }
+        guard let historyStore else { return true }
+        do {
+            try await historyStore.deleteAll(userID: userID)
+            return true
+        } catch {
+            self.error = .transport(error.localizedDescription)
+            return false
+        }
     }
 
     func switchHistoryUser(to userID: String?) async {

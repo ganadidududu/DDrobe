@@ -22,6 +22,23 @@ interface RecommendFitParams {
   externalProductId: string;
 }
 
+export interface PreparedFitRecommendation {
+  readonly response: Omit<FitRecommendationResult, "fitAnalysisResultId">;
+  readonly persistence: {
+    readonly referenceClothingId: string;
+    readonly externalProductId: string;
+    readonly recommendedExternalProductSizeId: string;
+    readonly recommendedSizeLabel: string;
+    readonly fitScore: number;
+    readonly fitLabel: string;
+    readonly fitComment: string;
+    readonly weightedFitDistance: number;
+    readonly algorithmVersion: string;
+    readonly recommendationConfidence: string;
+    readonly resultDetails: Record<string, unknown>;
+  };
+}
+
 interface DbReferenceClothing {
   id: string;
   user_id: string;
@@ -58,12 +75,20 @@ interface DbExternalProductSize extends MeasurementMap {
   extraction_confidence: number | null;
 }
 
-export const recommendFit = async ({
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+
+const asStringArray = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+
+export const prepareFitRecommendation = async ({
   userId,
   referenceClothingId,
   referenceClothingIds,
   externalProductId
-}: RecommendFitParams): Promise<FitRecommendationResult> => {
+}: RecommendFitParams): Promise<PreparedFitRecommendation> => {
   const selectedReferenceIds = referenceClothingIds?.length
     ? referenceClothingIds
     : referenceClothingId
@@ -181,21 +206,48 @@ export const recommendFit = async ({
   );
   const best = recommendation.recommended;
 
-  const { data: fitResult, error: resultError } = await supabase
-    .from("fit_analysis_results")
-    .insert({
-      user_id: userId,
-      reference_clothing_id: referenceInput[0].id,
-      external_product_id: externalProduct.id,
-      recommended_external_product_size_id: best.externalProductSizeId,
-      recommended_size_label: best.sizeLabel,
-      fit_score: best.finalFitScore,
-      fit_label: best.fitLabel,
-      fit_comment: best.fitComment,
-      weighted_fit_distance: best.weightedFitDistance,
-      algorithm_version: ALGORITHM_VERSION,
-      recommendation_confidence: best.recommendationConfidence,
-      result_details: {
+  return {
+    response: {
+      recommendedSize: best.sizeLabel,
+      fitScore: best.finalFitScore,
+      fitLabel: best.fitLabel,
+      fitComment: best.fitComment,
+      recommendationConfidence: best.recommendationConfidence,
+      diff: best.diffs,
+      partExplanations: best.partExplanations,
+      partStatuses: best.partStatuses,
+      scoreExplanation: best.scoreExplanation,
+      confidenceBreakdown: best.confidenceBreakdown,
+      baseWeights: recommendation.baseWeights,
+      dynamicWeights: recommendation.dynamicWeights,
+      referenceVariance: recommendation.referenceVariance,
+      weightingStrategy: recommendation.weightingStrategy,
+      referenceProfile: recommendation.referenceProfile,
+      feedbackProfile: recommendation.feedbackProfile,
+      allSizeScores: recommendation.allSizeScores.map((score) => ({
+        externalProductSizeId: score.externalProductSizeId,
+        sizeLabel: score.sizeLabel,
+        fitScore: score.finalFitScore,
+        fitLabel: score.fitLabel,
+        weightedFitDistance: score.weightedFitDistance,
+        recommendationConfidence: score.recommendationConfidence,
+        scoreExplanation: score.scoreExplanation,
+        confidenceBreakdown: score.confidenceBreakdown
+      })),
+      algorithmVersion: ALGORITHM_VERSION
+    },
+    persistence: {
+      referenceClothingId: referenceInput[0].id,
+      externalProductId: externalProduct.id,
+      recommendedExternalProductSizeId: best.externalProductSizeId,
+      recommendedSizeLabel: best.sizeLabel,
+      fitScore: best.finalFitScore,
+      fitLabel: best.fitLabel,
+      fitComment: best.fitComment,
+      weightedFitDistance: best.weightedFitDistance,
+      algorithmVersion: ALGORITHM_VERSION,
+      recommendationConfidence: best.recommendationConfidence,
+      resultDetails: {
         baseWeights: recommendation.baseWeights,
         dynamicWeights: recommendation.dynamicWeights,
         referenceVariance: recommendation.referenceVariance,
@@ -210,66 +262,9 @@ export const recommendFit = async ({
         referenceClothingIds: referenceInput.map((reference) => reference.id),
         allSizeScores: recommendation.allSizeScores
       }
-    })
-    .select("*")
-    .single<{ id: string }>();
-
-  if (resultError || !fitResult) {
-    throw createHttpError(500, "Failed to save fit analysis result");
-  }
-
-  await supabase.from("recommendation_logs").insert({
-    user_id: userId,
-    fit_analysis_result_id: fitResult.id,
-    external_product_id: externalProduct.id,
-    recommended_size_label: best.sizeLabel,
-    event_type: "shown",
-    algorithm_version: ALGORITHM_VERSION,
-    raw_data: { source: "fit_recommend_api" }
-  });
-
-  return {
-    fitAnalysisResultId: fitResult.id,
-    recommendedSize: best.sizeLabel,
-    fitScore: best.finalFitScore,
-    fitLabel: best.fitLabel,
-    fitComment: best.fitComment,
-    recommendationConfidence: best.recommendationConfidence,
-    diff: best.diffs,
-    partExplanations: best.partExplanations,
-    partStatuses: best.partStatuses,
-    scoreExplanation: best.scoreExplanation,
-    confidenceBreakdown: best.confidenceBreakdown,
-    baseWeights: recommendation.baseWeights,
-    dynamicWeights: recommendation.dynamicWeights,
-    referenceVariance: recommendation.referenceVariance,
-    weightingStrategy: recommendation.weightingStrategy,
-    referenceProfile: recommendation.referenceProfile,
-    feedbackProfile: recommendation.feedbackProfile,
-    allSizeScores: recommendation.allSizeScores.map((score) => ({
-      externalProductSizeId: score.externalProductSizeId,
-      sizeLabel: score.sizeLabel,
-      fitScore: score.finalFitScore,
-      fitLabel: score.fitLabel,
-      weightedFitDistance: score.weightedFitDistance,
-      recommendationConfidence: score.recommendationConfidence,
-      scoreExplanation: score.scoreExplanation,
-      confidenceBreakdown: score.confidenceBreakdown
-    })),
-    algorithmVersion: ALGORITHM_VERSION
+    }
   };
 };
-
-export const recommendFitBatch = async (
-  userId: string,
-  referenceClothingIds: string[],
-  externalProductIds: string[]
-) =>
-  Promise.all(
-    externalProductIds.map((externalProductId) =>
-      recommendFit({ userId, referenceClothingIds, externalProductId })
-    )
-  );
 
 export const listRecentFitAnalysisResults = async (userId: string): Promise<FitAnalysisResultRow[]> => {
   const { data, error } = await supabase
@@ -295,4 +290,41 @@ export const getFitAnalysisResult = async (
     .single<FitAnalysisResultRow>();
   if (error || !data) throw createHttpError(404, "Fit analysis result was not found");
   return data;
+};
+
+export const replayFitRecommendation = (result: FitAnalysisResultRow): FitRecommendationResult => {
+  const details = asRecord(result.result_details);
+  return {
+    fitAnalysisResultId: result.id,
+    recommendedSize: result.recommended_size_label,
+    fitScore: result.fit_score,
+    fitLabel: result.fit_label as FitRecommendationResult["fitLabel"],
+    fitComment: result.fit_comment,
+    recommendationConfidence: result.recommendation_confidence as FitRecommendationResult["recommendationConfidence"],
+    diff: asRecord(details.diffs) as FitRecommendationResult["diff"],
+    partExplanations: asStringArray(details.partExplanations),
+    partStatuses: asRecord(details.partStatuses) as FitRecommendationResult["partStatuses"],
+    scoreExplanation: details.scoreExplanation as FitRecommendationResult["scoreExplanation"],
+    confidenceBreakdown: details.confidenceBreakdown as FitRecommendationResult["confidenceBreakdown"],
+    baseWeights: asRecord(details.baseWeights) as FitRecommendationResult["baseWeights"],
+    dynamicWeights: asRecord(details.dynamicWeights) as FitRecommendationResult["dynamicWeights"],
+    referenceVariance: asRecord(details.referenceVariance) as FitRecommendationResult["referenceVariance"],
+    weightingStrategy: (details.weightingStrategy as FitRecommendationResult["weightingStrategy"]) ?? "base_static",
+    referenceProfile: details.referenceProfile as FitRecommendationResult["referenceProfile"],
+    feedbackProfile: details.feedbackProfile as FitRecommendationResult["feedbackProfile"],
+    allSizeScores: (Array.isArray(details.allSizeScores) ? details.allSizeScores : []) as FitRecommendationResult["allSizeScores"],
+    algorithmVersion: result.algorithm_version
+  };
+};
+
+export const deleteFitAnalysisResultForUser = async (
+  userId: string,
+  id: string
+): Promise<void> => {
+  const { error } = await supabase
+    .from("fit_analysis_results")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", id);
+  if (error) throw createHttpError(500, "Failed to roll back incomplete fit analysis");
 };

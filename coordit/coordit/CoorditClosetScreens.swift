@@ -21,6 +21,31 @@ struct CoorditClosetSizeChart: Equatable {
     let measurements: CoorditMeasurementMap
 }
 
+struct CoorditClosetAddSaveState: Equatable {
+    var isSaving = false
+    var errorMessage: String?
+    var idempotencyKey: String?
+    private(set) var requestGeneration = 0
+
+    mutating func beginSave() -> Int {
+        requestGeneration &+= 1
+        errorMessage = nil
+        isSaving = true
+        return requestGeneration
+    }
+
+    mutating func reset() {
+        requestGeneration &+= 1
+        isSaving = false
+        errorMessage = nil
+        idempotencyKey = nil
+    }
+
+    func isCurrent(_ generation: Int) -> Bool {
+        requestGeneration == generation
+    }
+}
+
 struct CoorditClosetItem: Identifiable {
     let id: String
     var name: String
@@ -101,6 +126,7 @@ struct CoorditClosetFamilyView: View {
     @Binding var selectedItemID: String?
     @Binding var draft: CoorditClosetDraft
     @Binding var selectedReferenceIDs: Set<String>
+    @Binding var addSaveState: CoorditClosetAddSaveState
 
     @EnvironmentObject var backendSession: CoorditBackendSessionStore
     @State var selectedCategory: CoorditClosetCategory = .top
@@ -129,6 +155,7 @@ struct CoorditClosetFamilyView: View {
         selectedItemID: Binding<String?>,
         draft: Binding<CoorditClosetDraft>,
         selectedReferenceIDs: Binding<Set<String>>,
+        addSaveState: Binding<CoorditClosetAddSaveState>,
         onRouteChange: @escaping (CoorditFrameRoute) -> Void
     ) {
         self.route = route
@@ -136,6 +163,7 @@ struct CoorditClosetFamilyView: View {
         _selectedItemID = selectedItemID
         _draft = draft
         _selectedReferenceIDs = selectedReferenceIDs
+        _addSaveState = addSaveState
         self.onRouteChange = onRouteChange
         _detailVariant = State(initialValue: route == .closetDetailBottom ? .bottom : .top)
         _detailPhotoSelection = State(initialValue: nil)
@@ -247,6 +275,7 @@ struct CoorditClosetFamilyView: View {
 
                 CoorditSolidPrimaryButton(title: "보유 의류 추가하기", metrics: metrics) {
                     draft = CoorditClosetDraft()
+                    addSaveState.reset()
                     onRouteChange(.closetAddMethod)
                 }
                     .accessibilityIdentifier("closet-add-garment")
