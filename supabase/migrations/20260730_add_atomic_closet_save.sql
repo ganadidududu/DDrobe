@@ -8,8 +8,9 @@ create table if not exists public.clothing_item_save_requests (
 
 alter table public.clothing_item_save_requests enable row level security;
 
--- Remove the older non-idempotent overload when upgrading an existing database.
-drop function if exists public.create_clothing_item_with_size(uuid, jsonb, jsonb);
+-- Keep the older three-argument overload during rollout so an already deployed
+-- backend can continue saving clothes while the four-argument idempotent path
+-- is being released.
 
 create or replace function public.create_clothing_item_with_size(
   p_user_id uuid,
