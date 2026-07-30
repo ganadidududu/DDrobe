@@ -23,8 +23,22 @@ import {
   isPrivateIpAddress,
   parseProductUrl
 } from "../security/url-validator";
+import { effectiveCrawlerSite, productIdFromUrl } from "../crawler/product-page-crawler";
 
 describe("product-import URL security and adapter routing", () => {
+  it("uses Musinsa size-chart handling after a share link resolves to a Musinsa product", () => {
+    expect(effectiveCrawlerSite(
+      "generic",
+      new URL("https://www.musinsa.com/products/6252903")
+    )).toBe("musinsa");
+  });
+
+  it("uses the Musinsa product path instead of a tracking query number for the size API", () => {
+    expect(productIdFromUrl(
+      new URL("https://www.musinsa.com/products/6064539?af_siteid=1003139529")
+    )).toBe("6064539");
+  });
+
   it("matches supported public shop domains without matching lookalikes", () => {
     expect(new MusinsaAdapter().supports(new URL("https://www.musinsa.com/products/1234567"))).toBe(true);
     expect(new MusinsaAdapter().supports(new URL("https://musinsa.com.attacker.example/products/1"))).toBe(false);

@@ -201,18 +201,15 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertFalse(element("coordit-screen-fitlab-result-top", in: app).exists)
     }
 
-    func testFallbackReportStaysOnLoadingUntilOllamaReportIsReady() throws {
+    func testFallbackReportCompletesAnalysisWithDeterministicReport() throws {
         let app = launchFitLab(fixture: "submission-report-fallback")
         XCTAssertTrue(element("fitlab-reference-selection", in: app).waitForExistence(timeout: 5))
         element("fitlab-reference-reference-fixture-hoodie", in: app).tap()
         element("fitlab-submit-analysis", in: app).tap()
 
-        XCTAssertTrue(element("coordit-screen-fitlab-loading", in: app).waitForExistence(timeout: 8))
-        XCTAssertTrue(element("fitlab-loading-error", in: app).waitForExistence(timeout: 8))
-        XCTAssertFalse(element("coordit-screen-fitlab-result-top", in: app).exists)
-
-        element("fitlab-loading-retry", in: app).tap()
         XCTAssertTrue(element("fitlab-fixture-result-upper", in: app).waitForExistence(timeout: 8))
+        XCTAssertTrue(element("fitlab-report-description", in: app).waitForExistence(timeout: 3))
+        XCTAssertFalse(element("fitlab-loading-error", in: app).exists)
         XCTAssertFalse(element("fitlab-report-fallback", in: app).exists)
     }
 

@@ -8,6 +8,17 @@ enum CoorditBackendConfig {
             arguments.indices.contains(arguments.index(after: markerIndex)),
             let url = URL(string: arguments[arguments.index(after: markerIndex)])
         {
+            UserDefaults.standard.set(url.absoluteString, forKey: "coordit.apiBaseURL")
+            return url
+        }
+
+        if
+            let bundled = Bundle.main.object(forInfoDictionaryKey: "CoorditAPIBaseURL") as? String,
+            !bundled.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            !bundled.contains("$("),
+            let url = URL(string: bundled)
+        {
+            UserDefaults.standard.set(url.absoluteString, forKey: "coordit.apiBaseURL")
             return url
         }
 

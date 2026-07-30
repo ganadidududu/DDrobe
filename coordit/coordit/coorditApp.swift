@@ -19,7 +19,18 @@ struct coorditApp: App {
                 .environmentObject(backendSession)
                 .background(CoorditTouchResponsivenessTuner())
                 .onOpenURL { url in
-                    _ = CoorditGoogleSignIn.handle(url)
+                    if CoorditSharedFitLabImport.isOpenURL(url) {
+                        let productURL = CoorditSharedFitLabImport.productURL(fromOpenURL: url)
+                        if let productURL {
+                            CoorditSharedFitLabImport.store(
+                                productURL: productURL,
+                                sourceApplication: "url-scheme"
+                            )
+                        }
+                        CoorditSharedFitLabImport.postOpenRequest(productURL: productURL)
+                    } else {
+                        _ = CoorditGoogleSignIn.handle(url)
+                    }
                 }
         }
     }

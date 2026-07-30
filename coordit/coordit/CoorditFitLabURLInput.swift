@@ -8,6 +8,7 @@ struct CoorditFitLabURLInputView: View {
     let requestLedger: () -> [String]
     let prefill: (URL, CoorditFitLabCategory) async throws -> CoorditFitLabURLPrefillResponse
     let loadReferences: (CoorditFitLabCategory) async throws -> [CoorditFitLabReferenceRow]
+    let initialURL: URL?
     let onSwitchToOCR: () -> Void
     let onSwitchToManual: () -> Void
 
@@ -64,6 +65,9 @@ struct CoorditFitLabURLInputView: View {
             invalidateImport()
             referenceRequestGeneration += 1
             referenceRequest?.cancel()
+        }
+        .onAppear {
+            applyInitialURLIfNeeded()
         }
     }
 
@@ -544,6 +548,17 @@ struct CoorditFitLabURLInputView: View {
     private func switchToOCR() {
         invalidateImport()
         onSwitchToOCR()
+    }
+
+    private func applyInitialURLIfNeeded() {
+        guard urlText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let url = initialURL ?? draft.productURL
+        guard let url else { return }
+        urlText = url.absoluteString
+        draft.source = .url
+        draft.productURL = url
+        draft.isSourceConfirmed = false
+        errorMessage = nil
     }
 
     private func apply(_ response: CoorditFitLabURLPrefillResponse) {

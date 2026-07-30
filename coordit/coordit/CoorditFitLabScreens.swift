@@ -11,6 +11,7 @@ struct CoorditFitLabFamilyView: View {
     @EnvironmentObject private var backendSession: CoorditBackendSessionStore
     @ObservedObject var coordinator: CoorditFitLabCoordinator
     @Binding var threadBalance: Int
+    @Binding var sharedImportURL: URL?
     let onInsufficientThread: () -> Void
     @State private var inputDestination: CoorditFitLabInputDestination = .sources
     @State private var inputNavigationDirection: CoorditNavigationDirection = .forward
@@ -98,6 +99,12 @@ struct CoorditFitLabFamilyView: View {
         .onChange(of: currentRoute) { _, route in
             coordinator.synchronize(route: route)
         }
+        .onChange(of: sharedImportURL) { _, url in
+            openSharedImport(url)
+        }
+        .onAppear {
+            openSharedImport(sharedImportURL)
+        }
         .task(id: effectiveHistoryUserID) {
             if coordinator.activeHistoryUserID != effectiveHistoryUserID {
                 await coordinator.prepareHistory(userID: effectiveHistoryUserID)
@@ -127,7 +134,7 @@ struct CoorditFitLabFamilyView: View {
         variant: CoorditFitLabResultVariant,
         metrics: CoorditResponsiveMetrics
     ) -> some View {
-        if coordinator.report?.source == "ollama" {
+        if coordinator.report != nil {
             CoorditFitLabResultScreen(
                 variant: variant,
                 recommendation: coordinator.recommendation,
@@ -218,6 +225,7 @@ struct CoorditFitLabFamilyView: View {
                 urlRequestLedger: { fixtureAPIRequestLedger },
                 urlPrefill: prefillProduct,
                 urlReferences: compatibleReferences,
+                sharedImportURL: sharedImportURL,
                 savedHistory: coordinator.savedHistory,
                 historyRecoveryNotice: coordinator.historyRecoveryNotice,
                 onOpenHistory: { snapshot in
@@ -253,6 +261,17 @@ struct CoorditFitLabFamilyView: View {
         withAnimation(.easeOut(duration: reduceMotion ? 0.14 : 0.22)) {
             inputDestination = destination
         }
+    }
+
+    private func openSharedImport(_ url: URL?) {
+        guard let url else { return }
+        coordinator.draft.source = .url
+        coordinator.draft.productURL = url
+        coordinator.draft.isSourceConfirmed = false
+        coordinator.draft.selectedReferenceIDs.removeAll()
+        inputNavigationDirection = .forward
+        inputDestination = .url
+        sharedImportURL = nil
     }
 
     private var effectiveHistoryUserID: String? {
@@ -639,6 +658,7 @@ struct CoorditFitLabScreens: View {
             onManageReferences: {},
             coordinator: coordinator,
             threadBalance: $threadBalance,
+            sharedImportURL: .constant(nil),
             onInsufficientThread: { onRouteChange(.myPageThreadCharge) }
         )
     }

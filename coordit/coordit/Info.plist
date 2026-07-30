@@ -21,6 +21,16 @@
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.inseong.coordit</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>coordit</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>$(GOOGLE_REVERSED_CLIENT_ID)</string>
@@ -33,6 +43,8 @@
 	<string>$(GOOGLE_IOS_CLIENT_ID)</string>
 	<key>GIDServerClientID</key>
 	<string>$(GOOGLE_WEB_CLIENT_ID)</string>
+	<key>CoorditAPIBaseURL</key>
+	<string>$(COORDIT_API_BASE_URL)</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Coordit uses the camera to add Fit Lab photos.</string>
 	<key>NSAppTransportSecurity</key>
@@ -40,6 +52,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Coordit connects to the local development backend while testing on this iPhone.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Coordit uses the photo library to add Fit Lab photos.</string>
 	<key>UIApplicationSceneManifest</key>
