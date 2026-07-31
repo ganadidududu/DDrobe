@@ -1,4 +1,5 @@
 import type { SizeScore } from "../lib/types";
+import { formatFitScore } from "../lib/fit-score";
 
 export function SizeScoreTable({ scores }: { scores: SizeScore[] }) {
   return (
@@ -17,7 +18,7 @@ export function SizeScoreTable({ scores }: { scores: SizeScore[] }) {
           {scores.map((score) => (
             <tr key={score.externalProductSizeId} className="border-b border-line last:border-b-0">
               <td className="p-3">{score.sizeLabel}</td>
-              <td className="p-3">{score.fitScore}</td>
+              <td className="p-3">{formatFitScore(score.fitScore)}</td>
               <td className="p-3">{score.fitLabel}</td>
               <td className="p-3">{score.weightedFitDistance}</td>
               <td className="p-3">{score.recommendationConfidence ?? "-"}</td>

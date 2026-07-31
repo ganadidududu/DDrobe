@@ -70,7 +70,7 @@ const prepared = {
     referenceVariance: {},
     weightingStrategy: "base_static",
     allSizeScores: [],
-    algorithmVersion: "mvp_rule_v1_6"
+    algorithmVersion: "mvp_rule_v1_7"
   },
   persistence: {
     referenceClothingId: "22222222-2222-4222-8222-222222222222",
@@ -81,7 +81,7 @@ const prepared = {
     fitLabel: "good_fit",
     fitComment: "좋아요",
     weightedFitDistance: 0.2,
-    algorithmVersion: "mvp_rule_v1_6",
+    algorithmVersion: "mvp_rule_v1_7",
     recommendationConfidence: "high",
     resultDetails: {}
   }
@@ -137,7 +137,7 @@ describe("recommendFitController", () => {
       fit_label: "good_fit",
       fit_comment: "좋아요",
       recommendation_confidence: "high",
-      algorithm_version: "mvp_rule_v1_6",
+      algorithm_version: "mvp_rule_v1_7",
       result_details: {
         diffs: {},
         partExplanations: [],

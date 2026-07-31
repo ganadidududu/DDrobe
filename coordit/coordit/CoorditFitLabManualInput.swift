@@ -237,7 +237,7 @@ struct CoorditFitLabInputScreen: View {
                         .font(CoorditTypography.gmarketBold(size: metrics.value(13), relativeTo: .headline))
                         .foregroundStyle(Color.black)
                         .lineLimit(2)
-                    Text("\(snapshot.recommendation.recommendedSize) · \(snapshot.recommendation.fitScore.formatted(.number.precision(.fractionLength(0...1))))점 · \(sourceLabel(snapshot.originalSource))")
+                    Text("\(snapshot.recommendation.recommendedSize) · \(CoorditFitLabResultMeasurement.score(snapshot.recommendation.fitScore))점 · \(sourceLabel(snapshot.originalSource))")
                         .font(CoorditTypography.gmarketMedium(size: metrics.value(10), relativeTo: .caption))
                         .foregroundStyle(Color.black.opacity(0.62))
                     Text(snapshot.savedAt.formatted(date: .abbreviated, time: .shortened))
@@ -256,7 +256,7 @@ struct CoorditFitLabInputScreen: View {
         }
         .coorditPressFeedback()
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(snapshot.product.name), 추천 \(snapshot.recommendation.recommendedSize), \(snapshot.recommendation.fitScore.formatted(.number.precision(.fractionLength(0...1))))점")
+        .accessibilityLabel("\(snapshot.product.name), 추천 \(snapshot.recommendation.recommendedSize), \(CoorditFitLabResultMeasurement.score(snapshot.recommendation.fitScore))점")
         .accessibilityIdentifier("fitlab-history-card-\(snapshot.analysisID)")
     }
 

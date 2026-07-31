@@ -1,8 +1,8 @@
 # Coordit Fit Engine
 
 문서 상태: 모바일 MVP 기준 정리본  
-기준일: 2026-07-28
-현재 버전: `mvp_rule_v1_6`
+기준일: 2026-07-31
+현재 버전: `mvp_rule_v1_7`
 
 ## 1. 문서 목적
 
@@ -170,13 +170,13 @@ normalizedWeight = dynamicWeight / sum(dynamicWeights)
 ```text
 diffₖ = yₖ - μₖ
 normalized_distance = Σ((|diffₖ| / τₖ) × Wₖ) / Σ(used Wₖ)
-fit_score = clamp(100 - normalized_distance × 30, 0, 100)
-final_fit_score = max(fit_score - fit_type_penalty, 0)
+fit_score = 0.1 + 99.9 × exp(-normalized_distance / 8)
+final_fit_score = clamp(fit_score - fit_type_penalty, 0.1, 100)
 ```
 
-가상 기준 프로필과 실측이 같은 후보는 100점에 가까운 점수를 받는다. `weighted_fit_distance`는 cm가 아니라 허용 오차로 정규화된 거리다.
+가상 기준 프로필과 실측이 같은 후보는 정확히 100점을 받는다. 작은 차이는 완만하게 감점하고, 큰 차이는 0점에 가까워지도록 전체 점수 범위를 사용한다. 유효한 실측 비교 결과의 최저값은 0.1점이므로 화면에서 0.0점은 표시하지 않는다. `weighted_fit_distance`는 cm가 아니라 허용 오차로 정규화된 거리다.
 
-`mvp_rule_v1_6`에서는 피드백 offset과 weight multiplier를 점수 계산에 적용하지 않는다. 점수는 사용자가 이번 분석에서 선택한 기준 의류 실측과 상품 실측의 차이로만 결정된다.
+`mvp_rule_v1_7`에서는 피드백 offset과 weight multiplier를 점수 계산에 적용하지 않는다. 점수는 사용자가 이번 분석에서 선택한 기준 의류 실측과 상품 실측의 차이로만 결정된다.
 
 ## 12. Fit Type Penalty
 
@@ -191,7 +191,7 @@ Fit type penalty는 상품 fit type과 기준 프로필의 차이를 보정한�
 
 ## 13. Fit Score
 
-Fit score는 0-100 범위의 숫자다.
+Fit score는 0-100 범위의 숫자다. 정확히 일치한 후보만 100점이며, 비교 가능한 실측이 있는 후보의 최종 점수는 0.1점 이상이다. 0–20점 구간은 기준 의류와 매우 크게 차이 나는 후보를 구분하는 데 사용한다. 비교 가능한 실측이 없으면 점수를 0점으로 표시하지 않고 추천 계산 자체를 중단한다.
 
 해석:
 
@@ -231,7 +231,7 @@ small/large 계열 label은 주요 부위 평균 차이가 음수인지 양수�
 - `medium`
 - `low`
 
-`mvp_rule_v1_6`에서도 confidence 판단 근거는 `scoreExplanation`과
+`mvp_rule_v1_7`에서도 confidence 판단 근거는 `scoreExplanation`과
 `confidenceBreakdown`에 선택 메타데이터로 저장될 수 있다. 이 메타데이터는
 내부 진단용이며 `fit_score` 계산값이나 사용자 리포트 서술을 바꾸지 않는다.
 

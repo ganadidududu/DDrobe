@@ -1,4 +1,5 @@
 import type { FitRecommendationResponse } from "../lib/types";
+import { formatFitScore } from "../lib/fit-score";
 import { Card } from "./Card";
 
 export function FitScoreResultCard({ result }: { result: FitRecommendationResponse }) {
@@ -12,7 +13,7 @@ export function FitScoreResultCard({ result }: { result: FitRecommendationRespon
       </div>
       <div className="mt-3 flex items-end justify-between gap-4">
         <h2 className="text-5xl font-semibold">{result.recommendedSize}</h2>
-        <p className="text-2xl font-semibold">{result.fitScore}</p>
+        <p className="text-2xl font-semibold">{formatFitScore(result.fitScore)}</p>
       </div>
       <div className="mt-4 h-2 rounded-full bg-neutral-100">
         <div className="h-2 rounded-full bg-ink" style={{ width: `${Math.min(100, Math.max(0, result.fitScore))}%` }} />
