@@ -10,6 +10,9 @@ export type BrowserSession = {
   readonly close: () => Promise<void>;
 };
 
+export const isBrowserClosedError = (error: unknown): boolean =>
+  error instanceof Error && /target page, context or browser has been closed/i.test(error.message);
+
 class PageSemaphore {
   private active = 0;
   private readonly waiters: Array<() => void> = [];
@@ -26,24 +29,73 @@ class PageSemaphore {
   }
 }
 
-class BrowserManager {
+export class BrowserManager {
   private browserPromise: Promise<Browser> | null = null;
   private readonly semaphore = new PageSemaphore();
 
-  private getBrowser(): Promise<Browser> {
-    this.browserPromise ??= chromium.launch({ headless: true });
-    return this.browserPromise;
+  private launchBrowser(): Promise<Browser> {
+    const browserPromise = chromium.launch({ headless: true });
+    this.browserPromise = browserPromise;
+    void browserPromise.then(
+      (browser) => {
+        browser.once("disconnected", () => {
+          if (this.browserPromise === browserPromise) this.browserPromise = null;
+        });
+      },
+      () => {
+        if (this.browserPromise === browserPromise) this.browserPromise = null;
+      }
+    );
+    return browserPromise;
+  }
+
+  private async getBrowser(): Promise<Browser> {
+    const browserPromise = this.browserPromise ?? this.launchBrowser();
+    const browser = await browserPromise;
+    if (browser.isConnected()) return browser;
+    if (this.browserPromise === browserPromise) this.browserPromise = null;
+    return this.getBrowser();
+  }
+
+  private createContext(browser: Browser): Promise<BrowserContext> {
+    return browser.newContext({
+      acceptDownloads: false,
+      userAgent: env.crawlerUserAgent,
+      serviceWorkers: "block"
+    });
+  }
+
+  private async createRecoverableContext(): Promise<BrowserContext> {
+    const browserPromise = this.browserPromise ?? this.launchBrowser();
+    const browser = await browserPromise;
+    try {
+      return await this.createContext(browser);
+    } catch (error) {
+      const needsReplacement = isBrowserClosedError(error) || !browser.isConnected();
+      if (!needsReplacement) throw error;
+      if (this.browserPromise === browserPromise) this.browserPromise = null;
+      if (browser.isConnected()) {
+        try {
+          await browser.close();
+        } catch (closeError) {
+          if (!isBrowserClosedError(closeError)) throw closeError;
+        }
+      }
+      return this.createContext(await this.getBrowser());
+    }
+  }
+
+  public async close(): Promise<void> {
+    const browserPromise = this.browserPromise;
+    if (!browserPromise) return;
+    const browser = await browserPromise;
+    if (browser.isConnected()) await browser.close();
   }
 
   public async createSession(): Promise<BrowserSession> {
     const release = await this.semaphore.acquire();
     try {
-      const browser = await this.getBrowser();
-      const context = await browser.newContext({
-        acceptDownloads: false,
-        userAgent: env.crawlerUserAgent,
-        serviceWorkers: "block"
-      });
+      const context = await this.createRecoverableContext();
       const page = await context.newPage();
       let blocked: ProductImportError | null = null;
       const publicHostChecks = new Map<string, Promise<void>>();

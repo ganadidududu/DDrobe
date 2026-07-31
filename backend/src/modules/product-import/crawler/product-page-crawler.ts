@@ -144,7 +144,12 @@ export const crawlProductPage = async (
   context: ProductCrawlContext,
   site: ProductSite
 ): Promise<ProductImportPreview> => {
-  const session = await browserManager.createSession();
+  let session;
+  try {
+    session = await browserManager.createSession();
+  } catch (error) {
+    throw error instanceof ProductImportError ? error : navigationError(error, null);
+  }
   const observer = new NetworkJsonObserver();
   observer.attach(session.page);
   try {
