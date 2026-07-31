@@ -1,4 +1,5 @@
 import type { FitReportInput, FitReportJson } from "./fit-report.types";
+import { buildMeasurementWearerImpact } from "./fit-report.garment-context";
 
 const forbiddenNarrativePatterns = [
   /저신뢰도|신뢰도|confidence|피드백/i,
@@ -46,6 +47,10 @@ const hasMinimumDetail = (text: string, minimumLength: number, minimumSentences:
 
 const hasMeasurementUnit = (text: string): boolean => /[+-]?\d+(?:\.\d+)?\s*cm\b/i.test(text);
 
+const assertNever = (value: never): never => {
+  throw new Error(`Unsupported measurement key: ${value}`);
+};
+
 type NarrativeMinimumDetail = {
   readonly length: number;
   readonly sentences: number;
@@ -63,6 +68,53 @@ const isUsableNarrative = (
 
 const summaryMinimumDetail = { length: 80, sentences: 4 } as const;
 const recommendationMinimumDetail = { length: 120, sentences: 6 } as const;
+
+const topicParticle = (label: string): string => {
+  const lastCharacter = label.at(-1);
+  if (!lastCharacter) return "은";
+  const hangulOffset = lastCharacter.charCodeAt(0) - 0xac00;
+  return hangulOffset >= 0 && hangulOffset <= 11171 && hangulOffset % 28 !== 0 ? "은" : "는";
+};
+
+const measurementFitSentence = (row: FitReportInput["measurements"][number]): string => {
+  switch (row.key) {
+    case "total_length":
+      return row.diff < 0
+        ? "기준보다 짧아 밑단 위치가 평소보다 위로 올라갈 수 있습니다."
+        : row.diff > 0
+          ? "기준보다 길어 밑단 위치가 평소보다 아래로 내려갈 수 있습니다."
+          : "기준과 같은 길이로 밑단 위치가 익숙한 기준에 가깝습니다.";
+    case "sleeve_length":
+      return row.diff < 0
+        ? "기준보다 짧아 손목이 더 드러나는 방향입니다."
+        : row.diff > 0
+          ? "기준보다 길어 손목과 손등을 더 덮는 방향입니다."
+          : "기준과 같은 길이로 손목을 덮는 정도가 익숙한 기준에 가깝습니다.";
+    case "outseam":
+      return row.diff < 0
+        ? "기준보다 짧아 밑단이 발목 쪽에서 더 빨리 끝나는 방향입니다."
+        : row.diff > 0
+          ? "기준보다 길어 신발 위에서 밑단이 더 길게 머무는 방향입니다."
+          : "기준과 같은 길이로 신발 위 밑단의 마무리가 익숙한 기준에 가깝습니다.";
+    case "rise":
+      return row.diff < 0
+        ? "기준보다 짧아 허리선이 낮거나 몸에 더 가깝게 자리할 수 있습니다."
+        : row.diff > 0
+          ? "기준보다 길어 허리선이 높거나 여유 있게 자리할 수 있습니다."
+          : "기준과 같은 깊이로 허리선 위치가 익숙한 기준에 가깝습니다.";
+    case "shoulder_width":
+    case "chest_width":
+    case "waist_width":
+    case "hip_width":
+      return row.diff < 0
+        ? "기준보다 작아 이 부위는 상대적으로 타이트하게 느껴질 수 있습니다."
+        : row.diff > 0
+          ? "기준보다 커 이 부위에는 상대적으로 여유가 생길 수 있습니다."
+          : "기준과 같은 수치로 이 부위의 볼륨은 익숙한 핏에 가깝습니다.";
+    default:
+      return assertNever(row.key);
+  }
+};
 
 const safeNarrativeSentences = (text: string, reportInput: FitReportInput): string[] =>
   text.split(/[.!?。]+/)
@@ -103,15 +155,12 @@ export const hasAcceptedCoreNarrative = (
 export const formatSigned = (value: number): string => `${value > 0 ? "+" : ""}${value}`;
 
 export const buildMeasurementAnalysisText = (
-  row: FitReportInput["measurements"][number]
+  row: FitReportInput["measurements"][number],
+  targetProduct: FitReportInput["targetProduct"]
 ): string =>
-  `${row.label}은 기준 ${row.ideal}cm와 상품 ${row.product}cm를 비교하면 ${formatSigned(row.diff)}cm 차이입니다. ` +
-  (row.diff < 0
-    ? "기준보다 작아 이 부위는 상대적으로 타이트하게 느껴질 수 있습니다."
-    : row.diff > 0
-      ? "기준보다 커 이 부위에는 상대적으로 여유가 생길 수 있습니다."
-      : "기준과 같은 수치로, 이 부위의 볼륨과 길이는 익숙한 핏에 가깝습니다.") +
-  " 이 수치는 다른 부위의 폭과 길이 차이까지 함께 보며 전체 실루엣 안에서 판단하는 것이 좋습니다.";
+  `${row.label}${topicParticle(row.label)} 기준 ${row.ideal}cm와 상품 ${row.product}cm를 비교하면 ${formatSigned(row.diff)}cm 차이입니다. ` +
+  `${measurementFitSentence(row)} ` +
+  `${buildMeasurementWearerImpact(row, targetProduct)}`;
 
 const hasConsistentMeasurementNumbers = (
   text: string,
@@ -145,7 +194,7 @@ const alignMeasurementAnalysis = (
         hasMinimumDetail(generated.text, 80, 3) &&
         hasConsistentMeasurementNumbers(generated.text, row)
         ? generated.text
-        : buildMeasurementAnalysisText(row)
+        : buildMeasurementAnalysisText(row, reportInput.targetProduct)
     };
   })
 });

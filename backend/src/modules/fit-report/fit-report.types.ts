@@ -164,7 +164,7 @@ export interface GenerateFitReportResult {
   fitAnalysisResultId: string;
   source: "openrouter" | "fallback";
   modelName: string;
-  promptVersion: "fit_report_v5";
+  promptVersion: "fit_report_v6";
   report: FitReportJson;
   chartData: FitReportChartData;
   reportInput?: FitReportInput;
