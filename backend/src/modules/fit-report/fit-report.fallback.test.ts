@@ -42,6 +42,8 @@ const main = async (): Promise<void> => {
     shirtFallback.measurementAnalysis.find((item) => item.measurement === "어깨")?.text.startsWith("어깨는"),
     true
   );
+  assert.equal(shirtFallback.cautions[0]?.includes("여름철"), false);
+  assert.equal(pantsFallback.measurementAnalysis.some((item) => item.text.includes("포켓")), false);
 
   console.log("fit-report fallback tests passed");
 };

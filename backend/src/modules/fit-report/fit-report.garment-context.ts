@@ -109,7 +109,7 @@ const buildLowerBodyImpact = (row: MeasurementRow): string => {
     case "hip_width":
       return directionText(
         row.diff,
-        "힙과 허벅지 윗부분에 공간이 남아 포켓 주변이 당기지 않고, 걸을 때 하의가 몸을 따라 흐르는 느낌이 더해질 수 있습니다.",
+        "힙과 허벅지 윗부분에 공간이 남아 걸을 때 하의가 몸을 따라 흐르는 느낌이 더해질 수 있습니다.",
         "힙과 허벅지 윗부분의 공간이 줄어 앉거나 계단을 오를 때 원단 당김이 평소보다 먼저 느껴질 수 있습니다.",
         "힙과 허벅지 윗부분의 여유가 비슷해 걷고 앉을 때의 볼륨감이 익숙한 수준에 가깝습니다."
       );
@@ -164,8 +164,8 @@ export const buildMeasurementWearerImpact = (
 
 export const buildMaterialAndLayeringCaution = (profile: GarmentProfile): string =>
   isLowerBodyCategory(profile.category)
-    ? "같은 실측이라도 데님처럼 탄탄한 원단인지, 얇고 신축성 있는 원단인지에 따라 앉고 걸을 때의 체감 여유가 달라집니다."
-    : "같은 실측이라도 여름철 얇은 단독 착용인지, 니트·후디·아우터와 레이어드할 옷인지에 따라 실제로 남는 여유가 달라집니다.";
+    ? "같은 실측이라도 원단의 두께와 신축성에 따라 앉고 걸을 때의 체감 여유가 달라질 수 있으니, 상품 소재 정보를 함께 확인하세요."
+    : "같은 실측이라도 원단의 두께와 단독·레이어드 착용 여부에 따라 실제로 남는 여유가 달라질 수 있으니, 상품 소재와 착용 계획을 함께 확인하세요.";
 
 export const buildEverydayFitLens = (profile: GarmentProfile): string =>
   isLowerBodyCategory(profile.category)

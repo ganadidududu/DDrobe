@@ -162,7 +162,7 @@ struct CoorditClosetGarmentCard: View {
                         .minimumScaleFactor(0.78)
                 }
                 HStack(alignment: .firstTextBaseline, spacing: metrics.value(4)) {
-                    Text("\(item.score)")
+                    Text(CoorditFitLabResultMeasurement.score(item.score))
                         .font(CoorditTypography.gmarketBold(size: metrics.value(15)))
                         .foregroundStyle(item.scoreColor)
                     Text("fit score")

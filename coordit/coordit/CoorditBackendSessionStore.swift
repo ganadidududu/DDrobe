@@ -386,7 +386,7 @@ final class CoorditBackendSessionStore: ObservableObject {
 
         do {
             let assessment = try await client.reassessClothingItem(token: token, id: id)
-            let score = Int(assessment.fitScore.rounded())
+            let score = CoorditFitLabResultMeasurement.score(assessment.fitScore)
             statusText = "선택한 의류의 핏 스코어를 \(score)점으로 다시 계산했어요."
             isWarning = false
             return assessment

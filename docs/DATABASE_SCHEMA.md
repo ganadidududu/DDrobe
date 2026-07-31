@@ -255,7 +255,7 @@ OCR/URL 파싱 확장 준비 컬럼:
 
 - 다중 기준 의류를 사용해도 `reference_clothing_id`에는 첫 번째 기준 의류가 저장된다.
 - 전체 기준 의류 목록과 엔진 메타데이터는 `result_details`에 저장된다.
-- Fit Engine `mvp_rule_v1_6`의 `scoreExplanation`, `confidenceBreakdown`,
+- Fit Engine `mvp_rule_v1_7`의 `scoreExplanation`, `confidenceBreakdown`,
   피드백 신뢰도, 상품 실측 데이터 품질 요약도 `result_details` JSONB에 저장된다.
 - 이 확장은 no schema migration 변경이다. 새 필드는 legacy-tolerant optional
   metadata이며, 과거 row에 없어도 API와 report builder가 기존 필드로 fallback한다.
@@ -425,4 +425,4 @@ Migration notes:
 - 기존 운영 데이터가 있다면 `inseam` 값을 `outseam`으로 이전할지 별도 판단이 필요하다.
 - Styling 확장용 테이블은 별도 migration에 포함되어 있다.
 - MVP+2 피드백 보정을 위해 `user_feedback.part_feedback` JSONB 컬럼을 추가했다.
-- Fit Engine `mvp_rule_v1_6` 및 report prompt `fit_report_v5`는 새 SQL migration이 없다. 설명/진단 메타데이터는 `fit_analysis_results.result_details` JSONB에 저장되고 legacy-tolerant 하게 읽힌다. 피드백 메타데이터는 현재 fit score나 사용자 리포트 서술을 변경하지 않는다.
+- Fit Engine `mvp_rule_v1_7` 및 report prompt `fit_report_v6`는 새 SQL migration이 없다. 설명/진단 메타데이터는 `fit_analysis_results.result_details` JSONB에 저장되고 legacy-tolerant 하게 읽힌다. 피드백 메타데이터는 현재 fit score나 사용자 리포트 서술을 변경하지 않는다.
