@@ -27,7 +27,6 @@ final class CoorditFitLabCoordinator: ObservableObject {
     @Published private(set) var submissionStep: CoorditFitLabSubmissionStep = .idle
     @Published private(set) var loadState: CoorditFitLabLoadState = .idle
     @Published private(set) var screen: CoorditFitLabScreen
-    @Published private(set) var reportNeedsRetry = false
     @Published private(set) var analysisState: CoorditFitLabAnalysisState = .idle
     @Published private(set) var isAnalysisNoticeVisible = false
 
@@ -344,7 +343,8 @@ final class CoorditFitLabCoordinator: ObservableObject {
                 let receivedRecommendation = try await selectedAPI.recommend(
                     CoorditFitLabRecommendationRequest(
                         referenceClothingIDs: draft.selectedReferenceIDs.sorted(),
-                        externalProductID: productID
+                        externalProductID: productID,
+                        idempotencyKey: checkpoint.recommendationIdempotencyKey.uuidString.lowercased()
                     )
                 )
                 try ensureActive(generation)
@@ -352,7 +352,7 @@ final class CoorditFitLabCoordinator: ObservableObject {
             }
 
             guard let recommendation else { throw CoorditFitLabError.malformedResponse }
-            if report == nil || reportNeedsRetry {
+            if report == nil {
                 submissionStep = .generatingReport
                 do {
                     let receivedReport = try await selectedAPI.report(
@@ -364,10 +364,8 @@ final class CoorditFitLabCoordinator: ObservableObject {
                     )
                     try ensureActive(generation)
                     report = receivedReport
-                    reportNeedsRetry = false
                 } catch {
                     try ensureActive(generation)
-                    reportNeedsRetry = true
                     throw CoorditFitLabError.transport(
                         "핏 스코어 계산은 끝났지만 상세 리포트 생성이 지연되고 있어요. 다시 시도해 주세요."
                     )
@@ -395,7 +393,6 @@ final class CoorditFitLabCoordinator: ObservableObject {
         createdSizeIDs = []
         recommendation = nil
         report = nil
-        reportNeedsRetry = false
         references = []
         draft = CoorditFitLabDraft()
         submissionStep = .idle
@@ -858,9 +855,11 @@ final class CoorditFitLabCoordinator: ObservableObject {
             submissionStep = .creatingSizes
             loadState = .loading
         case .fitLabResultTop:
+            draft = CoorditFitLabFixtures.upperResultDraft
             recommendation = CoorditFitLabFixtures.upperRecommendation
             report = fixture == "long-report" ? CoorditFitLabFixtures.longReport : CoorditFitLabFixtures.report
         case .fitLabResultBottom:
+            draft = CoorditFitLabFixtures.lowerResultDraft
             recommendation = CoorditFitLabFixtures.lowerRecommendation
             report = CoorditFitLabFixtures.lowerReport
         case .fitLabHistoryRegister, .fitLabHistoryDetail:

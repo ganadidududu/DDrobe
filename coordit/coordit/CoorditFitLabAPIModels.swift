@@ -143,10 +143,12 @@ struct CoorditFitLabExternalProductSizeRow: Codable, Identifiable, Equatable, Se
 struct CoorditFitLabRecommendationRequest: Codable, Equatable, Sendable {
     let referenceClothingIDs: [String]
     let externalProductID: String
+    let idempotencyKey: String
 
     enum CodingKeys: String, CodingKey {
         case referenceClothingIDs = "referenceClothingIds"
         case externalProductID = "externalProductId"
+        case idempotencyKey
     }
 }
 

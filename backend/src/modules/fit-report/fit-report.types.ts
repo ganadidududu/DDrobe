@@ -23,6 +23,13 @@ export interface SizeScoreReportRow {
   recommendationConfidence: string;
 }
 
+export interface SizeFitOption {
+  readonly sizeLabel: string;
+  readonly fitScore: number;
+  readonly fitLabel: string;
+  readonly measurements: readonly MeasurementReportRow[];
+}
+
 export interface ReferenceClothingReportSummary {
   name: string;
   category: Category;
@@ -107,6 +114,7 @@ export interface FitReportInput {
   };
   measurements: MeasurementReportRow[];
   sizeScores: SizeScoreReportRow[];
+  sizeOptions: readonly SizeFitOption[];
   feedbackPersonalization: {
     applied: boolean;
     sampleCount: number;
@@ -165,7 +173,7 @@ export interface GenerateFitReportResult {
   fitAnalysisResultId: string;
   source: "ollama" | "fallback";
   modelName: string;
-  promptVersion: "fit_report_v5";
+  promptVersion: "fit_report_v6";
   report: FitReportJson;
   chartData: FitReportChartData;
   reportInput?: FitReportInput;

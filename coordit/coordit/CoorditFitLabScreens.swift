@@ -139,6 +139,7 @@ struct CoorditFitLabFamilyView: View {
                 variant: variant,
                 recommendation: coordinator.recommendation,
                 report: coordinator.report,
+                sizeDrafts: coordinator.draft.sizes,
                 fallbackMessage: nil,
                 isSaved: coordinator.savedHistory.contains {
                     $0.analysisID == coordinator.recommendation?.fitAnalysisResultID
@@ -726,6 +727,7 @@ private struct CoorditFitLabResultScreen: View {
     let variant: CoorditFitLabResultVariant
     let recommendation: CoorditFitLabRecommendationResponse?
     let report: CoorditFitLabReportResponse?
+    let sizeDrafts: [CoorditFitLabSizeDraft]
     let fallbackMessage: String?
     let isSaved: Bool
     let metrics: CoorditResponsiveMetrics
@@ -735,12 +737,23 @@ private struct CoorditFitLabResultScreen: View {
     @State private var didSave = false
     @State private var isSaving = false
     @State private var isRetryingReport = false
+    @State private var selectedSizeLabel: String?
 
     var body: some View {
+        let sizeOptions = recommendation.map {
+            CoorditFitLabSizeOption.makeOptions(
+                variant: variant,
+                recommendation: $0,
+                report: report,
+                sizeDrafts: sizeDrafts
+            )
+        } ?? []
+        let selectedSize = sizeOptions.first { $0.sizeLabel == selectedSizeLabel }
+            ?? sizeOptions.first { $0.isRecommended }
+            ?? sizeOptions.first
         let scoreCard = CoorditFitLabScoreCard(
             variant: variant,
-            recommendation: recommendation,
-            report: report,
+            selectedSize: selectedSize,
             metrics: metrics
         )
         ScrollView {
@@ -756,8 +769,8 @@ private struct CoorditFitLabResultScreen: View {
                 CoorditFitLabOverlayLegend(metrics: metrics)
 
                 CoorditFitLabSizeScoreChart(
-                    report: report,
-                    recommendation: recommendation,
+                    options: sizeOptions,
+                    selectedSizeLabel: $selectedSizeLabel,
                     metrics: metrics
                 )
 
@@ -854,6 +867,9 @@ private struct CoorditFitLabResultScreen: View {
             .padding(.bottom, metrics.value(120))
         }
         .coorditScrollEdgeTreatment(topFade: metrics.value(14))
+        .onChange(of: recommendation?.fitAnalysisResultID) { _, _ in
+            selectedSizeLabel = nil
+        }
     }
 }
 

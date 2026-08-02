@@ -34,6 +34,14 @@ const main = async (): Promise<void> => {
   assert.equal(legacyReportInput.recommendation.recommendedSize, "S");
   assert.equal(legacyReportInput.recommendation.scoreGapToSecond, 3);
   assert.equal(legacyReportInput.sizeScores.length, 2);
+  assert.equal(legacyReportInput.sizeOptions.length, 2);
+  assert.equal(
+    legacyReportInput.sizeOptions
+      .find((option) => option.sizeLabel === "M")
+      ?.measurements.find((measurement) => measurement.key === "chest_width")
+      ?.diff,
+    1.8
+  );
   assert.equal(legacyReportInput.explanation.missingMeasurementSummary.summary, "unavailable");
 
   useEnrichedFitResult();
@@ -67,6 +75,9 @@ const main = async (): Promise<void> => {
     !Array.isArray(narrativeRecommendation)
   );
   assert.equal("recommendationConfidence" in narrativeRecommendation, false);
+  const narrativeSizeOptions = Reflect.get(narrativeInput, "sizeOptions");
+  assert.ok(Array.isArray(narrativeSizeOptions));
+  assert.equal(narrativeSizeOptions.length, 2);
   const narrativeExplanation = Reflect.get(narrativeInput, "explanation");
   assert.ok(
     typeof narrativeExplanation === "object" &&
@@ -88,10 +99,24 @@ const main = async (): Promise<void> => {
   }
 
   const fallback = reportService.buildFallbackFitReport(reportInput);
-  assert.ok(fallback.recommendationReason.includes("균형"));
+  assert.equal(fallback.title, "S 가슴단면이 타이트할 수 있어요");
+  assert.match(fallback.summary, /기준 54cm보다 3.2cm 좁아요/);
+  assert.match(fallback.recommendationReason, /M은 가슴단면이 5cm 더 여유 있어/);
+  assert.match(fallback.recommendationReason, /슬림한 핏을 원한다면 S/);
   assert.equal(fallback.measurementAnalysis.length, reportInput.measurements.length);
   assert.equal(JSON.stringify(fallback).includes("신뢰도"), false);
   assert.equal(JSON.stringify(fallback).includes("피드백"), false);
+
+  const candidateComparisonReason =
+    "S는 67점으로 가장 높은 선택이지만, 가슴단면의 타이트함은 감수해야 해요. " +
+    "M은 가슴단면이 S보다 5cm 더 여유 있어, 편안함을 우선할 때 대안이 될 수 있어요. " +
+    "슬림한 핏을 원한다면 S를, 가슴단면의 편안함을 우선한다면 M을 확인해 보세요.";
+  const candidateComparisonSanitized = reportSanitizer.sanitizeGeneratedReport(
+    { ...fallback, recommendationReason: candidateComparisonReason },
+    reportInput,
+    fallback
+  );
+  assert.equal(candidateComparisonSanitized.recommendationReason, candidateComparisonReason);
 
   const assertFeedbackNotApplied = async (
     status: "insufficient_signal" | "conflicting_feedback",
@@ -190,15 +215,15 @@ const main = async (): Promise<void> => {
   const generated = await reportService.generateFitReport(userId, fitResultId, { includeDebug: true });
   assert.equal(observedThink, false);
   assert.equal(generated.source, "fallback");
-  assert.equal(generated.promptVersion, "fit_report_v5");
+  assert.equal(generated.promptVersion, "fit_report_v6");
   assert.equal(generated.report.summary.includes("S"), true);
-  assert.equal(generated.report.summary.includes("67"), true);
+  assert.equal(generated.report.recommendationReason.includes("67"), true);
   const generatedReliability = generated.reportInput?.explanation.feedbackReliability;
   assert.equal(generatedReliability?.status, "unavailable");
   assert.equal(generatedReliability?.weightedSampleCount, 0);
-  assert.ok(countSentences(generated.report.summary) >= 4);
-  assert.ok(countSentences(generated.report.recommendationReason) >= 6);
-  assert.ok(generated.report.measurementAnalysis.every((row) => countSentences(row.text) >= 3));
+  assert.ok(countSentences(generated.report.summary) >= 3);
+  assert.ok(countSentences(generated.report.recommendationReason) >= 3);
+  assert.ok(generated.report.measurementAnalysis.every((row) => countSentences(row.text) >= 2));
 
   globalThis.fetch = async (): Promise<Response> =>
     new Response(JSON.stringify({
@@ -226,9 +251,9 @@ const main = async (): Promise<void> => {
   assert.ok(firstMeasurement?.includes(`${reportInput.measurements[0]?.ideal}cm`));
   assert.ok(sanitized.report.summary.length >= 80);
   assert.ok(sanitized.report.recommendationReason.length >= 120);
-  assert.ok(countSentences(sanitized.report.summary) >= 4);
-  assert.ok(countSentences(sanitized.report.recommendationReason) >= 6);
-  assert.ok(sanitized.report.measurementAnalysis.every((row) => countSentences(row.text) >= 3));
+  assert.ok(countSentences(sanitized.report.summary) >= 3);
+  assert.ok(countSentences(sanitized.report.recommendationReason) >= 3);
+  assert.ok(sanitized.report.measurementAnalysis.every((row) => countSentences(row.text) >= 2));
   assert.doesNotMatch(
     JSON.stringify(sanitized.report),
     /저신뢰도|신뢰도|피드백|한\s*벌뿐|판단\s*근거[^.!?\n]{0,20}제한/

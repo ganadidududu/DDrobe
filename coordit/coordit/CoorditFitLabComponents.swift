@@ -229,11 +229,7 @@ struct CoorditFitLabMannequinPanel: View {
     }
 
     private func mannequinColor(for direction: CoorditFitLabResultMeasurement.Direction) -> Color {
-        switch direction {
-        case .tight: CoorditDesignTokens.ColorToken.red
-        case .similar: Color(red: 0.48, green: 0.52, blue: 0.59)
-        case .loose: CoorditDesignTokens.ColorToken.blue
-        }
+        direction.color
     }
 }
 
@@ -272,11 +268,7 @@ private struct CoorditFitLabOverlayMarker: View {
     }
 
     private var mannequinColor: Color {
-        switch direction {
-        case .tight: CoorditDesignTokens.ColorToken.red
-        case .similar: Color(red: 0.48, green: 0.52, blue: 0.59)
-        case .loose: CoorditDesignTokens.ColorToken.blue
-        }
+        direction.color
     }
 }
 
@@ -339,7 +331,7 @@ private struct CoorditFitLabSemanticSilhouette: View {
     private func silhouetteColor(for direction: CoorditFitLabResultMeasurement.Direction) -> Color {
         switch direction {
         case .tight: Color(red: 0.90, green: 0.34, blue: 0.40)
-        case .similar: Color(red: 0.55, green: 0.58, blue: 0.64)
+        case .similar: CoorditDesignTokens.ColorToken.green
         case .loose: Color(red: 0.10, green: 0.60, blue: 0.72)
         }
     }
@@ -405,12 +397,12 @@ struct CoorditFitLabOverlayLegend: View {
     var body: some View {
         HStack(spacing: metrics.value(7)) {
             legend("타이트", color: CoorditDesignTokens.ColorToken.red)
-            legend("비슷", color: Color(red: 0.48, green: 0.52, blue: 0.59))
+            legend("비슷", color: CoorditDesignTokens.ColorToken.green)
             legend("여유", color: CoorditDesignTokens.ColorToken.blue)
         }
         .foregroundStyle(Color.black)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("마네킹 표시 범례. 빨간색 타이트, 회색 비슷, 파란색 여유")
+        .accessibilityLabel("마네킹 표시 범례. 빨간색 타이트, 초록색 비슷, 파란색 여유")
     }
 
     private func legend(_ label: String, color: Color) -> some View {
@@ -552,26 +544,25 @@ struct CoorditFitLabReportCard: View {
                 ).direction
             }
 
-        return HStack(alignment: .top, spacing: metrics.value(11)) {
-            Capsule()
-                .fill(direction?.color ?? CoorditFitLabPalette.ink)
-                .frame(width: metrics.value(4))
-            VStack(alignment: .leading, spacing: metrics.value(6)) {
-                HStack {
-                    Text(analysis.measurement)
-                        .font(CoorditTypography.gmarketBold(size: metrics.value(14), relativeTo: .headline))
-                    Spacer()
-                    if let direction {
-                        Text(direction.label)
-                            .font(CoorditTypography.gmarketBold(size: metrics.value(9), relativeTo: .caption))
-                            .foregroundStyle(direction.color)
-                    }
+        return VStack(alignment: .leading, spacing: metrics.value(6)) {
+            HStack {
+                Text(analysis.measurement)
+                    .font(CoorditTypography.gmarketBold(size: metrics.value(14), relativeTo: .headline))
+                Spacer()
+                if let direction {
+                    Text("\(direction.glyph) \(direction.label)")
+                        .font(CoorditTypography.gmarketBold(size: metrics.value(9), relativeTo: .caption))
+                        .foregroundStyle(direction.color)
+                        .padding(.horizontal, metrics.value(7))
+                        .padding(.vertical, metrics.value(4))
+                        .background(direction.color.opacity(0.12), in: Capsule())
+                        .accessibilityLabel("상태 \(direction.label)")
                 }
-                Text(analysis.text)
-                    .font(CoorditTypography.gmarketMedium(size: metrics.value(12), relativeTo: .body))
-                    .lineSpacing(metrics.value(4))
-                    .fixedSize(horizontal: false, vertical: true)
             }
+            Text(analysis.text)
+                .font(CoorditTypography.gmarketMedium(size: metrics.value(12), relativeTo: .body))
+                .lineSpacing(metrics.value(4))
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(metrics.value(15))
         .background(CoorditFitLabPalette.surface)

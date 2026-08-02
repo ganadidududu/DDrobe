@@ -110,8 +110,8 @@ export const assertSanitizerContract = (
   );
   assert.match(repairedNarrative.summary, /전체적인 폭과 길이 균형/);
   assert.match(repairedNarrative.recommendationReason, /가장 일관된 균형/);
-  assert.ok(countSentences(repairedNarrative.summary) >= 4);
-  assert.ok(countSentences(repairedNarrative.recommendationReason) >= 6);
+  assert.ok(countSentences(repairedNarrative.summary) >= 3);
+  assert.ok(countSentences(repairedNarrative.recommendationReason) >= 3);
 
   const rejectedCoreReport = {
     ...fallbackReport,

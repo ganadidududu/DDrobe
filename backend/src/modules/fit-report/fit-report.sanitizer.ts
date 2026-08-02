@@ -1,3 +1,4 @@
+import { buildFallbackMeasurementAnalysisText } from "./fit-report.fallback";
 import type { FitReportInput, FitReportJson } from "./fit-report.types";
 
 const forbiddenNarrativePatterns = [
@@ -30,8 +31,44 @@ const collectReportNumbers = (reportInput: FitReportInput): number[] => [
     row.diff,
     Math.abs(row.diff)
   ]),
+  ...collectCandidateMeasurementNumbers(reportInput),
+  ...collectSizeComparisonNumbers(reportInput),
   ...extractNumbers(reportInput.recommendation.recommendedSize)
 ];
+
+const collectCandidateMeasurementNumbers = (reportInput: FitReportInput): number[] =>
+  reportInput.sizeOptions.flatMap((sizeOption) =>
+    sizeOption.measurements.flatMap((measurement) => [
+      measurement.ideal,
+      measurement.product,
+      measurement.diff,
+      Math.abs(measurement.diff)
+    ])
+  );
+
+const collectSizeComparisonNumbers = (reportInput: FitReportInput): number[] =>
+  reportInput.sizeOptions.flatMap((sizeOption) =>
+    sizeOption.measurements.flatMap((measurement) => {
+      const recommendedMeasurement = reportInput.measurements.find((candidate) =>
+        candidate.key === measurement.key
+      );
+      if (!recommendedMeasurement) return [];
+      const difference = measurement.diff - recommendedMeasurement.diff;
+      return [difference, Math.abs(difference)];
+    })
+  );
+
+const collectMeasurementNumbers = (reportInput: FitReportInput): number[] =>
+  [
+    ...reportInput.measurements.flatMap((row) => [
+      row.ideal,
+      row.product,
+      row.diff,
+      Math.abs(row.diff)
+    ]),
+    ...collectCandidateMeasurementNumbers(reportInput),
+    ...collectSizeComparisonNumbers(reportInput)
+  ];
 
 const hasSupportedNumbers = (text: string, reportInput: FitReportInput): boolean => {
   const allowedNumbers = collectReportNumbers(reportInput);
@@ -40,11 +77,19 @@ const hasSupportedNumbers = (text: string, reportInput: FitReportInput): boolean
   );
 };
 
+const hasSupportedMeasurementNumbers = (text: string, reportInput: FitReportInput): boolean => {
+  const allowedNumbers = collectMeasurementNumbers(reportInput);
+  const centimeterNumbers = [...text.matchAll(/([+-]?\d+(?:\.\d+)?)\s*cm\b/gi)]
+    .map((match) => Number(match[1]))
+    .filter(Number.isFinite);
+  return centimeterNumbers.every((value) =>
+    allowedNumbers.some((allowed) => Math.abs(value - allowed) < 0.001)
+  );
+};
+
 const hasMinimumDetail = (text: string, minimumLength: number, minimumSentences: number): boolean =>
   text.trim().length >= minimumLength &&
   text.split(/[.!?。]+/).filter((sentence) => sentence.trim().length > 0).length >= minimumSentences;
-
-const hasMeasurementUnit = (text: string): boolean => /[+-]?\d+(?:\.\d+)?\s*cm\b/i.test(text);
 
 type NarrativeMinimumDetail = {
   readonly length: number;
@@ -58,11 +103,11 @@ const isUsableNarrative = (
 ): boolean =>
   hasMinimumDetail(text, minimumDetail.length, minimumDetail.sentences) &&
   !hasForbiddenNarrative(text) &&
-  !hasMeasurementUnit(text) &&
-  hasSupportedNumbers(text, reportInput);
+  hasSupportedNumbers(text, reportInput) &&
+  hasSupportedMeasurementNumbers(text, reportInput);
 
-const summaryMinimumDetail = { length: 80, sentences: 4 } as const;
-const recommendationMinimumDetail = { length: 120, sentences: 6 } as const;
+const summaryMinimumDetail = { length: 55, sentences: 3 } as const;
+const recommendationMinimumDetail = { length: 75, sentences: 3 } as const;
 
 const safeNarrativeSentences = (text: string, reportInput: FitReportInput): string[] =>
   text.split(/[.!?。]+/)
@@ -70,8 +115,8 @@ const safeNarrativeSentences = (text: string, reportInput: FitReportInput): stri
     .filter((sentence) =>
       sentence.length >= 20 &&
       !hasForbiddenNarrative(sentence) &&
-      !hasMeasurementUnit(sentence) &&
-      hasSupportedNumbers(sentence, reportInput)
+      hasSupportedNumbers(sentence, reportInput) &&
+      hasSupportedMeasurementNumbers(sentence, reportInput)
     );
 
 const repairNarrative = (
@@ -102,16 +147,17 @@ export const hasAcceptedCoreNarrative = (
 
 export const formatSigned = (value: number): string => `${value > 0 ? "+" : ""}${value}`;
 
-export const buildMeasurementAnalysisText = (
+export const buildMeasurementAnalysisText = buildFallbackMeasurementAnalysisText;
+
+const hasExpectedDifferenceDirection = (
+  text: string,
   row: FitReportInput["measurements"][number]
-): string =>
-  `${row.label}은 기준 ${row.ideal}cm와 상품 ${row.product}cm를 비교하면 ${formatSigned(row.diff)}cm 차이입니다. ` +
-  (row.diff < 0
-    ? "기준보다 작아 이 부위는 상대적으로 타이트하게 느껴질 수 있습니다."
-    : row.diff > 0
-      ? "기준보다 커 이 부위에는 상대적으로 여유가 생길 수 있습니다."
-      : "기준과 같은 수치로, 이 부위의 볼륨과 길이는 익숙한 핏에 가깝습니다.") +
-  " 이 수치는 다른 부위의 폭과 길이 차이까지 함께 보며 전체 실루엣 안에서 판단하는 것이 좋습니다.";
+): boolean => {
+  if (row.diff === 0) return /같아요|동일/.test(text);
+  const isLengthMeasurement = ["total_length", "sleeve_length", "rise", "outseam"].includes(row.key);
+  if (row.diff < 0) return isLengthMeasurement ? /짧/.test(text) : /좁|타이트/.test(text);
+  return isLengthMeasurement ? /길/.test(text) : /넓|여유/.test(text);
+};
 
 const hasConsistentMeasurementNumbers = (
   text: string,
@@ -119,14 +165,18 @@ const hasConsistentMeasurementNumbers = (
 ): boolean => {
   const numericTokens = [...text.matchAll(/[+-]?\d+(?:\.\d+)?/g)].map((match) => match[0]);
   const numericValues = numericTokens.map(Number).filter(Number.isFinite);
-  const allowedValues = [row.ideal, row.product, row.diff];
+  const allowedValues = [row.ideal, row.product, row.diff, Math.abs(row.diff)];
   const contains = (expected: number): boolean =>
     numericValues.some((value) => Math.abs(value - expected) < 0.001);
   const containsSignedDiff = numericTokens.some((value) => value === formatSigned(row.diff));
 
+  const hasCorrectDifference = containsSignedDiff || (
+    contains(Math.abs(row.diff)) && hasExpectedDifferenceDirection(text, row)
+  );
+
   return numericValues.every((value) =>
     allowedValues.some((allowed) => Math.abs(value - allowed) < 0.001)
-  ) && contains(row.ideal) && contains(row.product) && containsSignedDiff;
+  ) && contains(row.ideal) && contains(row.product) && hasCorrectDifference;
 };
 
 const alignMeasurementAnalysis = (
@@ -142,7 +192,7 @@ const alignMeasurementAnalysis = (
       measurement: row.label,
       text: generated &&
         !hasForbiddenNarrative(generated.text) &&
-        hasMinimumDetail(generated.text, 80, 3) &&
+        hasMinimumDetail(generated.text, 45, 2) &&
         hasConsistentMeasurementNumbers(generated.text, row)
         ? generated.text
         : buildMeasurementAnalysisText(row)

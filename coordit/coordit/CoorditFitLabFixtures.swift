@@ -64,7 +64,7 @@ enum CoorditFitLabHistoryFixtureResetRegistry {
 
 #if DEBUG
 enum CoorditFitLabContractProbe {
-    static let expectedStatus = "CONTRACT_OK url-request url-body size-keys reference product size recommendation-parts result report report-timeout adversarial"
+    static let expectedStatus = "CONTRACT_OK url-request url-body size-keys recommendation-idempotency reference product size recommendation-parts result report report-timeout adversarial"
 
     static let status: String = {
         do {
@@ -106,6 +106,21 @@ enum CoorditFitLabContractProbe {
                 sizeObject?["chest_width"] as? Double == 58,
                 sizeObject?["shoulderWidth"] == nil
             else { return "CONTRACT_ERROR size-keys" }
+
+            let recommendationObject = try JSONSerialization.jsonObject(
+                with: encoder.encode(
+                    CoorditFitLabRecommendationRequest(
+                        referenceClothingIDs: ["ref-1"],
+                        externalProductID: "product-1",
+                        idempotencyKey: "00000000-0000-4000-8000-000000000001"
+                    )
+                )
+            ) as? [String: Any]
+            guard
+                recommendationObject?["referenceClothingIds"] as? [String] == ["ref-1"],
+                recommendationObject?["externalProductId"] as? String == "product-1",
+                recommendationObject?["idempotencyKey"] as? String == "00000000-0000-4000-8000-000000000001"
+            else { return "CONTRACT_ERROR recommendation-idempotency" }
 
             let decoder = JSONDecoder()
             let reference = try decoder.decode(
@@ -461,6 +476,46 @@ enum CoorditFitLabFixtures {
             CoorditFitLabSizeDraft(
                 label: "M",
                 measurements: [.shoulderWidth: 54, .chestWidth: 58, .totalLength: 68, .sleeveLength: 61]
+            )
+        ],
+        selectedReferenceIDs: ["reference-fixture-1"]
+    )
+
+    nonisolated static let upperResultDraft = CoorditFitLabDraft(
+        source: .manual,
+        garmentKind: .upper,
+        category: .hoodie,
+        productName: "픽스처 후드",
+        sizes: [
+            CoorditFitLabSizeDraft(
+                label: "M",
+                measurements: [.shoulderWidth: 54, .chestWidth: 56.5, .totalLength: 68, .sleeveLength: 60.5]
+            ),
+            CoorditFitLabSizeDraft(
+                label: "L",
+                measurements: [.shoulderWidth: 56, .chestWidth: 60, .totalLength: 70, .sleeveLength: 63]
+            )
+        ],
+        selectedReferenceIDs: ["reference-fixture-1"]
+    )
+
+    nonisolated static let lowerResultDraft = CoorditFitLabDraft(
+        source: .manual,
+        garmentKind: .lower,
+        category: .pants,
+        productName: "픽스처 팬츠",
+        sizes: [
+            CoorditFitLabSizeDraft(
+                label: "M",
+                measurements: [.waistWidth: 38, .hipWidth: 49, .rise: 28, .outseam: 99]
+            ),
+            CoorditFitLabSizeDraft(
+                label: "L",
+                measurements: [.waistWidth: 40, .hipWidth: 50, .rise: 29, .outseam: 102]
+            ),
+            CoorditFitLabSizeDraft(
+                label: "XL",
+                measurements: [.waistWidth: 42, .hipWidth: 52, .rise: 31, .outseam: 104]
             )
         ],
         selectedReferenceIDs: ["reference-fixture-1"]

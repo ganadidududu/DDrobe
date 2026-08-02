@@ -178,6 +178,8 @@ enum CoorditFitLabDraftValidation {
 struct CoorditFitLabSubmissionCheckpoint: Equatable, Sendable {
     var productID: String?
     var sizeIDsByDraftID: [UUID: String] = [:]
+    // The server uses this key to make an interrupted recommendation retry-safe.
+    var recommendationIdempotencyKey = UUID()
 
     var isEmpty: Bool {
         productID == nil && sizeIDsByDraftID.isEmpty
