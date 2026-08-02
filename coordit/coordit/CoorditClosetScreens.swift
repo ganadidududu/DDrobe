@@ -51,7 +51,7 @@ struct CoorditClosetItem: Identifiable {
     var name: String
     let category: CoorditClosetCategory
     let exactCategory: CoorditFitLabCategory
-    var score: Int
+    var score: Double
     let scoreColor: Color
     let route: CoorditFrameRoute
     var imageData: Data?
@@ -65,7 +65,7 @@ struct CoorditClosetItem: Identifiable {
         name: String,
         category: CoorditClosetCategory,
         exactCategory: CoorditFitLabCategory? = nil,
-        score: Int,
+        score: Double,
         scoreColor: Color,
         route: CoorditFrameRoute,
         imageData: Data?,

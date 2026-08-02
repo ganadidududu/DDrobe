@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Footer } from "../../components/Footer";
 import { TopBar } from "../../components/TopBar";
 import { api } from "../../lib/api";
+import { formatFitScore } from "../../lib/fit-score";
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -343,7 +344,7 @@ export default function StylingPage() {
         { label: "AI 큐레이션",  detail: c.ai_reasoning,                                         tag: "AI"      },
         { label: "TPO 문맥",     detail: `"${prompt}" 컨텍스트에 최적화`,                          tag: "CONTEXT" },
         { label: "아이템 구성",  detail: `${displayItems.length}개 옷장 아이템`,                   tag: "ITEMS"   },
-        { label: "핏 스코어",    detail: `체형 기반 핏 점수: ${c.fit_score ?? 85}점`,              tag: "FIT"     },
+        { label: "핏 스코어",    detail: `체형 기반 핏 점수: ${formatFitScore(c.fit_score ?? 85)}점`, tag: "FIT"     },
       ];
     }
     return [
@@ -628,7 +629,7 @@ export default function StylingPage() {
               <div>
                 <div style={{ fontSize: 9, fontFamily: "JetBrains Mono, monospace", letterSpacing: "0.14em", opacity: 0.5, marginBottom: 6 }}>FIT SCORE</div>
                 <div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 500, color: isDark ? "var(--camel-soft)" : "var(--walnut)" }}>
-                  {Number.isFinite(Number(c.fit_score)) ? `${c.fit_score}%` : "—"}
+                  {Number.isFinite(Number(c.fit_score)) ? `${formatFitScore(Number(c.fit_score))}%` : "—"}
                 </div>
               </div>
             </div>

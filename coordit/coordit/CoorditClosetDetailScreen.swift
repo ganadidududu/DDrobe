@@ -332,7 +332,7 @@ extension CoorditClosetFamilyView {
         if reassessingItemID == item.id, !engineScoredItemIDs.contains(item.id) {
             return "총점 | 계산 중"
         }
-        return engineScoredItemIDs.contains(item.id) ? "총점 | \(item.score)" : "총점 | -"
+        return engineScoredItemIDs.contains(item.id) ? "총점 | \(CoorditFitLabResultMeasurement.score(item.score))" : "총점 | -"
     }
 
     private func detailAssessmentTaskID(for item: CoorditClosetItem) -> String {
@@ -373,7 +373,7 @@ extension CoorditClosetFamilyView {
             return
         }
         guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
-        items[index].score = Int(assessment.fitScore.rounded())
+        items[index].score = assessment.fitScore
         items[index].fitDiffs = assessment.diffs
         engineScoredItemIDs.insert(item.id)
         reassessmentMessage = announcesProgress

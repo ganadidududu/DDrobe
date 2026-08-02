@@ -1,9 +1,9 @@
 # Fit Report with OpenRouter Spec
 
 문서 상태: 현행 계약
-기준일: 2026-07-28
-엔진 버전: `mvp_rule_v1_6`
-프롬프트 버전: `fit_report_v5`
+기준일: 2026-07-31
+엔진 버전: `mvp_rule_v1_7`
+프롬프트 버전: `fit_report_v6`
 
 ## 1. 목적
 
@@ -14,6 +14,8 @@ Fit Score Engine이 계산한 추천 사이즈와 실측 차이를 OpenRouter의
 - fit score, 추천 사이즈, 부위별 차이는 엔진 결과를 그대로 사용한다.
 - 다른 사이즈의 점수도 함께 비교한다.
 - 기준 의류와 상품의 모든 비교 가능한 부위를 빠짐없이 설명한다.
+- 의류 카테고리와 핏 타입에 맞춰 각 실측 차이가 실제 착용에서 만드는 실루엣·움직임 변화를 설명한다.
+- 계절, 원단 두께, 주머니처럼 입력에 없는 상품 디테일은 사실처럼 단정하지 않고 구매 전 확인 사항으로만 안내한다.
 - confidence, 신뢰도, 피드백, 데이터 품질, 기준 의류 개수는 사용자용 품질
   판단이나 추천 근거로 노출하지 않는다.
 
@@ -132,7 +134,7 @@ OpenRouter는 strict JSON Schema로 다음 JSON만 반환한다.
 - `cautions`: 데이터로 확정할 수 없는 구매 전 확인 사항 최대 2개
 - `nextActions`: 상품 상세나 보유 의류에서 확인할 수 있는 행동 최대 2개
 
-`fitDnaSummary`와 `feedbackPersonalization`은 `fit_report_v5` 공개 출력 필드가 아니다.
+`fitDnaSummary`와 `feedbackPersonalization`은 `fit_report_v6` 공개 출력 필드가 아니다.
 
 ## 5. 출력 보정
 
@@ -183,7 +185,7 @@ POST /fit-analysis-results/:id/report
   "fitAnalysisResultId": "uuid",
   "source": "openrouter",
   "modelName": "google/gemini-2.5-flash",
-  "promptVersion": "fit_report_v5",
+  "promptVersion": "fit_report_v6",
   "report": {
     "title": "L 사이즈 정밀 핏 리포트",
     "summary": "...",

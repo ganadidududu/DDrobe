@@ -602,7 +602,7 @@ struct CoorditFitLabFamilyView: View {
     @ViewBuilder
     private func fixtureRecommendation(identifier: String, prefix: String) -> some View {
         if let recommendation = coordinator.recommendation {
-            Text("\(prefix) \(recommendation.recommendedSize) · \(recommendation.fitScore.formatted(.number.precision(.fractionLength(0))))점")
+            Text("\(prefix) \(recommendation.recommendedSize) · \(CoorditFitLabResultMeasurement.score(recommendation.fitScore))점")
                 .font(.title3.bold())
                 .accessibilityIdentifier(identifier)
             Text(recommendation.fitComment)
@@ -845,7 +845,7 @@ private struct CoorditFitLabResultScreen: View {
 
                 #if DEBUG
                 if let recommendation {
-                    Text("추천 \(recommendation.recommendedSize) · \(CoorditFitLabResultMeasurement.number(recommendation.fitScore))점")
+                    Text("추천 \(recommendation.recommendedSize) · \(CoorditFitLabResultMeasurement.score(recommendation.fitScore))점")
                         .font(.system(size: 1))
                         .frame(width: 1, height: 1)
                         .opacity(0.01)

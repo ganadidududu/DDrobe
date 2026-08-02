@@ -663,7 +663,7 @@ fit score, 추천 사이즈, 기준 프로필, 동적 가중치를 변경하지 
 추천 응답은 기존 필드를 유지한다. 클라이언트는 `fitScore`, `fitLabel`,
 `recommendationConfidence`, `diff`, `partExplanations`, `partStatuses`,
 `allSizeScores`를 계속 사용할 수 있다. 추가 설명 메타데이터는 선택 필드다.
-현재 추천 알고리즘 버전은 `mvp_rule_v1_6`이며 응답의 `algorithmVersion` 및
+현재 추천 알고리즘 버전은 `mvp_rule_v1_7`이며 응답의 `algorithmVersion` 및
 DB의 `algorithm_version`에 기록된다.
 
 Fit Lab 분석은 실타래를 사용하는 요청이다. 하나의 사용자가 같은
@@ -743,7 +743,7 @@ QA용 선택 메타데이터이며 모바일 클라이언트는 없어도 기존
   "fitAnalysisResultId": "uuid",
   "source": "openrouter",
   "modelName": "google/gemini-2.5-flash",
-  "promptVersion": "fit_report_v5",
+  "promptVersion": "fit_report_v6",
   "report": {
     "title": "L 사이즈 핏 리포트",
     "summary": "...",
@@ -773,12 +773,12 @@ QA용 선택 메타데이터이며 모바일 클라이언트는 없어도 기존
 - `OPENROUTER_TIMEOUT_MS`: 기본값 `20000`
 
 `includeDebug = true`이면 테스트용으로 `reportInput`과 `prompt`를 응답에 포함한다.
-`fit_report_v5`는 추천 사이즈, 사이즈별 fit score, 기준/상품 실측과 부위별 차이,
-주요 설명 부위만 LLM에 전달한다. confidence, 신뢰도, 피드백, 데이터 품질,
+`fit_report_v6`는 추천 사이즈, 사이즈별 fit score, 기준/상품 실측과 부위별 차이,
+의류 카테고리·핏 타입·주요 설명 부위를 LLM에 전달한다. confidence, 신뢰도, 피드백, 데이터 품질,
 기준 의류 개수는 사용자용 서술에 전달하거나 노출하지 않는다. OpenRouter는 fit score
 또는 추천 사이즈를 계산하지 않으며, 부적합하거나 지나치게 짧은 출력은 측정 기반
-문장으로 보정한다. 호출이나 JSON 파싱 실패 시 fallback 리포트도 기존 엔진 결과를
-그대로 설명한다.
+문장으로 보정한다. 계절·두께·소재·주머니처럼 입력에 없는 상품 디테일은 단정하지
+않는다. 호출이나 JSON 파싱 실패 시 fallback 리포트도 기존 엔진 결과를 그대로 설명한다.
 
 ## 10. Feedback
 

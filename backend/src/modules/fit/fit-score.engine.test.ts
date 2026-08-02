@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { runFitAccuracyFixtureTests } from "./fit-score.accuracy-fixtures";
 import {
+  applyFitTypePenalty,
   applyFeedbackOffsetsToProfile,
   applyFeedbackWeightMultipliers,
   calculateDynamicWeightsByReferenceVariance,
   calculateFitScoreForReferenceProfile,
   calculateReferenceFitProfile,
   calculateStandardDeviation,
+  convertDistanceToScore,
   getWeightsByCategory,
   recommendBestSizeWithReferences
 } from "./fit-score.engine";
@@ -113,6 +115,37 @@ const externalSizes: ExternalProductSizeInput[] = [
   }
 ];
 
+{
+  // Given: a small normalized fit distance and an extremely distant valid comparison.
+  const smallMismatchDistance = 1;
+  const lowFitDistance = 20;
+  const extremeMismatchDistance = 100;
+
+  // When: both are converted into the user-facing 0–100 fit-score scale.
+  const smallMismatchScore = convertDistanceToScore(smallMismatchDistance);
+  const lowFitScore = convertDistanceToScore(lowFitDistance);
+  const extremeMismatchScore = convertDistanceToScore(extremeMismatchDistance);
+
+  // Then: a one-tolerance mismatch remains understandable, while valid comparisons never collapse to zero.
+  assert.equal(convertDistanceToScore(0), 100);
+  assert.equal(smallMismatchScore, 88.26);
+  assert.equal(lowFitScore, 8.3);
+  assert.equal(extremeMismatchScore, 0.1);
+}
+
+{
+  // Given: a weak size match with incompatible oversized measurements.
+  const baseScore = 0.1;
+  const diffs = { shoulder_width: -3, chest_width: -3 };
+
+  // When: fit-type penalties are applied.
+  const penalizedScore = applyFitTypePenalty(baseScore, "oversized", diffs);
+
+  // Then: the final score remains in the visible low-fit band rather than becoming zero.
+  assert.equal(penalizedScore.finalScore, 0.1);
+  assert.equal(penalizedScore.penalty, 10);
+}
+
 const recommendation = recommendBestSizeWithReferences(bottomReferences, externalSizes, "pants");
 assert.equal(recommendation.recommended.sizeLabel, "M");
 assert.ok(typeof recommendation.recommended.diffs.outseam === "number");
@@ -154,6 +187,27 @@ const virtualPerfectScore = calculateFitScoreForReferenceProfile(
 );
 assert.equal(virtualPerfectScore.finalFitScore, 100);
 assert.equal(virtualPerfectScore.weightedFitDistance, 0);
+
+{
+  // Given: a valid size chart that is far from the virtual reference profile.
+  const distantSize: ExternalProductSizeInput = {
+    id: "size-distant",
+    sizeLabel: "Distant",
+    fitType: "regular",
+    measurements: { waist_width: 60, hip_width: 72, rise: 50, outseam: 150 }
+  };
+
+  // When: the primary multi-reference scoring path evaluates it.
+  const distantScore = calculateFitScoreForReferenceProfile(
+    profile,
+    distantSize,
+    "pants",
+    recommendation.dynamicWeights
+  );
+
+  // Then: it remains a clearly poor but non-zero candidate on the shared 0–100 scale.
+  assert.equal(distantScore.finalFitScore, 0.1);
+}
 
 const feedbackProfile: FeedbackFitProfile = {
   category: "pants",

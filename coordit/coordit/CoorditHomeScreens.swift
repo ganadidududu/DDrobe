@@ -264,9 +264,7 @@ private struct CoorditHomeFitLabHistoryItem: Identifiable {
         self.name = snapshot.product.name
         self.category = snapshot.garmentKind == .upper ? "TOP" : "BOTTOM"
         self.sizeSummary = "\(snapshot.recommendation.recommendedSize) 추천"
-        self.score = snapshot.recommendation.fitScore.formatted(
-            .number.precision(.fractionLength(0))
-        )
+        self.score = CoorditFitLabResultMeasurement.score(snapshot.recommendation.fitScore)
         self.tint = snapshot.garmentKind == .upper
             ? Main01DesignTokens.Colors.rgb(54, 93, 168)
             : Main01DesignTokens.Colors.rgb(24, 132, 120)

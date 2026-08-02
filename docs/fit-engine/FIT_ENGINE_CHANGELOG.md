@@ -1,10 +1,19 @@
 # Fit Engine 변경 이력
 
 문서 상태: 최신  
-기준일: 2026-07-03
+기준일: 2026-07-31
 관련 문서: `fit-engine/FIT_ENGINE.md`
 
 이 문서는 추천 엔진의 변화와 다음 개선 후보를 기록합니다. 현재 실제 동작 기준 문서는 `FIT_ENGINE.md`입니다.
+
+## v1.7 Calibrated Full-range Fit-score Scale
+
+- `ALGORITHM_VERSION = "mvp_rule_v1_7"`로 변경
+- 가상 기준 프로필의 선형 감점식을 전체 범위를 사용하는 지수 감쇠 곡선으로 변경
+- 기준 의류와 실측이 같은 후보는 100점을 유지
+- 작은 치수 차이는 완만하게 감점해 S/M/L 후보 비교가 직관적으로 보이도록 조정
+- 큰 치수 차이는 0–20점 구간까지 내려가도록 해 매우 낮은 적합도를 구분
+- 실측 비교가 가능한 후보는 fit-type penalty 이후에도 최저 0.1점을 유지해 화면상 0.0점 표시를 방지
 
 ## v1.6 Measurement-only Recommendation
 

@@ -67,6 +67,14 @@ const main = async (): Promise<void> => {
     !Array.isArray(narrativeRecommendation)
   );
   assert.equal("recommendationConfidence" in narrativeRecommendation, false);
+  const narrativeGarmentContext = Reflect.get(narrativeInput, "garmentContext");
+  assert.ok(
+    typeof narrativeGarmentContext === "object" &&
+    narrativeGarmentContext !== null &&
+    !Array.isArray(narrativeGarmentContext)
+  );
+  assert.equal(Reflect.get(narrativeGarmentContext, "category"), reportInput.targetProduct.category);
+  assert.equal(Reflect.get(narrativeGarmentContext, "fitType"), reportInput.targetProduct.fitType);
   const narrativeExplanation = Reflect.get(narrativeInput, "explanation");
   assert.ok(
     typeof narrativeExplanation === "object" &&
@@ -88,7 +96,7 @@ const main = async (): Promise<void> => {
   }
 
   const fallback = reportService.buildFallbackFitReport(reportInput);
-  assert.ok(fallback.recommendationReason.includes("균형"));
+  assert.ok(fallback.recommendationReason.length >= 120);
   assert.equal(fallback.measurementAnalysis.length, reportInput.measurements.length);
   assert.equal(JSON.stringify(fallback).includes("신뢰도"), false);
   assert.equal(JSON.stringify(fallback).includes("피드백"), false);
@@ -205,7 +213,7 @@ const main = async (): Promise<void> => {
   assert.equal(Reflect.get(provider, "data_collection"), "deny");
   assert.equal(generated.source, "openrouter");
   assert.equal(generated.modelName, "google/gemini-2.5-flash");
-  assert.equal(generated.promptVersion, "fit_report_v5");
+  assert.equal(generated.promptVersion, "fit_report_v6");
   assert.equal(generated.report.summary.includes("S"), true);
   assert.equal(generated.report.summary.includes("67"), true);
   const generatedReliability = generated.reportInput?.explanation.feedbackReliability;

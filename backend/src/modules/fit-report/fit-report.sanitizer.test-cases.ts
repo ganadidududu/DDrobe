@@ -56,6 +56,18 @@ export const assertSanitizerContract = (
     assert.equal(sampleScarcitySanitized.summary, fallbackReport.summary);
   }
 
+  const unsupportedProductDetailSanitized = sanitizeGeneratedReport(
+    {
+      ...fallbackReport,
+      summary: `${fallbackReport.summary} 여름철 린넨 소재라 시원하게 입을 수 있습니다.`,
+      cautions: ["포켓 주변의 당김을 구매 전에 확인하세요."]
+    },
+    reportInput,
+    fallbackReport
+  );
+  assert.equal(unsupportedProductDetailSanitized.summary, fallbackReport.summary);
+  assert.equal(unsupportedProductDetailSanitized.cautions.includes("포켓 주변의 당김을 구매 전에 확인하세요."), false);
+
   const unsignedDiffReport = {
     ...fallbackReport,
     measurementAnalysis: reportInput.measurements.map((row) => ({
