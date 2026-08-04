@@ -83,6 +83,28 @@ final class CoorditClosetAddReadinessUITests: XCTestCase {
         assertScreen("closet-add-photo", in: app)
     }
 
+    func testNewGarmentRegistrationClearsThePreviousProductLink() throws {
+        let app = launchApp(
+            at: "main04",
+            additionalArguments: ["--coordit-test-prefilled-closet-draft"]
+        )
+        assertScreen("main04", in: app)
+
+        element("home-reference-select", in: app).tap()
+        app.buttons["새 의류 등록하기"].tap()
+        assertScreen("closet-add-method", in: app)
+
+        element("closet-add-method-link", in: app).tap()
+        assertScreen("closet-add-link", in: app)
+
+        let productLink = element("closet-product-link", in: app)
+        XCTAssertTrue(productLink.waitForExistence(timeout: 5))
+        XCTAssertFalse(
+            (productLink.value as? String ?? "").contains("previous-item"),
+            "새 의류 등록은 이전 상품 링크를 비운 상태로 시작해야 합니다."
+        )
+    }
+
     func testLinkImportFailureDoesNotPretendTheClosetSaveSucceeded() throws {
         let app = launchApp(
             at: "closet-add-link",
