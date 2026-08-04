@@ -47,10 +47,11 @@ export const loginWithEmail = async (
   return toAuthResponse(data.user, data.session);
 };
 
-export const loginWithGoogleIdToken = async (idToken: string): Promise<AuthResponse> => {
+export const loginWithGoogleIdToken = async (idToken: string, nonce: string): Promise<AuthResponse> => {
   const { data, error } = await supabaseAuth.auth.signInWithIdToken({
     provider: "google",
-    token: idToken
+    token: idToken,
+    nonce
   });
   if (error || !data.user) throw createHttpError(401, error?.message ?? "Google login failed");
   return toAuthResponse(data.user, data.session);

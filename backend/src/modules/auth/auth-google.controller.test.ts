@@ -15,7 +15,7 @@ type CapturedResponse = {
 type ResponseDouble = Pick<Response, "status" | "json"> & CapturedResponse;
 
 type GoogleAuthControllerDependencies = {
-  readonly loginWithGoogleIdToken: (idToken: string) => Promise<AuthResponse>;
+  readonly loginWithGoogleIdToken: (idToken: string, nonce: string) => Promise<AuthResponse>;
 };
 
 type GoogleAuthController = (req: Request, res: Response, next: NextFunction) => Promise<void>;
@@ -87,21 +87,24 @@ const tests: readonly {
     }
   },
   {
-    name: "idToken is parsed and exchanged through service",
+    name: "idToken and nonce are parsed and exchanged through service",
     run: async () => {
       let receivedToken: string | null = null;
+      let receivedNonce: string | null = null;
       const createController = await loadCreateController();
       const controller = createController({
-        loginWithGoogleIdToken: async (idToken) => {
+        loginWithGoogleIdToken: async (idToken, nonce) => {
           receivedToken = idToken;
+          receivedNonce = nonce;
           return authResponse;
         }
       });
       const response = createResponse();
-      await controller(createRequest({ idToken: " google-id-token " }), response, ((error: unknown) => {
+      await controller(createRequest({ idToken: " google-id-token ", nonce: " raw-nonce " }), response, ((error: unknown) => {
         throw error;
       }) as NextFunction);
       assert.equal(receivedToken, "google-id-token");
+      assert.equal(receivedNonce, "raw-nonce");
       assert.deepEqual(response.body, authResponse);
     }
   },
@@ -119,6 +122,26 @@ const tests: readonly {
       const response = createResponse();
       let nextError: unknown;
       await controller(createRequest({}), response, ((error: unknown) => {
+        nextError = error;
+      }) as NextFunction);
+      assert.equal(serviceCalled, false);
+      assertNextErrorStatus(nextError, 400);
+    }
+  },
+  {
+    name: "missing nonce returns 400 before service",
+    run: async () => {
+      let serviceCalled = false;
+      const createController = await loadCreateController();
+      const controller = createController({
+        loginWithGoogleIdToken: async () => {
+          serviceCalled = true;
+          throw createHttpError(401, "should not be called");
+        }
+      });
+      const response = createResponse();
+      let nextError: unknown;
+      await controller(createRequest({ idToken: "google-id-token" }), response, ((error: unknown) => {
         nextError = error;
       }) as NextFunction);
       assert.equal(serviceCalled, false);

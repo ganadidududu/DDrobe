@@ -3,7 +3,7 @@ import { asRequiredString } from "../../shared/utils/request";
 import { loginWithEmail, loginWithGoogleIdToken, signupWithEmail, type AuthResponse } from "./auth.service";
 
 type GoogleLoginControllerDependencies = {
-  readonly loginWithGoogleIdToken: (idToken: string) => Promise<AuthResponse>;
+  readonly loginWithGoogleIdToken: (idToken: string, nonce: string) => Promise<AuthResponse>;
 };
 
 export const signup = async (req: Request, res: Response, next: NextFunction) => {
@@ -31,7 +31,8 @@ export const createGoogleLoginController = (
 ) => async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const idToken = asRequiredString(req.body.idToken, "idToken");
-    res.json(await dependencies.loginWithGoogleIdToken(idToken));
+    const nonce = asRequiredString(req.body.nonce, "nonce");
+    res.json(await dependencies.loginWithGoogleIdToken(idToken, nonce));
   } catch (error) {
     next(error);
   }
