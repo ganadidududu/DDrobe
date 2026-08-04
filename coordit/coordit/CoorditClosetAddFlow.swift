@@ -77,7 +77,7 @@ struct CoorditClosetDraft {
             name: name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "새로운 의류" : name,
             category: category,
             exactCategory: exactCategory,
-            score: score,
+            score: Double(score),
             scoreColor: CoorditClosetColors.blue,
             route: .closetAddResult,
             imageData: garmentImageData,
@@ -92,8 +92,10 @@ struct CoorditClosetDraft {
 extension CoorditClosetFamilyView {
     func addMethodScreen(metrics: CoorditResponsiveMetrics) -> some View {
         CoorditClosetAddMethodScreen(metrics: metrics) {
+            resetPendingSave()
             onRouteChange(.closetOverview)
         } onSelect: { method in
+            resetPendingSave()
             draft.method = method
             onRouteChange(method.route)
         }
@@ -101,6 +103,7 @@ extension CoorditClosetFamilyView {
 
     func addLinkScreen(metrics: CoorditResponsiveMetrics) -> some View {
         CoorditClosetLinkInputScreen(draft: $draft, metrics: metrics) {
+            resetPendingSave()
             onRouteChange(.closetAddMethod)
         } onSubmit: {
             submitDraft()
@@ -115,6 +118,7 @@ extension CoorditClosetFamilyView {
 
     func addPhotoScreen(metrics: CoorditResponsiveMetrics) -> some View {
         CoorditClosetPhotoInputScreen(draft: $draft, metrics: metrics) {
+            resetPendingSave()
             onRouteChange(.closetAddMethod)
         } onSubmit: {
             submitDraft()
@@ -126,6 +130,7 @@ extension CoorditClosetFamilyView {
 
     func addManualScreen(metrics: CoorditResponsiveMetrics) -> some View {
         CoorditClosetManualInputScreen(draft: $draft, metrics: metrics) {
+            resetPendingSave()
             onRouteChange(.closetAddMethod)
         } onSubmit: {
             submitDraft()
@@ -133,14 +138,20 @@ extension CoorditClosetFamilyView {
     }
 
     func addLoadingScreen(metrics: CoorditResponsiveMetrics) -> some View {
-        CoorditClosetAddLoadingScreen(metrics: metrics) {
+        CoorditClosetAddLoadingScreen(
+            metrics: metrics,
+            isSaving: addSaveState.isSaving,
+            errorMessage: addSaveState.errorMessage
+        ) {
+            resetPendingSave()
             onRouteChange(.closetOverview)
-        } onComplete: {
-            onRouteChange(.closetAddResult)
+        } onRetry: {
+            submitDraft()
         }
     }
 
     private func submitDraft() {
+        guard !addSaveState.isSaving else { return }
         let submittedDraft = draft
         let trimmedName = submittedDraft.trimmedName
         guard !trimmedName.isEmpty else { return }
@@ -150,7 +161,7 @@ extension CoorditClosetFamilyView {
             name: trimmedName,
             category: submittedDraft.category,
             exactCategory: submittedDraft.exactCategory,
-            score: submittedDraft.score,
+            score: Double(submittedDraft.score),
             scoreColor: CoorditClosetColors.blue,
             route: .closetAddResult,
             imageData: submittedDraft.garmentImageData,
@@ -160,17 +171,38 @@ extension CoorditClosetFamilyView {
             )
         )
 
-        items.insert(item, at: 0)
-        selectedItemID = item.id
-        selectedCategory = item.category
+        let idempotencyKey = addSaveState.idempotencyKey ?? UUID().uuidString
+        addSaveState.idempotencyKey = idempotencyKey
+        let requestGeneration = addSaveState.beginSave()
         onRouteChange(.closetAddLoading)
 
         Task { @MainActor in
-            guard let saved = await backendSession.saveClothing(from: submittedDraft) else { return }
-            guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
-            items[index].backendClothingItemId = saved.clothingItemId
-            items[index].sizeChart = saved.sizeChart
+            guard let saved = await backendSession.saveClothing(
+                from: submittedDraft,
+                idempotencyKey: idempotencyKey
+            ) else {
+                guard addSaveState.isCurrent(requestGeneration) else { return }
+                addSaveState.isSaving = false
+                addSaveState.errorMessage = backendSession.statusText.isEmpty
+                    ? "보유 의류를 저장하지 못했어요. 연결을 확인한 뒤 다시 시도해 주세요."
+                    : backendSession.statusText
+                return
+            }
+            guard addSaveState.isCurrent(requestGeneration) else { return }
+            addSaveState.isSaving = false
+            var savedItem = item
+            savedItem.backendClothingItemId = saved.clothingItemId
+            savedItem.sizeChart = saved.sizeChart
+            items.insert(savedItem, at: 0)
+            selectedItemID = savedItem.id
+            selectedCategory = savedItem.category
+            resetPendingSave()
+            onRouteChange(.closetAddResult)
         }
+    }
+
+    private func resetPendingSave() {
+        addSaveState.reset()
     }
 }
 
@@ -931,8 +963,10 @@ private struct CoorditClosetManualInputScreen: View {
 
 private struct CoorditClosetAddLoadingScreen: View {
     let metrics: CoorditResponsiveMetrics
+    let isSaving: Bool
+    let errorMessage: String?
     let onBack: () -> Void
-    let onComplete: () -> Void
+    let onRetry: () -> Void
 
     var body: some View {
         GeometryReader { proxy in
@@ -946,24 +980,38 @@ private struct CoorditClosetAddLoadingScreen: View {
                     .padding(.horizontal, metrics.value(22))
 
                 VStack(spacing: metrics.value(13)) {
-                    CoorditOrbitLoadingIndicator(metrics: metrics)
-                    Text("보유 의류를 등록하고 있어요")
+                    if isSaving {
+                        CoorditOrbitLoadingIndicator(metrics: metrics)
+                    } else {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: metrics.value(30), weight: .semibold))
+                            .foregroundStyle(.orange)
+                    }
+                    Text(isSaving ? "보유 의류를 등록하고 있어요" : "저장하지 못했어요")
                         .font(CoorditTypography.gmarketMedium(size: metrics.value(15)))
                         .foregroundStyle(Color.black.opacity(0.76))
-                    Text("선택한 사이즈와 실측 정보를 옷장에 저장하고 있어요.")
+                    Text(errorMessage ?? "선택한 사이즈와 실측 정보를 옷장에 저장하고 있어요.")
                         .font(CoorditTypography.gmarketMedium(size: metrics.value(9)))
                         .foregroundStyle(CoorditClosetColors.navy.opacity(0.42))
+                        .multilineTextAlignment(.center)
+                    if !isSaving {
+                        Button("다시 시도", action: onRetry)
+                            .buttonStyle(
+                                CoorditContentActionButtonStyle(
+                                    prominence: .primary,
+                                    height: metrics.value(44),
+                                    cornerRadius: metrics.value(7),
+                                    fontSize: metrics.value(13)
+                                )
+                            )
+                            .accessibilityIdentifier("coordit-closet-save-retry")
+                    }
                 }
                 .frame(width: proxy.size.width - metrics.value(44))
                 .position(x: proxy.size.width / 2, y: loadingCenterY)
             }
         }
         .accessibilityIdentifier("coordit-screen-closet-add-loading")
-        .task {
-            try? await Task.sleep(nanoseconds: 3_000_000_000)
-            guard !Task.isCancelled else { return }
-            onComplete()
-        }
     }
 }
 

@@ -7,6 +7,7 @@ struct CoorditRootView: View {
     @State private var closetItems: [CoorditClosetItem]
     @State private var selectedClosetItemID: String?
     @State private var closetDraft = CoorditClosetDraft()
+    @State private var closetAddSaveState = CoorditClosetAddSaveState()
     @State private var selectedReferenceIDs: Set<String> = []
     @State private var showsFitLabReferenceSelection = false
     @State private var threadBalance: Int
@@ -20,9 +21,6 @@ struct CoorditRootView: View {
     init(startRoute: CoorditFrameRoute = .testingLaunchRoute()) {
         Self.seedPendingSharedFitLabImportURLIfNeeded()
         let initialSharedURL = Self.initialSharedFitLabImportURL()
-        if initialSharedURL != nil {
-            CoorditSharedFitLabImport.clearPendingProductURL()
-        }
         let initialRoute = initialSharedURL == nil ? startRoute : CoorditFrameRoute.fitLabInput
         _route = State(initialValue: initialRoute)
         _closetItems = State(initialValue: Self.initialClosetItems())
@@ -110,7 +108,8 @@ struct CoorditRootView: View {
             CoorditMyPageFamilyView(
                 route: route,
                 threadBalance: $threadBalance,
-                showsThreadRechargePrompt: $showsThreadRechargePrompt
+                showsThreadRechargePrompt: $showsThreadRechargePrompt,
+                onAccountDeleted: handleAccountDeletion
             ) { navigate(to: $0) }
         case .closetOverview,
              .closetDetailTop,
@@ -126,7 +125,8 @@ struct CoorditRootView: View {
                 items: $closetItems,
                 selectedItemID: $selectedClosetItemID,
                 draft: $closetDraft,
-                selectedReferenceIDs: $selectedReferenceIDs
+                selectedReferenceIDs: $selectedReferenceIDs,
+                addSaveState: $closetAddSaveState
             ) { navigate(to: $0) }
                 }
             }
@@ -151,9 +151,13 @@ struct CoorditRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .buttonStyle(CoorditPressFeedbackButtonStyle())
         .task(id: backendSession.session?.user.id) {
-            guard let snapshot = await backendSession.loadClosetSnapshot(preserving: closetItems) else { return }
-            closetItems = snapshot.items
-            selectedReferenceIDs = snapshot.selectedReferenceIDs
+            if let snapshot = await backendSession.loadClosetSnapshot(preserving: closetItems) {
+                closetItems = snapshot.items
+                selectedReferenceIDs = snapshot.selectedReferenceIDs
+            }
+            if let balance = await backendSession.fetchThreadBalance() {
+                threadBalance = balance
+            }
         }
         .task(id: fitLabHistoryUserID) {
             await fitLabCoordinator.prepareHistory(userID: fitLabHistoryUserID)
@@ -341,6 +345,19 @@ struct CoorditRootView: View {
         navigate(to: .myPageThreadCharge)
     }
 
+    private func handleAccountDeletion(userID: String) async -> Bool {
+        closetItems = []
+        selectedClosetItemID = nil
+        closetDraft = CoorditClosetDraft()
+        closetAddSaveState.reset()
+        selectedReferenceIDs = []
+        threadBalance = 0
+        showsThreadRechargePrompt = false
+        sharedFitLabImportURL = nil
+        fitLabCoordinator.discardAndRestart()
+        return await fitLabCoordinator.deleteLocalHistory(for: userID)
+    }
+
     private func openPendingSharedFitLabImport() {
         guard let url = CoorditSharedFitLabImport.consumePendingProductURL() else { return }
         openSharedFitLabImport(url)
@@ -348,6 +365,9 @@ struct CoorditRootView: View {
 
     private func openSharedFitLabImport(_ url: URL?) {
         guard let url else { return }
+        // A direct URL notification may arrive before scene activation. Remove
+        // its queued copy so activation cannot reset the in-progress Fit Lab flow.
+        CoorditSharedFitLabImport.removePendingProductURL(matching: url)
         fitLabCoordinator.discardAndRestart()
         sharedFitLabImportURL = url
         navigate(to: .fitLabInput)

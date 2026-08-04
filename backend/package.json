@@ -8,7 +8,7 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test:fit": "tsx src/modules/fit/fit-score.engine.test.ts",
-    "test:report": "tsx src/modules/fit-report/fit-report.service.test.ts",
+    "test:report": "tsx src/modules/fit-report/fit-report.service.test.ts && tsx src/modules/fit-report/fit-report.fallback.test.ts",
     "test": "npm run test:fit && npm run test:report && vitest run",
     "test:product-import": "vitest run src/modules/product-import/tests",
     "test:auth-onboarding": "tsx src/modules/auth/auth-onboarding.service.test.ts && tsx src/modules/auth/auth-onboarding.validation.test.ts && tsx src/modules/auth/auth-onboarding.controller.test.ts"

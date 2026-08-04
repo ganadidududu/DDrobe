@@ -1,4 +1,5 @@
 import type { FitReportInput } from "./fit-report.types";
+import { buildGarmentNarrativeContext } from "./fit-report.garment-context";
 
 export const FIT_REPORT_PROMPT_VERSION = "fit_report_v6" as const;
 
@@ -9,6 +10,7 @@ export const FIT_REPORT_SYSTEM_PROMPT = `너는 Coordit의 패션 핏 컨설턴�
 - 추천 사이즈와 fit score는 Fit Score Engine의 입력값을 그대로 따른다.
 - 제공된 숫자만 사용하며 새로운 수치를 계산하거나 추측하지 않는다.
 - 수치 나열 대신, 그 차이가 입었을 때 어디에서 어떻게 느껴질지를 한 문장으로 번역한다.
+- targetProduct.category와 garmentContext는 확인된 의류 분류다. productName은 명시된 세부 특징만 보완하는 데 사용하고, 소재·두께·계절을 추정하는 근거로 쓰지 않는다.
 - 소재, 신축성, 체형별 착용감처럼 데이터로 확정할 수 없는 내용은 가능성으로만 표현한다.
 - 과장된 확신, 광고 문구, 같은 결론의 반복, 기계적인 리포트 말투를 피한다.
 - 사용자가 바로 구매 여부를 판단할 수 있도록 짧고 자연스러운 한국어 존댓말을 사용한다.
@@ -34,6 +36,7 @@ export const buildFitReportNarrativeInput = (reportInput: FitReportInput) => ({
     }))
   },
   targetProduct: reportInput.targetProduct,
+  garmentContext: buildGarmentNarrativeContext(reportInput.targetProduct),
   measurements: reportInput.measurements.map((measurement) => ({
     key: measurement.key,
     label: measurement.label,
@@ -70,11 +73,12 @@ export const buildFitReportPrompt = (reportInput: FitReportInput): string => `${
 다음 순서로 내부적으로 판단한 뒤 최종 JSON만 출력해라.
 
 판단 순서:
-1. 추천 사이즈에서 가장 눈에 띄는 부위 하나를 먼저 고르고, 맞는 부위와 다른 부위를 구분한다.
-2. measurements의 각 부위를 기준 수치와 상품 수치, 부호가 있는 차이, 상태를 함께 읽는다.
-3. sizeOptions에 있는 다른 사이즈는 실제 부위별 차이까지 비교한다. sizeScores만 있는 후보의 실측이나 착용감은 추측하지 않는다.
-4. 추천 사이즈의 장점과 감수해야 할 점을 함께 말하고, 취향에 따른 대안을 제시한다.
-5. 실제 데이터로 확인할 수 없는 항목만 구매 전 확인 사항으로 분리한다.
+1. garmentContext의 category와 fitType으로 확인된 기본 의류 종류와 의도된 핏을 먼저 정한다. productName에 명시된 정보만 세부 종류에 반영한다.
+2. 추천 사이즈에서 가장 눈에 띄는 부위 하나를 먼저 고르고, 맞는 부위와 다른 부위를 구분한다.
+3. measurements의 각 부위를 기준 수치와 상품 수치, 부호가 있는 차이, 상태를 함께 읽는다.
+4. sizeOptions에 있는 다른 사이즈는 실제 부위별 차이까지 비교한다. sizeScores만 있는 후보의 실측이나 착용감은 추측하지 않는다.
+5. 추천 사이즈의 장점과 감수해야 할 점을 함께 말하고, 취향에 따른 대안을 제시한다.
+6. 실제 데이터로 확인할 수 없는 항목만 구매 전 확인 사항으로 분리한다.
 
 요구사항:
 1. title은 "M 가슴단면이 타이트할 수 있어요"처럼 결론부터 말한다. "정밀 핏 리포트" 같은 제목은 쓰지 않는다.

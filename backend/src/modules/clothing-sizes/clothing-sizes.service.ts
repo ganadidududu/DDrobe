@@ -8,7 +8,7 @@ import {
   type ClothingSizeDto
 } from "./clothing-sizes.repository";
 
-const toDto = (body: Record<string, unknown>): ClothingSizeDto => ({
+export const toClothingSizeDto = (body: Record<string, unknown>): ClothingSizeDto => ({
   size_label: asOptionalString(body.sizeLabel ?? body.size_label),
   raw_measurements: asOptionalRecord(body.rawMeasurements ?? body.raw_measurements),
   ...pickMeasurements(body)
@@ -19,7 +19,7 @@ export const createClothingSizeForUser = async (
   clothingItemId: string,
   body: Record<string, unknown>
 ) => {
-  const row = await insertClothingSize(userId, clothingItemId, toDto(body));
+  const row = await insertClothingSize(userId, clothingItemId, toClothingSizeDto(body));
   return { ...row, ...rowToMeasurements(row) };
 };
 
@@ -32,7 +32,7 @@ export const updateClothingSizeForUser = (
   userId: string,
   id: string,
   body: Record<string, unknown>
-) => patchClothingSize(userId, id, toDto(body));
+) => patchClothingSize(userId, id, toClothingSizeDto(body));
 
 export const deleteClothingSizeForUser = (userId: string, id: string) =>
   removeClothingSize(userId, id);

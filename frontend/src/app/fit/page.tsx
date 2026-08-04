@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { api } from "../../lib/api";
+import { formatFitScore } from "../../lib/fit-score";
 import { IMG } from "../../lib/images";
 import { TopBar } from "../../components/TopBar";
 import { Footer } from "../../components/Footer";
@@ -427,6 +428,7 @@ export default function FitLabPage() {
   const selectedItem = closetItems.find(i => i.id === selectedItemId) ?? null;
   const latestMeasurement = bodyMeasurements[0] ?? null;
   const fitScore          = analysis?.fit_score ?? 0;
+  const formattedFitScore = formatFitScore(fitScore);
   const fitLabel          = analysis?.fit_label ?? "";
   const fitComment        = analysis?.fit_comment ?? "";
   const recommendedSizeLabel = analysis?.recommended_size_label ?? "M";
@@ -635,7 +637,7 @@ export default function FitLabPage() {
                   letterSpacing: "0.12em",
                   color: "var(--ivory)",
                 }}>
-                  {fitLabelToKorean(fitLabel).toUpperCase()} · {fitScore}/100
+                  {fitLabelToKorean(fitLabel).toUpperCase()} · {formattedFitScore}/100
                 </div>
               )}
             </div>
@@ -791,7 +793,7 @@ export default function FitLabPage() {
           <div style={{ background: "var(--bg-raised)", border: "1px solid var(--line)", borderRadius: 4, padding: "24px 28px" }}>
             <div style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", letterSpacing: "0.15em", color: "var(--text-muted)", textTransform: "uppercase" }}>OVERALL FIT</div>
             <div style={{ fontSize: 48, fontWeight: 400, lineHeight: 1, marginTop: 12, fontFamily: "var(--font-display)", color: fitScore > 0 ? scoreColor(fitScore) : "var(--obsidian)" }}>
-              {fitScore > 0 ? fitScore : "—"}
+              {fitScore > 0 ? formattedFitScore : "—"}
             </div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>/100</div>
             <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 12, fontFamily: "JetBrains Mono, monospace", letterSpacing: "0.08em" }}>Fit Forensics Score</div>
@@ -898,7 +900,7 @@ export default function FitLabPage() {
               <div style={{ flex: 1, height: 6, background: "var(--linen)", borderRadius: 3 }}>
                 <div style={{ height: "100%", width: `${fitScore}%`, background: scoreColor(fitScore), borderRadius: 3 }} />
               </div>
-              <div style={{ fontSize: 24, fontFamily: "var(--font-display)", fontWeight: 500, color: scoreColor(fitScore) }}>{fitScore}</div>
+              <div style={{ fontSize: 24, fontFamily: "var(--font-display)", fontWeight: 500, color: scoreColor(fitScore) }}>{formattedFitScore}</div>
               <div className="korean-sans" style={{ fontSize: 13, color: "var(--text-muted)" }}>
                 {fitLabelToKorean(fitLabel)}
               </div>
@@ -1046,7 +1048,7 @@ export default function FitLabPage() {
                   <div style={{ marginTop: 10 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                       <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "var(--text-dim)" }}>FIT SCORE</span>
-                      <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: scoreClr }}>{item.score}</span>
+                      <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: scoreClr }}>{formatFitScore(item.score)}</span>
                     </div>
                     <div style={{ height: 3, background: "var(--linen)", borderRadius: 2 }}>
                       <div style={{ height: "100%", width: `${item.score}%`, background: scoreClr, borderRadius: 2 }} />

@@ -84,6 +84,13 @@ struct CoorditFitLabFamilyView: View {
         .onChange(of: coordinator.analysisState) { _, state in
             routeToCompletedAnalysis(state)
         }
+        .onChange(of: coordinator.authoritativeThreadBalance) { _, balance in
+            if let balance { threadBalance = balance }
+        }
+        .onChange(of: coordinator.error) { _, error in
+            guard case .server(statusCode: 402, message: _) = error else { return }
+            onInsufficientThread()
+        }
         .onAppear {
             routeToCompletedAnalysis(coordinator.analysisState)
         }
@@ -505,10 +512,6 @@ struct CoorditFitLabFamilyView: View {
             onRouteChange(.fitLabLoading)
             return
         }
-        guard consumeThreadIfNeededForNewSubmission() else {
-            onInsufficientThread()
-            return
-        }
         let api = CoorditFitLabHTTPAPI(
             baseURL: CoorditBackendConfig.baseURL(),
             accessToken: session.accessToken
@@ -600,7 +603,7 @@ struct CoorditFitLabFamilyView: View {
     @ViewBuilder
     private func fixtureRecommendation(identifier: String, prefix: String) -> some View {
         if let recommendation = coordinator.recommendation {
-            Text("\(prefix) \(recommendation.recommendedSize) · \(recommendation.fitScore.formatted(.number.precision(.fractionLength(0))))점")
+            Text("\(prefix) \(recommendation.recommendedSize) · \(CoorditFitLabResultMeasurement.score(recommendation.fitScore))점")
                 .font(.title3.bold())
                 .accessibilityIdentifier(identifier)
             Text(recommendation.fitComment)
@@ -855,7 +858,7 @@ private struct CoorditFitLabResultScreen: View {
 
                 #if DEBUG
                 if let recommendation {
-                    Text("추천 \(recommendation.recommendedSize) · \(CoorditFitLabResultMeasurement.number(recommendation.fitScore))점")
+                    Text("추천 \(recommendation.recommendedSize) · \(CoorditFitLabResultMeasurement.score(recommendation.fitScore))점")
                         .font(.system(size: 1))
                         .frame(width: 1, height: 1)
                         .opacity(0.01)

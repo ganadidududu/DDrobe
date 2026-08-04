@@ -202,10 +202,10 @@ struct CoorditFitLabSubmissionView: View {
                 Text("핏 분석이 준비됐어요")
                     .font(CoorditTypography.gmarketBold(size: metrics.value(20), relativeTo: .title3))
                     .foregroundStyle(Color.black)
-                Text("추천 \(recommendation.recommendedSize) · \(recommendation.fitScore.formatted(.number.precision(.fractionLength(0))))점")
+                Text("추천 \(recommendation.recommendedSize) · \(CoorditFitLabResultMeasurement.score(recommendation.fitScore))점")
                     .font(CoorditTypography.gmarketBold(size: metrics.value(17), relativeTo: .headline))
                     .foregroundStyle(Color.black)
-                    .accessibilityLabel("추천 \(recommendation.recommendedSize) · \(recommendation.fitScore.formatted(.number.precision(.fractionLength(0))))점")
+                    .accessibilityLabel("추천 \(recommendation.recommendedSize) · \(CoorditFitLabResultMeasurement.score(recommendation.fitScore))점")
                     .accessibilityIdentifier("fitlab-submission-result")
 
                 let variant: CoorditFitLabResultVariant = coordinator.draft.garmentKind == .upper ? .top : .bottom

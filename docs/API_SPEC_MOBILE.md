@@ -2,7 +2,7 @@
 
 문서 상태: 모바일 MVP 기준 정리본  
 기준일: 2026-06-25  
-Base URL: `http://localhost:4000`
+Base URL: 배포된 HTTPS API URL (`COORDIT_API_BASE_URL`)
 
 ## 1. 문서 목적
 
@@ -274,6 +274,19 @@ Wardrobe API는 모바일 앱의 `Closet` 탭에서 사용한다.
 - `fitType`
 - `notes`
 - `imageUrl`
+
+### 보유 의류와 실측값 원자적 등록
+
+| 항목 | 내용 |
+| --- | --- |
+| 기능명 | 보유 의류와 선택한 실측값 함께 등록 |
+| 목적 | 저장 중 네트워크가 끊겨도 의류와 실측값이 분리되거나 중복 저장되지 않게 한다. |
+| Endpoint | `POST /clothing-items/with-size` |
+| 필수 입력 | `item`, `size`, UUID 형식의 `idempotencyKey` |
+| 주요 반환값 | 저장된 `clothingItem`, `clothingSize` |
+| 사용 화면 | Closet 의류 추가 완료 |
+
+같은 `idempotencyKey`로 다시 요청하면 처음 저장한 의류와 실측값을 `200`으로 다시 반환한다. 앱은 같은 저장 작업을 재시도하는 동안 키를 유지해야 한다.
 
 ### 보유 의류 목록 조회
 
@@ -629,7 +642,7 @@ Product Analysis는 외부 상품 정보를 자동으로 가져오거나 분석�
 | 기능명 | 단일 기준 의류 추천 |
 | 목적 | 하나의 기준 의류와 외부 상품 사이즈표를 비교해 추천 사이즈를 계산한다. |
 | Endpoint | `POST /fit/recommend` |
-| 필수 입력 | `referenceClothingId`, `externalProductId` |
+| 필수 입력 | `referenceClothingId` 또는 `referenceClothingIds`, `externalProductId`, UUID 형식의 `idempotencyKey` |
 | 주요 반환값 | 추천 사이즈, fit score, fit label, confidence, 부위별 차이, 사이즈별 점수 |
 | 사용 화면 | Fit Lab |
 
@@ -639,8 +652,8 @@ Product Analysis는 외부 상품 정보를 자동으로 가져오거나 분석�
 | --- | --- |
 | 기능명 | 다중 기준 의류 추천 |
 | 목적 | 여러 기준 의류로 사용자의 핏 DNA를 만들고 외부 상품의 최적 사이즈를 추천한다. |
-| Endpoint | `POST /fit/recommend` 또는 `POST /fit/recommend/batch` |
-| 필수 입력 | `referenceClothingIds`, `externalProductId` |
+| Endpoint | `POST /fit/recommend` |
+| 필수 입력 | `referenceClothingIds`, `externalProductId`, UUID 형식의 `idempotencyKey` |
 | 주요 반환값 | 추천 사이즈, fit score, confidence, 기준 의류 통계, 부위별 차이, 사이즈별 점수 |
 | 사용 화면 | Fit Lab |
 
@@ -650,8 +663,14 @@ fit score, 추천 사이즈, 기준 프로필, 동적 가중치를 변경하지 
 추천 응답은 기존 필드를 유지한다. 클라이언트는 `fitScore`, `fitLabel`,
 `recommendationConfidence`, `diff`, `partExplanations`, `partStatuses`,
 `allSizeScores`를 계속 사용할 수 있다. 추가 설명 메타데이터는 선택 필드다.
-현재 추천 알고리즘 버전은 `mvp_rule_v1_6`이며 응답의 `algorithmVersion` 및
+현재 추천 알고리즘 버전은 `mvp_rule_v1_7`이며 응답의 `algorithmVersion` 및
 DB의 `algorithm_version`에 기록된다.
+
+Fit Lab 분석은 실타래를 사용하는 요청이다. 하나의 사용자가 같은
+`idempotencyKey`를 다시 보내면 API는 새 분석을 만들지 않고 이미 저장한 결과와 남은
+실타래를 `200`으로 다시 반환한다. 클라이언트는 네트워크 재시도 동안 같은 키를 유지해야 한다. 여러 상품을 한 번에
+분석하는 `/fit/recommend/batch`는 모든 항목의 원자적 과금이 구현되기 전까지 `410`으로
+비활성화되어 있다.
 
 | 선택 필드 | 설명 |
 | --- | --- |
@@ -691,11 +710,11 @@ migration이 필요하지 않다. 클라이언트와 report builder는 legacy-to
 | 주요 반환값 | 추천 결과 상세 |
 | 사용 화면 | Fit Lab, Styling |
 
-### Ollama 핏 리포트 생성
+### OpenRouter 핏 리포트 생성
 
 | 항목 | 내용 |
 | --- | --- |
-| 기능명 | Ollama 핏 리포트 생성 |
+| 기능명 | OpenRouter 핏 리포트 생성 |
 | 목적 | 저장된 추천 결과를 바탕으로 그래프 데이터와 한국어 핏 리포트를 생성한다. |
 | Endpoint | `POST /fit-analysis-results/:id/report` |
 | 필수 입력 | `id` |
@@ -713,7 +732,6 @@ QA용 선택 메타데이터이며 모바일 클라이언트는 없어도 기존
 {
   "selectedSizeLabel": "L",
   "style": "concise_but_explanatory",
-  "model": "llama3.1:8b",
   "includeDebug": false
 }
 ```
@@ -723,9 +741,9 @@ QA용 선택 메타데이터이며 모바일 클라이언트는 없어도 기존
 ```json
 {
   "fitAnalysisResultId": "uuid",
-  "source": "ollama",
-  "modelName": "llama3.1:8b",
-  "promptVersion": "fit_report_v5",
+  "source": "openrouter",
+  "modelName": "google/gemini-2.5-flash",
+  "promptVersion": "fit_report_v6",
   "report": {
     "title": "L 사이즈 핏 리포트",
     "summary": "...",
@@ -745,21 +763,22 @@ QA용 선택 메타데이터이며 모바일 클라이언트는 없어도 기존
 
 `source` 값:
 
-- `ollama`: 로컬 Ollama 응답을 사용했다.
-- `fallback`: Ollama 호출 또는 JSON 파싱에 실패해 백엔드 fallback 리포트를 사용했다.
+- `openrouter`: OpenRouter의 JSON Schema 응답을 사용했다.
+- `fallback`: OpenRouter 호출 또는 응답 검증에 실패해 백엔드 fallback 리포트를 사용했다.
 
 백엔드 환경변수:
 
-- `OLLAMA_GENERATE_URL`: 기본값 `http://localhost:11434/api/generate`
-- `OLLAMA_MODEL`: 기본값 `llama3.1:8b`
+- `OPENROUTER_API_KEY`: OpenRouter API 키
+- `OPENROUTER_MODEL`: 기본값 `google/gemini-2.5-flash`
+- `OPENROUTER_TIMEOUT_MS`: 기본값 `20000`
 
 `includeDebug = true`이면 테스트용으로 `reportInput`과 `prompt`를 응답에 포함한다.
-`fit_report_v5`는 추천 사이즈, 사이즈별 fit score, 기준/상품 실측과 부위별 차이,
-주요 설명 부위만 LLM에 전달한다. confidence, 신뢰도, 피드백, 데이터 품질,
-기준 의류 개수는 사용자용 서술에 전달하거나 노출하지 않는다. Ollama는 fit score
+`fit_report_v6`는 추천 사이즈, 사이즈별 fit score, 기준/상품 실측과 부위별 차이,
+의류 카테고리·핏 타입·주요 설명 부위를 LLM에 전달한다. confidence, 신뢰도, 피드백, 데이터 품질,
+기준 의류 개수는 사용자용 서술에 전달하거나 노출하지 않는다. OpenRouter는 fit score
 또는 추천 사이즈를 계산하지 않으며, 부적합하거나 지나치게 짧은 출력은 측정 기반
-문장으로 보정한다. 호출이나 JSON 파싱 실패 시 fallback 리포트도 기존 엔진 결과를
-그대로 설명한다.
+문장으로 보정한다. 계절·두께·소재·주머니처럼 입력에 없는 상품 디테일은 단정하지
+않는다. 호출이나 JSON 파싱 실패 시 fallback 리포트도 기존 엔진 결과를 그대로 설명한다.
 
 ## 10. Feedback
 

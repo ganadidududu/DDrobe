@@ -1,18 +1,21 @@
-# Fit Report with Ollama Spec
+# Fit Report with OpenRouter Spec
 
 문서 상태: 현행 계약
-기준일: 2026-07-28
-엔진 버전: `mvp_rule_v1_6`
-프롬프트 버전: `fit_report_v5`
+기준일: 2026-07-31
+엔진 버전: `mvp_rule_v1_7`
+프롬프트 버전: `fit_report_v6`
 
 ## 1. 목적
 
-Fit Score Engine이 계산한 추천 사이즈와 실측 차이를 Ollama가 자연스러운 한국어
+Fit Score Engine이 계산한 추천 사이즈와 실측 차이를 OpenRouter의
+`google/gemini-2.5-flash`가 자연스러운 한국어
 구매 리포트로 설명한다. LLM은 계산기가 아니라 설명 계층이다.
 
 - fit score, 추천 사이즈, 부위별 차이는 엔진 결과를 그대로 사용한다.
 - 다른 사이즈의 점수도 함께 비교한다.
 - 기준 의류와 상품의 모든 비교 가능한 부위를 빠짐없이 설명한다.
+- 의류 카테고리와 핏 타입에 맞춰 각 실측 차이가 실제 착용에서 만드는 실루엣·움직임 변화를 설명한다.
+- 계절, 원단 두께, 주머니처럼 입력에 없는 상품 디테일은 사실처럼 단정하지 않고 구매 전 확인 사항으로만 안내한다.
 - confidence, 신뢰도, 피드백, 데이터 품질, 기준 의류 개수는 사용자용 품질
   판단이나 추천 근거로 노출하지 않는다.
 
@@ -26,14 +29,14 @@ Fit Score Engine:
 - 기준/상품 실측과 signed diff 계산
 - 차트용 숫자 시리즈 생성
 
-Ollama:
+OpenRouter:
 
 - 제공된 수치의 의미를 자연스러운 한국어로 설명
 - 폭과 길이의 장단점을 구분
 - 모든 사이즈 점수와 부위별 차이를 종합해 추천 이유 작성
 - 소재, 신축성, 레이어링처럼 확정할 수 없는 항목을 구매 전 확인 사항으로 분리
 
-Ollama가 하면 안 되는 일:
+OpenRouter가 하면 안 되는 일:
 
 - fit score, 추천 사이즈, diff 재계산
 - 입력에 없는 숫자·신체 정보·상품 정보 생성
@@ -42,7 +45,7 @@ Ollama가 하면 안 되는 일:
 
 ## 3. LLM 입력 계약
 
-`buildFitReportNarrativeInput`은 다음 필드만 Ollama에 전달한다.
+`buildFitReportNarrativeInput`은 다음 필드만 OpenRouter에 전달한다.
 
 ```json
 {
@@ -94,7 +97,7 @@ Ollama가 하면 안 되는 일:
 }
 ```
 
-다음 값은 내부 디버그 객체에 남아 있을 수 있지만 Ollama 입력에는 포함하지 않는다.
+다음 값은 내부 디버그 객체에 남아 있을 수 있지만 OpenRouter 입력에는 포함하지 않는다.
 
 - `recommendationConfidence`, `confidenceReasons`
 - `feedbackPersonalization`, `feedbackReliability`
@@ -104,7 +107,7 @@ Ollama가 하면 안 되는 일:
 
 ## 4. 출력 계약
 
-Ollama는 다음 JSON만 반환한다.
+OpenRouter는 strict JSON Schema로 다음 JSON만 반환한다.
 
 ```json
 {
@@ -131,11 +134,11 @@ Ollama는 다음 JSON만 반환한다.
 - `cautions`: 데이터로 확정할 수 없는 구매 전 확인 사항 최대 2개
 - `nextActions`: 상품 상세나 보유 의류에서 확인할 수 있는 행동 최대 2개
 
-`fitDnaSummary`와 `feedbackPersonalization`은 `fit_report_v5` 공개 출력 필드가 아니다.
+`fitDnaSummary`와 `feedbackPersonalization`은 `fit_report_v6` 공개 출력 필드가 아니다.
 
 ## 5. 출력 보정
 
-백엔드는 Ollama 출력을 그대로 신뢰하지 않는다.
+백엔드는 OpenRouter의 structured output을 그대로 신뢰하지 않는다.
 
 - 부위별 문장에 입력과 다른 숫자가 있으면 해당 부위를 측정 기반 문장으로 교체한다.
 - 입력에 없는 숫자가 요약·추천 이유·확인 사항에 있으면 해당 섹션을 fallback으로 교체한다.
@@ -149,9 +152,9 @@ Ollama는 다음 JSON만 반환한다.
 recommendationReason 6문장, 부위별 분석 3문장이다. 목표보다 긴 문장은 다른
 안전성·숫자 조건을 만족하면 불필요한 재시도를 피하기 위해 허용한다.
 
-Ollama가 만든 `summary`와 `recommendationReason`에 각각 안전한 모델 문장이 하나
+OpenRouter가 만든 `summary`와 `recommendationReason`에 각각 안전한 모델 문장이 하나
 이상 있으면 그 문장을 보존하고, 제거되거나 부족한 문장만 deterministic 문장으로
-보완한 뒤 `source: "ollama"`를 반환한다. 두 핵심 서술 중 하나라도 보존할 수 있는
+보완한 뒤 `source: "openrouter"`를 반환한다. 두 핵심 서술 중 하나라도 보존할 수 있는
 모델 문장이 없거나 HTTP 호출·JSON 파싱이 실패하면 백엔드는 전체 deterministic
 fallback과 `source: "fallback"`을 반환한다. iOS Fit Lab은 LLM 작성까지 완료된
 리포트만 완료 화면으로 표시하므로 `fallback`을 최종 리포트로 열지 않고
@@ -171,7 +174,6 @@ POST /fit-analysis-results/:id/report
 {
   "selectedSizeLabel": "L",
   "style": "concise_but_explanatory",
-  "model": "qwen3:8b",
   "includeDebug": false
 }
 ```
@@ -181,9 +183,9 @@ POST /fit-analysis-results/:id/report
 ```json
 {
   "fitAnalysisResultId": "uuid",
-  "source": "ollama",
-  "modelName": "qwen3:8b",
-  "promptVersion": "fit_report_v5",
+  "source": "openrouter",
+  "modelName": "google/gemini-2.5-flash",
+  "promptVersion": "fit_report_v6",
   "report": {
     "title": "L 사이즈 정밀 핏 리포트",
     "summary": "...",
@@ -218,8 +220,9 @@ negative diff는 왼쪽, positive diff는 오른쪽으로 표시한다. 정확�
 
 ## 8. 환경 변수
 
-- `OLLAMA_GENERATE_URL`: 기본값 `http://localhost:11434/api/generate`
-- `OLLAMA_MODEL`: 로컬에 설치된 생성 모델 이름
+- `OPENROUTER_API_KEY`: OpenRouter API 키
+- `OPENROUTER_MODEL`: 기본값 `google/gemini-2.5-flash`
+- `OPENROUTER_TIMEOUT_MS`: 기본값 `20000`
 
-로컬 Ollama를 사용할 수 없어도 동일한 숫자 계약을 사용하는 deterministic fallback
-리포트가 생성되어야 한다.
+OpenRouter API 키가 없거나 호출·응답 검증에 실패해도 동일한 숫자 계약을 사용하는
+deterministic fallback 리포트가 생성되어야 한다.

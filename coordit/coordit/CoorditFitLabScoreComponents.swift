@@ -80,6 +80,11 @@ struct CoorditFitLabResultMeasurement: Identifiable {
         return value.formatted(.number.precision(.fractionLength(0...2)))
     }
 
+    static func score(_ value: Double) -> String {
+        guard value.isFinite else { return "-" }
+        return value.formatted(.number.precision(.fractionLength(1)))
+    }
+
     static func signed(_ value: Double) -> String {
         guard value.isFinite else { return "-" }
         if abs(value) < 0.001 { return "0" }
@@ -277,7 +282,7 @@ struct CoorditFitLabScoreCard: View {
 
     private var scoreText: String {
         guard let score = selectedSize?.fitScore, score.isFinite else { return "-" }
-        return CoorditFitLabResultMeasurement.number(score)
+        return CoorditFitLabResultMeasurement.score(score)
     }
 }
 
@@ -393,7 +398,7 @@ struct CoorditFitLabSizeScoreChart: View {
                         }
                         .frame(height: metrics.value(11))
 
-                        Text("\(CoorditFitLabResultMeasurement.number(option.fitScore))점")
+                        Text("\(CoorditFitLabResultMeasurement.score(option.fitScore))점")
                             .font(CoorditTypography.gmarketBold(size: metrics.value(11), relativeTo: .caption))
                             .frame(width: metrics.value(42), alignment: .trailing)
 
@@ -410,7 +415,7 @@ struct CoorditFitLabSizeScoreChart: View {
                 .frame(maxWidth: .infinity, minHeight: metrics.value(44))
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(
-                    "\(option.sizeLabel) 사이즈 \(CoorditFitLabResultMeasurement.number(option.fitScore))점\(option.isRecommended ? ", 추천" : "")"
+                    "\(option.sizeLabel) 사이즈 \(CoorditFitLabResultMeasurement.score(option.fitScore))점\(option.isRecommended ? ", 추천" : "")"
                 )
                 .accessibilityValue(isSelected ? "선택됨" : "선택 안 됨")
                 .accessibilityIdentifier("fitlab-size-score-\(option.sizeLabel)")

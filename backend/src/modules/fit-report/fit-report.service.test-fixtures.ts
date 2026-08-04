@@ -215,8 +215,8 @@ export const configureReportTestEnv = (): void => {
   process.env.SUPABASE_URL = "http://localhost:54321";
   process.env.SUPABASE_ANON_KEY = "anon-key";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
-  process.env.OLLAMA_GENERATE_URL = "http://localhost:11434/api/generate";
-  process.env.OLLAMA_MODEL = "llama3.1:8b";
+  process.env.OPENROUTER_API_KEY = "test-openrouter-key";
+  process.env.OPENROUTER_MODEL = "google/gemini-2.5-flash";
 };
 
 export const useLegacyFitResult = (): void => {

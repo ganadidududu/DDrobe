@@ -11,21 +11,26 @@ export class NetworkJsonObserver {
 
   public attach(page: Page): void {
     page.on("response", (response) => {
-      const task = this.inspect(response).finally(() => this.pending.delete(task));
+      const task = this.inspect(response)
+        .catch((error: unknown) => {
+          if (isExpectedBrowserTeardown(error)) return;
+          console.warn("Unable to inspect product import network response", error);
+        })
+        .finally(() => this.pending.delete(task));
       this.pending.add(task);
     });
   }
 
   private async inspect(response: Response): Promise<void> {
     if (!CANDIDATE_URL.test(response.url())) return;
-    const headers = await response.allHeaders();
-    if (!headers["content-type"]?.toLowerCase().includes("json")) return;
-    const declaredLength = Number(headers["content-length"] ?? "0");
-    if (declaredLength > env.maxJsonResponseBytes) {
-      this.tooLarge = true;
-      return;
-    }
     try {
+      const headers = await response.allHeaders();
+      if (!headers["content-type"]?.toLowerCase().includes("json")) return;
+      const declaredLength = Number(headers["content-length"] ?? "0");
+      if (declaredLength > env.maxJsonResponseBytes) {
+        this.tooLarge = true;
+        return;
+      }
       const body = await response.body();
       if (body.byteLength > env.maxJsonResponseBytes) {
         this.tooLarge = true;
@@ -34,7 +39,7 @@ export class NetworkJsonObserver {
       const parsed: unknown = JSON.parse(body.toString("utf8"));
       if (this.candidates.length < 20) this.candidates.push(parsed);
     } catch (error) {
-      if (error instanceof SyntaxError || (error instanceof Error && /closed|failed|body/i.test(error.message))) return;
+      if (error instanceof SyntaxError || isExpectedBrowserTeardown(error)) return;
       throw error;
     }
   }
@@ -51,3 +56,6 @@ export class NetworkJsonObserver {
     return this.tooLarge;
   }
 }
+
+const isExpectedBrowserTeardown = (error: unknown): boolean =>
+  error instanceof Error && /closed|failed|body/i.test(error.message);

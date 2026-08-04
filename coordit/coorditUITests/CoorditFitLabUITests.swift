@@ -538,7 +538,7 @@ final class CoorditFitLabUITests: XCTestCase {
     func testUpperAndLowerResultsUseAuthoritativeValues() throws {
         let upper = launchFitLab(route: "fitlab-result-top", fixture: "upper-result")
         XCTAssertEqual(element("fitlab-recommended-size", in: upper).label, "M")
-        XCTAssertEqual(element("fitlab-total-score", in: upper).label, "92")
+        XCTAssertEqual(element("fitlab-total-score", in: upper).label, "92.0")
         XCTAssertTrue(element("fitlab-mannequin-upper", in: upper).exists)
         XCTAssertFalse(element("fitlab-mannequin-lower", in: upper).exists)
         XCTAssertTrue(element("fitlab-overlay-shoulder_width", in: upper).label.contains("여유"))
@@ -546,7 +546,7 @@ final class CoorditFitLabUITests: XCTestCase {
         for _ in 0..<3 { upper.swipeDown() }
         settleRendering()
         capture("result-upper-overview", app: upper)
-        XCTAssertEqual(scrollIntoView("fitlab-size-score-M", in: upper).label, "M 사이즈 92점, 추천")
+        XCTAssertEqual(scrollIntoView("fitlab-size-score-M", in: upper).label, "M 사이즈 92.0점, 추천")
         XCTAssertEqual(element("fitlab-size-score-M", in: upper).value as? String, "선택됨")
         _ = scrollIntoView("fitlab-difference-chart", in: upper)
         XCTAssertEqual(
@@ -613,7 +613,7 @@ final class CoorditFitLabUITests: XCTestCase {
 
         let lower = launchFitLab(route: "fitlab-result-bottom", fixture: "lower-result")
         XCTAssertEqual(element("fitlab-recommended-size", in: lower).label, "L")
-        XCTAssertEqual(element("fitlab-total-score", in: lower).label, "88")
+        XCTAssertEqual(element("fitlab-total-score", in: lower).label, "88.0")
         XCTAssertTrue(element("fitlab-mannequin-lower", in: lower).exists)
         XCTAssertFalse(element("fitlab-mannequin-upper", in: lower).exists)
         XCTAssertTrue(element("fitlab-overlay-waist_width", in: lower).label.contains("여유"))
@@ -626,7 +626,7 @@ final class CoorditFitLabUITests: XCTestCase {
         for _ in 0..<3 { lower.swipeDown() }
         settleRendering()
         capture("result-lower-overview", app: lower)
-        XCTAssertEqual(scrollIntoView("fitlab-size-score-L", in: lower).label, "L 사이즈 88점, 추천")
+        XCTAssertEqual(scrollIntoView("fitlab-size-score-L", in: lower).label, "L 사이즈 88.0점, 추천")
         lower.swipeUp()
         settleRendering()
         capture("result-lower-comparison", app: lower)
@@ -677,8 +677,8 @@ final class CoorditFitLabUITests: XCTestCase {
         let expectations = [
             ("fitlab-input", "empty-history", "fitlab-fixture-input-ready", "픽스처 후드 · hoodie"),
             ("fitlab-loading", "submitting", "fitlab-fixture-loading-submitting", "사이즈 생성 중"),
-            ("fitlab-result-top", "upper-result", "fitlab-fixture-result-upper", "추천 M · 92점"),
-            ("fitlab-result-bottom", "lower-result", "fitlab-fixture-result-lower", "추천 L · 88점"),
+            ("fitlab-result-top", "upper-result", "fitlab-fixture-result-upper", "추천 M · 92.0점"),
+            ("fitlab-result-bottom", "lower-result", "fitlab-fixture-result-lower", "추천 L · 88.0점"),
         ]
 
         for (route, fixture, identifier, expectedValue) in expectations {
@@ -745,7 +745,7 @@ final class CoorditFitLabUITests: XCTestCase {
 
         let result = element("fitlab-fixture-result-upper", in: app)
         XCTAssertTrue(result.waitForExistence(timeout: 8))
-        XCTAssertEqual(result.label, "추천 M · 92점")
+        XCTAssertEqual(result.label, "추천 M · 92.0점")
         XCTAssertEqual(
             element("fitlab-submission-ledger", in: app).label,
             "references=1|product=1|M-attempts=1|M-success=1|L-attempts=1|L-success=1|recommend=1|report=1"

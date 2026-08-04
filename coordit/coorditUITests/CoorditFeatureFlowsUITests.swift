@@ -366,7 +366,7 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         let status = element("closet-reassessment-status", in: app)
         XCTAssertTrue(status.waitForExistence(timeout: 5))
         XCTAssertEqual(status.label, "선택한 의류의 핏 스코어를 다시 계산했어요.")
-        XCTAssertTrue(app.buttons["총점 | 92"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["총점 | 92.0"].waitForExistence(timeout: 5))
         XCTAssertTrue(element("Wide Denim", in: app).exists)
         let reassessmentCapture = XCTAttachment(screenshot: app.screenshot())
         reassessmentCapture.name = "closet-reassessment-complete"
@@ -376,8 +376,8 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
 
     func testClosetDetailAutomaticallyLoadsEngineScoreForUpperAndLower() throws {
         for (route, expectedScore, tightOverlay, otherOverlay, otherDirection) in [
-            ("closet-detail-top", "총점 | 89", "closet-overlay-chest_width", "closet-overlay-shoulder_width", "여유"),
-            ("closet-detail-bottom", "총점 | 92", "closet-overlay-hip_width", "closet-overlay-waist_width", "비슷"),
+            ("closet-detail-top", "총점 | 89.0", "closet-overlay-chest_width", "closet-overlay-shoulder_width", "여유"),
+            ("closet-detail-bottom", "총점 | 92.0", "closet-overlay-hip_width", "closet-overlay-waist_width", "비슷"),
         ] {
             let app = launchApp(at: route)
             assertScreen(route, in: app)

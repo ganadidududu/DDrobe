@@ -1,4 +1,4 @@
-import { supabase } from "../../config/supabase";
+import { supabase, supabaseAdmin } from "../../config/supabase";
 import type { UserRow } from "../../shared/types/database";
 import { createHttpError } from "../../shared/utils/http-error";
 import type { UpdateUserDto } from "./users.types";
@@ -52,4 +52,9 @@ export const updateUserProfile = async (
 
   if (error || !data) throw createHttpError(500, "Failed to update user profile");
   return data;
+};
+
+export const deleteUserAccount = async (userId: string): Promise<void> => {
+  const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+  if (error) throw createHttpError(500, "Failed to delete user account");
 };

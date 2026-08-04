@@ -30,7 +30,8 @@ import type {
 
 const round = (value: number, digits = 2): number => Number(value.toFixed(digits));
 
-const PROFILE_SCORE_PENALTY_PER_TOLERANCE = 30;
+const MINIMUM_FIT_SCORE = 0.1;
+const FIT_SCORE_DECAY_DISTANCE = 8;
 const HUBER_OUTLIER_THRESHOLD = 1.5;
 
 const PROFILE_MAX_TOLERANCES: Record<MeasurementKey, number> = {
@@ -386,8 +387,11 @@ export const calculateWeightedFitDistance = (
 };
 
 export const convertDistanceToScore = (distance: number): number => {
-  const score = 100 - distance * 10;
-  return round(Math.max(0, Math.min(100, score)));
+  const nonNegativeDistance = Math.max(0, distance);
+  const score =
+    MINIMUM_FIT_SCORE +
+    (100 - MINIMUM_FIT_SCORE) * Math.exp(-nonNegativeDistance / FIT_SCORE_DECAY_DISTANCE);
+  return round(clamp(score, MINIMUM_FIT_SCORE, 100));
 };
 
 export const applyFitTypePenalty = (
@@ -412,7 +416,7 @@ export const applyFitTypePenalty = (
   }
 
   return {
-    finalScore: round(Math.max(0, score - penalty)),
+    finalScore: round(clamp(score - penalty, MINIMUM_FIT_SCORE, 100)),
     penalty
   };
 };
@@ -570,7 +574,7 @@ export const calculateFitScoreForReferenceProfile = (
   if (usedWeight === 0) throw new Error("No comparable measurements were provided");
 
   const normalizedFitDistance = round(weightedDistance / usedWeight, 3);
-  const baseScore = round(clamp(100 - normalizedFitDistance * PROFILE_SCORE_PENALTY_PER_TOLERANCE, 0, 100));
+  const baseScore = convertDistanceToScore(normalizedFitDistance);
   const { finalScore, penalty } = applyFitTypePenalty(
     baseScore,
     externalProductSize.fitType ?? "regular",

@@ -202,7 +202,7 @@ final class CoorditMyPageNestedNavigationUITests: XCTestCase {
         XCTAssertTrue(app.wait(for: .notRunning, timeout: 5))
     }
 
-    func testThreadChargeControlsAreTappable() throws {
+    func testThreadChargeControlsAreDisabledUntilSettlementIsConfigured() throws {
         let app = XCUIApplication()
         app.launchArguments = [
             "--coordit-ui-testing",
@@ -244,12 +244,7 @@ final class CoorditMyPageNestedNavigationUITests: XCTestCase {
         for identifier in controls {
             let control = element(identifier, in: app)
             XCTAssertTrue(control.waitForExistence(timeout: 5), "Missing charge control: \(identifier)")
-            tap(control, in: app)
-            assertScreen("mypage-thread-charge", in: app)
-            XCTAssertTrue(
-                app.staticTexts["36 실타래"].waitForExistence(timeout: 5),
-                "Yarn balance changed after tapping \(identifier)"
-            )
+            XCTAssertFalse(control.isEnabled, "Charge control must stay disabled without settlement")
         }
 
         app.terminate()
