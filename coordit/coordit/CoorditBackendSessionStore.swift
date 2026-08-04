@@ -125,6 +125,16 @@ final class CoorditBackendSessionStore: ObservableObject {
         }
     }
 
+    func loginWithApple() async {
+        await authenticate {
+            let credential = try await CoorditAppleSignIn.signInCredential()
+            return try await client.loginWithApple(
+                idToken: credential.idToken,
+                nonce: credential.nonce
+            )
+        }
+    }
+
     func logout() {
         tokenStore.delete()
         session = nil

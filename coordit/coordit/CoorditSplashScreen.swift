@@ -2,14 +2,22 @@ import SwiftUI
 
 #if os(iOS)
 struct CoorditSplashScreen: View {
+    let presentation: CoorditSplashPresentation
     let onRouteChange: (CoorditFrameRoute) -> Void
+    let onAuthenticationRequested: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var taglineVisible = false
     @State private var dividerProgress: CGFloat = 0
     @State private var logoVisible = false
 
-    init(onRouteChange: @escaping (CoorditFrameRoute) -> Void = { _ in }) {
+    init(
+        presentation: CoorditSplashPresentation = .returningUser,
+        onRouteChange: @escaping (CoorditFrameRoute) -> Void = { _ in },
+        onAuthenticationRequested: @escaping () -> Void = {}
+    ) {
+        self.presentation = presentation
         self.onRouteChange = onRouteChange
+        self.onAuthenticationRequested = onAuthenticationRequested
     }
 
     var body: some View {
@@ -49,23 +57,54 @@ struct CoorditSplashScreen: View {
                 .frame(width: geometry.size.width, height: geometry.size.height)
                 .contentShape(Rectangle())
                 .onTapGesture {
+                    guard presentation.allowsTapToEnter else { return }
                     onRouteChange(.main04)
                 }
                 .accessibilityAction {
+                    guard presentation.allowsTapToEnter else { return }
                     onRouteChange(.main04)
                 }
                 .accessibilityIdentifier("coordit-screen-splash")
 
-                Text("화면을 클릭해주세요")
-                    .font(CoorditTypography.gmarketMedium(size: metrics.value(14), relativeTo: .caption))
-                    .foregroundStyle(Main01DesignTokens.Colors.chrome.opacity(0.62))
-                    .shadow(color: .white.opacity(0.22), radius: metrics.value(3), x: 0, y: metrics.value(1))
+                if presentation.allowsTapToEnter {
+                    Text("화면을 클릭해주세요")
+                        .font(CoorditTypography.gmarketMedium(size: metrics.value(14), relativeTo: .caption))
+                        .foregroundStyle(Main01DesignTokens.Colors.chrome.opacity(0.62))
+                        .shadow(color: .white.opacity(0.22), radius: metrics.value(3), x: 0, y: metrics.value(1))
+                        .opacity(logoVisible ? 1 : 0)
+                        .offset(y: logoVisible ? 0 : metrics.value(8))
+                        .position(x: geometry.size.width / 2, y: geometry.size.height * 0.82)
+                        .allowsHitTesting(false)
+                        .accessibilityLabel("화면을 클릭해주세요")
+                        .accessibilityIdentifier("coordit-splash-tap-hint")
+                } else {
+                    Button(action: onAuthenticationRequested) {
+                        Text("로그인/회원가입")
+                            .font(CoorditTypography.gmarketMedium(size: metrics.value(CoorditSplashWelcomeEntryDesign.titleSize), relativeTo: .headline))
+                            .foregroundStyle(Main01DesignTokens.Colors.chrome)
+                            .frame(
+                                width: metrics.value(CoorditSplashWelcomeEntryDesign.width),
+                                height: metrics.value(CoorditSplashWelcomeEntryDesign.height)
+                            )
+                            .background(
+                                .white,
+                                in: RoundedRectangle(
+                                    cornerRadius: metrics.value(CoorditSplashWelcomeEntryDesign.cornerRadius),
+                                    style: .continuous
+                                )
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .shadow(
+                        color: Main01DesignTokens.Colors.chrome.opacity(CoorditSplashWelcomeEntryDesign.shadowOpacity),
+                        radius: metrics.value(CoorditSplashWelcomeEntryDesign.shadowRadius),
+                        y: metrics.value(CoorditSplashWelcomeEntryDesign.shadowYOffset)
+                    )
                     .opacity(logoVisible ? 1 : 0)
-                    .offset(y: logoVisible ? 0 : metrics.value(8))
-                    .position(x: geometry.size.width / 2, y: geometry.size.height * 0.82)
-                    .allowsHitTesting(false)
-                    .accessibilityLabel("화면을 클릭해주세요")
-                    .accessibilityIdentifier("coordit-splash-tap-hint")
+                    .offset(y: logoVisible ? 0 : metrics.value(CoorditSplashWelcomeEntryDesign.entranceYOffset))
+                    .position(x: geometry.size.width / 2, y: geometry.size.height * CoorditSplashWelcomeEntryDesign.verticalPosition)
+                    .accessibilityIdentifier("splash-signup-entry")
+                }
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
             .ignoresSafeArea()
@@ -103,6 +142,18 @@ struct CoorditSplashScreen: View {
             }
         }
     }
+}
+
+private enum CoorditSplashWelcomeEntryDesign {
+    static let titleSize: CGFloat = 17.5
+    static let width: CGFloat = 210
+    static let height: CGFloat = 52
+    static let cornerRadius: CGFloat = 15
+    static let verticalPosition: CGFloat = 0.935
+    static let entranceYOffset: CGFloat = 8
+    static let shadowOpacity: CGFloat = 0.12
+    static let shadowRadius: CGFloat = 16
+    static let shadowYOffset: CGFloat = 8
 }
 
 private struct CoorditSplashBackground: View {

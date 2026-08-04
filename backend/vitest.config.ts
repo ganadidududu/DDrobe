@@ -11,6 +11,7 @@ export default defineConfig({
       "src/modules/product-import/tests/**/*.test.ts",
       "src/modules/clothing-items/clothing-items.service.test.ts",
       "src/modules/fit/fit.controller.test.ts",
+      "src/modules/auth/auth-apple.http.test.ts",
       "src/middleware/**/*.test.ts"
     ]
   }

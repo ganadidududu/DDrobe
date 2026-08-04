@@ -55,3 +55,16 @@ export const loginWithGoogleIdToken = async (idToken: string): Promise<AuthRespo
   if (error || !data.user) throw createHttpError(401, error?.message ?? "Google login failed");
   return toAuthResponse(data.user, data.session);
 };
+
+export const loginWithAppleIdToken = async (
+  idToken: string,
+  nonce: string
+): Promise<AuthResponse> => {
+  const { data, error } = await supabaseAuth.auth.signInWithIdToken({
+    provider: "apple",
+    token: idToken,
+    nonce
+  });
+  if (error || !data.user) throw createHttpError(401, error?.message ?? "Apple login failed");
+  return toAuthResponse(data.user, data.session);
+};
