@@ -113,7 +113,7 @@ Text scales through SwiftUI relative text styles. Feature titles use `.headline`
 
 - **Structure**: recommendation hero, full-width annotated mannequin, all-size score comparison, centered-zero measurement difference chart, overall verdict, recommendation rationale, part-by-part analysis cards, and purchase checks.
 - **Size score comparison**: every available size uses a shared 0–100 horizontal scale. The recommended size uses solid `ink`; alternatives use the existing `blue` token at reduced opacity. The chart must never hide lower-scoring candidates.
-- **Difference chart**: the midpoint is always 0 cm. Negative bars always extend left and positive bars always extend right, including within-tolerance values. Tight values use `red`, roomy values use `blue`, and similar values use `green`; an exact zero uses a compact center mark. Each row also states reference, product, and signed difference values.
+- **Difference chart**: the midpoint is always 0 cm. Each row uses a status-colored yarn ball that rolls from that midpoint to the signed endpoint, leaving an uneven, unwound thread behind it; negative values finish left and positive values finish right, including within-tolerance values. Tight values use `red`, roomy values use `blue`, and similar values use `green`; an exact zero uses a compact centered yarn coil. Each row also states reference, product, and signed difference values.
 - **Mannequin annotations**: pills show the measurement name and signed centimeter difference directly; raw plus/minus glyphs without a measurement label are prohibited.
 - **Narrative hierarchy**: major narrative sections use visible English eyebrow labels plus large Korean headings. Each body-part analysis occupies its own bordered panel with a semantic color rail.
 - **Content**: confidence, feedback reliability, and the number of reference garments are not presented as quality judgments. The report explains every available measured body part and then synthesizes why the recommended size is the most balanced candidate.
@@ -131,6 +131,7 @@ Text scales through SwiftUI relative text styles. Feature titles use `.headline`
 - Navigation is explicit enum state through `CoorditFrameRoute` and `onRouteChange` callbacks.
 - A root feature title bar returns to Home (`.main04`); a nested feature title bar returns to its feature root unless that screen defines a closer parent.
 - Motion must communicate state change and respect Reduce Motion. Do not add decorative animation to title bars.
+- A Fit report yarn ball rolls and unwinds only while a difference chart first appears or its selected size changes; its wraps rotate with travel and it settles after 0.42 seconds. Reduce Motion renders the completed endpoint without motion.
 - The orbit loading motion runs only while an operation is active and never changes layout.
 - Interactive controls retain at least a 44 pt effective touch target.
 - Adjacent content actions use matching heights and alignment; an `HStack` gives each sibling the same flexible width.
