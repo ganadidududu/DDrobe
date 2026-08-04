@@ -8,6 +8,13 @@ const lengthMeasurementKeys: readonly MeasurementKey[] = [
   "outseam"
 ] as const;
 
+const lowerBodyCategories = new Set<FitReportInput["targetProduct"]["category"]>([
+  "pants",
+  "jeans",
+  "shorts",
+  "skirt"
+]);
+
 const statusPriority: Readonly<Record<string, number>> = {
   too_tight: 4,
   too_loose: 4,
@@ -18,8 +25,18 @@ const statusPriority: Readonly<Record<string, number>> = {
 
 const formatNumber = (value: number): string => `${value}`;
 
+const topicParticle = (label: string): string => {
+  const lastCharacter = label.at(-1);
+  if (!lastCharacter) return "은";
+  const hangulOffset = lastCharacter.charCodeAt(0) - 0xac00;
+  return hangulOffset >= 0 && hangulOffset <= 11171 && hangulOffset % 28 !== 0 ? "은" : "는";
+};
+
 const isLengthMeasurement = (key: MeasurementKey): boolean =>
   lengthMeasurementKeys.includes(key);
+
+const isLowerBodyCategory = (category: FitReportInput["targetProduct"]["category"]): boolean =>
+  lowerBodyCategories.has(category);
 
 const isBalanced = (measurements: readonly MeasurementReportRow[]): boolean =>
   measurements.length > 0 && measurements.every((measurement) => measurement.status === "good");
@@ -93,7 +110,7 @@ const summaryUsageDescription = (measurement: MeasurementReportRow): string => {
       : "편안한 착용감과 여유 있는 하체 실루엣을 원할 때 자연스러워요.";
   }
   return measurement.diff < 0
-    ? "얇은 이너에는 괜찮지만, 레이어드를 자주 한다면 답답할 수 있어요."
+    ? "단독 착용에는 괜찮지만, 레이어드를 자주 한다면 답답할 수 있어요."
     : "편안한 착용감이나 여유 있는 실루엣을 원한다면 자연스러워요.";
 };
 
@@ -164,9 +181,18 @@ const recommendationChoice = (
   return `평소처럼 입고 싶다면 ${reportInput.recommendation.recommendedSize}를 선택하고, 다른 사이즈는 원하는 여유에 따라 비교해 보세요.`;
 };
 
-export const buildFallbackMeasurementAnalysisText = (measurement: MeasurementReportRow): string =>
-  `${measurement.label}은 상품 ${formatNumber(measurement.product)}cm로, ${differenceDescription(measurement)}. ` +
-  wearingDescription(measurement);
+export const buildFallbackMeasurementAnalysisText = (
+  measurement: MeasurementReportRow,
+  targetProduct?: FitReportInput["targetProduct"]
+): string => {
+  const garmentPrefix = targetProduct && isLowerBodyCategory(targetProduct.category)
+    ? "하의에서는"
+    : "상의에서는";
+  return (
+  `${measurement.label}${topicParticle(measurement.label)} 상품 ${formatNumber(measurement.product)}cm로, ${differenceDescription(measurement)}. ` +
+  `${garmentPrefix} ${wearingDescription(measurement)}`
+  );
+};
 
 export const buildFallbackFitReport = (reportInput: FitReportInput): FitReportJson => {
   const primaryMeasurement = mostNoticeableMeasurement(reportInput.measurements);
@@ -200,7 +226,7 @@ export const buildFallbackFitReport = (reportInput: FitReportInput): FitReportJs
         recommendationChoice(reportInput, primaryMeasurement),
     measurementAnalysis: reportInput.measurements.map((measurement) => ({
       measurement: measurement.label,
-      text: buildFallbackMeasurementAnalysisText(measurement)
+      text: buildFallbackMeasurementAnalysisText(measurement, reportInput.targetProduct)
     })),
     cautions: ["소재의 신축성과 두께에 따라 같은 실측 차이도 다르게 느껴질 수 있어요."],
     nextActions: [

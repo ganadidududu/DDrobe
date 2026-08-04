@@ -1,5 +1,5 @@
 import type { FitReportInput, FitReportJson } from "./fit-report.types";
-import { buildMeasurementWearerImpact } from "./fit-report.garment-context";
+import { buildFallbackMeasurementAnalysisText } from "./fit-report.fallback";
 
 const forbiddenNarrativePatterns = [
   /저신뢰도|신뢰도|confidence|피드백/i,
@@ -204,10 +204,7 @@ export const formatSigned = (value: number): string => `${value > 0 ? "+" : ""}$
 export const buildMeasurementAnalysisText = (
   row: FitReportInput["measurements"][number],
   targetProduct: FitReportInput["targetProduct"]
-): string =>
-  `${row.label}${topicParticle(row.label)} 기준 ${row.ideal}cm와 상품 ${row.product}cm를 비교하면 ${formatSigned(row.diff)}cm 차이입니다. ` +
-  `${measurementFitSentence(row)} ` +
-  `${buildMeasurementWearerImpact(row, targetProduct)}`;
+): string => buildFallbackMeasurementAnalysisText(row, targetProduct);
 
 const hasExpectedDifferenceDirection = (
   text: string,
