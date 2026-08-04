@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { reassessClothingItemFit } from "./modules/clothing-items/fit-reassessment.controller";
-import { signup, login, loginWithGoogle } from "./modules/auth/auth.controller";
+import { signup, login, loginWithApple, loginWithGoogle } from "./modules/auth/auth.controller";
 import { completeOnboardingController } from "./modules/auth/auth-onboarding.controller";
 import { createBodyMeasurement, listBodyMeasurements } from "./modules/body-measurements/body-measurements.controller";
 import {
@@ -67,6 +67,7 @@ export const routes = Router();
 routes.post("/auth/signup", signup);
 routes.post("/auth/login", login);
 routes.post("/auth/google", loginWithGoogle);
+routes.post("/auth/apple", loginWithApple);
 
 routes.use(authMiddleware);
 

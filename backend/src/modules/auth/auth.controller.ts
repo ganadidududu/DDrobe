@@ -1,9 +1,19 @@
 import type { NextFunction, Request, Response } from "express";
 import { asRequiredString } from "../../shared/utils/request";
-import { loginWithEmail, loginWithGoogleIdToken, signupWithEmail, type AuthResponse } from "./auth.service";
+import {
+  loginWithAppleIdToken,
+  loginWithEmail,
+  loginWithGoogleIdToken,
+  signupWithEmail,
+  type AuthResponse
+} from "./auth.service";
 
 type GoogleLoginControllerDependencies = {
   readonly loginWithGoogleIdToken: (idToken: string) => Promise<AuthResponse>;
+};
+
+type AppleLoginControllerDependencies = {
+  readonly loginWithAppleIdToken: (idToken: string, nonce: string) => Promise<AuthResponse>;
 };
 
 export const signup = async (req: Request, res: Response, next: NextFunction) => {
@@ -38,3 +48,17 @@ export const createGoogleLoginController = (
 };
 
 export const loginWithGoogle = createGoogleLoginController({ loginWithGoogleIdToken });
+
+export const createAppleLoginController = (
+  dependencies: AppleLoginControllerDependencies
+) => async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const idToken = asRequiredString(req.body.idToken, "idToken");
+    const nonce = asRequiredString(req.body.nonce, "nonce");
+    res.json(await dependencies.loginWithAppleIdToken(idToken, nonce));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const loginWithApple = createAppleLoginController({ loginWithAppleIdToken });

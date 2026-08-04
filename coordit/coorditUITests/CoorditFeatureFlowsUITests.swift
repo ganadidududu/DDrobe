@@ -6,33 +6,44 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    func testSplashSignupEntryOpensAccountLogin() throws {
-        let app = launchApp(at: "splash")
+    func testFreshInstallSplashPresentsSocialAuthenticationSheet() throws {
+        let app = launchApp(
+            at: "splash",
+            extraArguments: ["--coordit-welcome-state", "fresh"]
+        )
         assertScreen("splash", in: app)
 
         let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "splash-signup-entry"
+        screenshot.name = "fresh-install-welcome"
         screenshot.lifetime = .keepAlways
         add(screenshot)
 
         let signupEntry = app.buttons["splash-signup-entry"]
         XCTAssertTrue(signupEntry.waitForExistence(timeout: 5), "Missing splash signup entry")
         XCTAssertEqual(signupEntry.label, "로그인/회원가입")
+        XCTAssertFalse(element("coordit-splash-tap-hint", in: app).exists)
         signupEntry.tap()
 
-        assertScreen("mypage-account", in: app)
-        XCTAssertTrue(element("mypage-backend-email", in: app).waitForExistence(timeout: 5))
-        XCTAssertTrue(element("mypage-backend-password", in: app).waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["mypage-backend-login"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["mypage-backend-signup"].waitForExistence(timeout: 5))
+        XCTAssertTrue(element("coordit-splash-auth-sheet", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["splash-auth-google"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["splash-auth-apple"].waitForExistence(timeout: 3))
+        XCTAssertFalse(element("coordit-screen-mypage-account", in: app).exists)
     }
 
-    func testDefaultLaunchShowsSplashSignupEntry() throws {
-        let app = XCUIApplication()
-        app.launch()
+    func testReturningAuthenticatedSplashRestoresTapHint() throws {
+        let app = launchApp(
+            at: "splash",
+            extraArguments: [
+                "--coordit-welcome-state", "returning",
+                "--coordit-ui-testing-authenticated",
+            ]
+        )
 
         assertScreen("splash", in: app)
-        XCTAssertTrue(app.buttons["splash-signup-entry"].waitForExistence(timeout: 5))
+        XCTAssertTrue(element("coordit-splash-tap-hint", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["splash-signup-entry"].exists)
+        element("coordit-screen-splash", in: app).tap()
+        assertScreen("main04", in: app)
     }
 
     func testSplashLogoIsHorizontallyCentered() throws {

@@ -95,6 +95,15 @@ struct CoorditBackendClient {
         try await send(path: "/auth/google", method: "POST", token: nil, body: GoogleAuthRequest(idToken: idToken))
     }
 
+    func loginWithApple(idToken: String, nonce: String) async throws -> CoorditAuthSession {
+        try await send(
+            path: "/auth/apple",
+            method: "POST",
+            token: nil,
+            body: AppleAuthRequest(idToken: idToken, nonce: nonce)
+        )
+    }
+
     func me(token: String) async throws -> CoorditUserProfile {
         try await send(path: "/users/me", method: "GET", token: token, body: Optional<String>.none)
     }
@@ -284,6 +293,11 @@ private struct AuthRequest: Encodable {
 
 private struct GoogleAuthRequest: Encodable {
     let idToken: String
+}
+
+private struct AppleAuthRequest: Encodable {
+    let idToken: String
+    let nonce: String
 }
 
 private struct UpdateProfileRequest: Encodable {

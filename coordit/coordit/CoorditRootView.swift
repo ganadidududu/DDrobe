@@ -10,6 +10,7 @@ struct CoorditRootView: View {
     @State private var closetAddSaveState = CoorditClosetAddSaveState()
     @State private var selectedReferenceIDs: Set<String> = []
     @State private var showsFitLabReferenceSelection = false
+    @State private var showsSplashAuthentication = false
     @State private var threadBalance: Int
     @State private var showsThreadRechargePrompt = false
     @State private var sharedFitLabImportURL: URL?
@@ -48,7 +49,11 @@ struct CoorditRootView: View {
                 navigate(to: CoorditFrameRoute.route(for: selectedTab, from: route))
             }
         case .splash:
-            CoorditSplashScreen { navigate(to: $0) }
+            CoorditSplashScreen(
+                presentation: splashPresentation,
+                onRouteChange: { navigate(to: $0) },
+                onAuthenticationRequested: { showsSplashAuthentication = true }
+            )
         case .main04:
             CoorditMain04Screen(
                 closetItems: $closetItems,
@@ -196,6 +201,12 @@ struct CoorditRootView: View {
                 onAddGarment: { navigate(to: .closetAddMethod) }
             )
         }
+        .sheet(isPresented: $showsSplashAuthentication) {
+            CoorditSplashAuthenticationSheet {
+                CoorditWelcomeLaunchState.markWelcomeCompleted()
+                showsSplashAuthentication = false
+            }
+        }
     }
 
     private var routeTransition: AnyTransition {
@@ -290,6 +301,10 @@ struct CoorditRootView: View {
 
     private var showsScreenChrome: Bool {
         route != .splash && route != .main01
+    }
+
+    private var splashPresentation: CoorditSplashPresentation {
+        CoorditWelcomeLaunchState.splashPresentation(isAuthenticated: backendSession.isAuthenticated)
     }
 
     private var showsSharedAppBackground: Bool {
