@@ -93,6 +93,8 @@ struct CoorditSettingsStatusBanner: View {
         .frame(maxWidth: .infinity, minHeight: metrics.value(42))
         .background(isWarning ? CoorditSettingsStyle.danger.opacity(0.09) : CoorditDesignTokens.ColorToken.green.opacity(0.10))
         .clipShape(RoundedRectangle(cornerRadius: metrics.value(7), style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(text)
         .accessibilityIdentifier(identifier)
     }
 }

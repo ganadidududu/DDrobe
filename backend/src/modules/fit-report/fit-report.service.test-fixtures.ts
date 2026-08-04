@@ -84,22 +84,40 @@ const externalProduct: ExternalProductRow = {
   updated_at: now
 };
 
-const externalSizes: readonly ExternalProductSizeRow[] = [{
-  id: "size-s",
-  user_id: userId,
-  external_product_id: externalProductId,
-  size_label: "S",
-  shoulder_width: 46.4,
-  chest_width: 50.8,
-  total_length: 68.5,
-  raw_size_data: { privateRaw: "SECRET_RAW_PAYLOAD" },
-  parsing_status: null,
-  measurement_source: null,
-  extracted_text: "SECRET_OCR_TEXT",
-  extraction_confidence: null,
-  created_at: now,
-  updated_at: now
-}];
+const externalSizes: readonly ExternalProductSizeRow[] = [
+  {
+    id: "size-s",
+    user_id: userId,
+    external_product_id: externalProductId,
+    size_label: "S",
+    shoulder_width: 46.4,
+    chest_width: 50.8,
+    total_length: 68.5,
+    raw_size_data: { privateRaw: "SECRET_RAW_PAYLOAD" },
+    parsing_status: null,
+    measurement_source: null,
+    extracted_text: "SECRET_OCR_TEXT",
+    extraction_confidence: null,
+    created_at: now,
+    updated_at: now
+  },
+  {
+    id: "size-m",
+    user_id: userId,
+    external_product_id: externalProductId,
+    size_label: "M",
+    shoulder_width: 48,
+    chest_width: 55.8,
+    total_length: 72,
+    raw_size_data: { privateRaw: "SECRET_RAW_PAYLOAD" },
+    parsing_status: null,
+    measurement_source: null,
+    extracted_text: "SECRET_OCR_TEXT",
+    extraction_confidence: null,
+    created_at: now,
+    updated_at: now
+  }
+];
 
 const referenceClothing: ReferenceClothingRow = {
   id: referenceId,

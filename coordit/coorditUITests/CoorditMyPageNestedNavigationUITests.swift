@@ -1,4 +1,5 @@
 #if canImport(XCTest)
+import Foundation
 import XCTest
 
 final class CoorditMyPageNestedNavigationUITests: XCTestCase {
@@ -22,6 +23,18 @@ final class CoorditMyPageNestedNavigationUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
+    }
+
+    func testDeviceCanReachLiveBackendHealth() async throws {
+        let baseURL = try requireLiveBackendBaseURL()
+        let url = try XCTUnwrap(URL(string: baseURL).map { $0.appending(path: "health") })
+        let (data, response) = try await URLSession.shared.data(from: url)
+        let httpResponse = try XCTUnwrap(response as? HTTPURLResponse)
+        XCTAssertEqual(httpResponse.statusCode, 200, "Unexpected health status from \(url.absoluteString)")
+        XCTAssertTrue(
+            String(data: data, encoding: .utf8)?.contains("coordit-backend") == true,
+            "Unexpected health response from \(url.absoluteString): \(String(data: data, encoding: .utf8) ?? "<non-utf8>")"
+        )
     }
 
     func testEveryChevronRowOpensItsDestination() throws {
@@ -52,6 +65,110 @@ final class CoorditMyPageNestedNavigationUITests: XCTestCase {
         XCTAssertTrue(element("mypage-backend-password", in: app).waitForExistence(timeout: 5))
         app.terminate()
         XCTAssertTrue(app.wait(for: .notRunning, timeout: 5))
+    }
+
+    func testDeviceSignupThroughLiveBackend() throws {
+        let baseURL = try requireLiveBackendBaseURL()
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--coordit-ui-testing",
+            "--coordit-start-route",
+            "mypage-account",
+            "--coordit-api-base-url",
+            baseURL,
+        ]
+        app.launch()
+        assertScreen("mypage-account", in: app)
+
+        let email = "iphone-ui-\(Int(Date().timeIntervalSince1970))@coordit.local"
+        typeText(email, into: "mypage-backend-email", in: app)
+        typeText("password1234", into: "mypage-backend-password", in: app)
+
+        let signup = app.buttons["mypage-backend-signup"]
+        XCTAssertTrue(signup.waitForExistence(timeout: 5), "Missing signup button")
+        XCTAssertTrue(signup.isEnabled, "Signup button should be enabled after valid credentials")
+        tap(signup, in: app)
+
+        let status = element("mypage-backend-status", in: app)
+        XCTAssertTrue(status.waitForExistence(timeout: 5), "Missing backend status banner")
+        let predicate = NSPredicate(format: "label CONTAINS %@", "백엔드 로그인 완료")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: status)
+        let result = XCTWaiter.wait(for: [expectation], timeout: 20)
+        XCTAssertEqual(result, .completed, "Signup failed with status: \(status.label)")
+    }
+
+    func testSharedFitLabLaunchURLRoutesToURLInput() throws {
+        let sharedURL = "https://www.musinsa.com/products/6252903"
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--coordit-ui-testing",
+            "--coordit-ui-testing-authenticated",
+            "--coordit-shared-fitlab-url",
+            sharedURL,
+        ]
+        app.launch()
+
+        assertScreen("fitlab-input", in: app)
+        XCTAssertTrue(element("fitlab-url-flow", in: app).waitForExistence(timeout: 5))
+        let field = element("fitlab-url-field", in: app)
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "Missing shared URL field")
+        XCTAssertEqual(field.value as? String, sharedURL)
+    }
+
+    func testPendingSharedFitLabURLRoutesToURLInput() throws {
+        let sharedURL = "https://www.musinsa.com/products/6252903"
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--coordit-ui-testing",
+            "--coordit-ui-testing-authenticated",
+            "--coordit-pending-fitlab-url",
+            sharedURL,
+        ]
+        app.launch()
+
+        assertScreen("fitlab-input", in: app)
+        XCTAssertTrue(element("fitlab-url-flow", in: app).waitForExistence(timeout: 5))
+        let field = element("fitlab-url-field", in: app)
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "Missing pending URL field")
+        XCTAssertEqual(field.value as? String, sharedURL)
+    }
+
+    func testMusinsaShareSheetCanSendProductToCoordit() throws {
+        let musinsa = XCUIApplication(bundleIdentifier: "com.grab.musinsa")
+        musinsa.terminate()
+        musinsa.launch()
+
+        sleep(2)
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        if springboard.buttons["취소"].exists {
+            springboard.buttons["취소"].tap()
+        }
+
+        musinsa.swipeUp()
+        sleep(1)
+        musinsa.coordinate(withNormalizedOffset: CGVector(dx: 0.18, dy: 0.29)).tap()
+
+        sleep(3)
+
+        if musinsa.buttons["공유"].waitForExistence(timeout: 1) {
+            musinsa.buttons["공유"].tap()
+        } else {
+            musinsa.coordinate(withNormalizedOffset: CGVector(dx: 0.10, dy: 0.86)).tap()
+        }
+
+        sleep(2)
+
+        let coorditShareCell = musinsa.cells.matching(NSPredicate(format: "label ==[c] %@", "coordit")).firstMatch
+        XCTAssertTrue(coorditShareCell.waitForExistence(timeout: 5), "Coordit is missing from Musinsa share sheet")
+        coorditShareCell.tap()
+
+        let coordit = XCUIApplication(bundleIdentifier: "com.inseong.coordit")
+        XCTAssertTrue(coordit.wait(for: .runningForeground, timeout: 10), "Coordit did not open from Musinsa share")
+        if coordit.buttons["Coordit 앱 다시 열기"].waitForExistence(timeout: 3) {
+            coordit.buttons["Coordit 앱 다시 열기"].tap()
+        }
+        XCTAssertTrue(element("coordit-screen-fitlab-input", in: coordit).waitForExistence(timeout: 10))
+        XCTAssertTrue(element("fitlab-url-flow", in: coordit).waitForExistence(timeout: 10))
     }
 
     func testAuthenticatedMyPageShowsYarnBalanceAndOpensCharge() throws {
@@ -191,6 +308,18 @@ final class CoorditMyPageNestedNavigationUITests: XCTestCase {
         ]
         app.launch()
         return app
+    }
+
+    private var liveBackendBaseURL: String {
+        ProcessInfo.processInfo.environment["COORDIT_API_BASE_URL"] ?? ""
+    }
+
+    private func requireLiveBackendBaseURL() throws -> String {
+        let value = liveBackendBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else {
+            throw XCTSkip("Set COORDIT_API_BASE_URL to run live backend device tests.")
+        }
+        return value
     }
 
     private func assertScreen(

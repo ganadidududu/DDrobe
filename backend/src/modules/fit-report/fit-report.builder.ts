@@ -46,6 +46,16 @@ export const buildFitReportInput = async (
   const productMeasurements = rowToMeasurements(selectedSize);
   const sizeScores = normalizeSizeScores(details.allSizeScores, fitResult);
   const measurementRows = buildMeasurementRows(idealMeasurements, productMeasurements, details);
+  const sizeOptions = sizeScores.flatMap((score) => {
+    const size = externalSizes.find((candidate) => candidate.size_label === score.sizeLabel);
+    if (!size) return [];
+    return [{
+      sizeLabel: score.sizeLabel,
+      fitScore: score.fitScore,
+      fitLabel: score.fitLabel,
+      measurements: buildMeasurementRows(idealMeasurements, rowToMeasurements(size), details)
+    }];
+  });
 
   return {
     locale: "ko-KR",
@@ -78,6 +88,7 @@ export const buildFitReportInput = async (
     },
     measurements: measurementRows,
     sizeScores,
+    sizeOptions,
     feedbackPersonalization: {
       applied: getFeedbackApplied(details),
       sampleCount: asNumber(details.feedbackProfile?.sampleCount) ?? 0,

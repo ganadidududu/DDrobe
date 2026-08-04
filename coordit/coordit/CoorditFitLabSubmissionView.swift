@@ -10,6 +10,7 @@ struct CoorditFitLabSubmissionView: View {
     let submit: () -> Void
 
     @State private var showsDiscardConfirmation = false
+    @State private var selectedSizeLabel: String?
 
     var body: some View {
         ScrollView {
@@ -29,6 +30,9 @@ struct CoorditFitLabSubmissionView: View {
             if coordinator.references.isEmpty, coordinator.recommendation == nil {
                 await loadReferences()
             }
+        }
+        .onChange(of: coordinator.recommendation?.fitAnalysisResultID) { _, _ in
+            selectedSizeLabel = nil
         }
         .alert("입력부터 다시 시작할까요?", isPresented: $showsDiscardConfirmation) {
             Button("취소", role: .cancel) { }
@@ -205,10 +209,18 @@ struct CoorditFitLabSubmissionView: View {
                     .accessibilityIdentifier("fitlab-submission-result")
 
                 let variant: CoorditFitLabResultVariant = coordinator.draft.garmentKind == .upper ? .top : .bottom
-                let scoreCard = CoorditFitLabScoreCard(
+                let sizeOptions = CoorditFitLabSizeOption.makeOptions(
                     variant: variant,
                     recommendation: recommendation,
                     report: coordinator.report,
+                    sizeDrafts: coordinator.draft.sizes
+                )
+                let selectedSize = sizeOptions.first { $0.sizeLabel == selectedSizeLabel }
+                    ?? sizeOptions.first { $0.isRecommended }
+                    ?? sizeOptions.first
+                let scoreCard = CoorditFitLabScoreCard(
+                    variant: variant,
+                    selectedSize: selectedSize,
                     metrics: metrics
                 )
                 scoreCard
@@ -220,41 +232,16 @@ struct CoorditFitLabSubmissionView: View {
                 .frame(height: metrics.value(270))
                 CoorditFitLabOverlayLegend(metrics: metrics)
                 CoorditFitLabSizeScoreChart(
-                    report: coordinator.report,
-                    recommendation: recommendation,
+                    options: sizeOptions,
+                    selectedSizeLabel: $selectedSizeLabel,
                     metrics: metrics
                 )
                 CoorditFitLabDifferenceChart(measurements: scoreCard.measurements, metrics: metrics)
                 CoorditFitLabReportCard(
                     report: coordinator.report,
-                    fallbackMessage: coordinator.reportNeedsRetry ? "상세 리포트를 불러오지 못해 기본 설명을 표시해요." : nil,
+                    fallbackMessage: nil,
                     metrics: metrics
                 )
-            }
-
-            if coordinator.reportNeedsRetry {
-                VStack(alignment: .leading, spacing: metrics.value(8)) {
-                    Text("상세 리포트를 불러오지 못해 추천 결과로 임시 설명을 만들었어요.")
-                        .font(CoorditTypography.gmarketMedium(size: metrics.value(12), relativeTo: .body))
-                        .foregroundStyle(Color.black)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("fitlab-report-fallback")
-                    Button("리포트 다시 시도") {
-                        submit()
-                    }
-                    .buttonStyle(
-                        CoorditContentActionButtonStyle(
-                            prominence: .primary,
-                            height: metrics.value(48),
-                            cornerRadius: metrics.value(7),
-                            fontSize: metrics.value(13)
-                        )
-                    )
-                    .disabled(coordinator.loadState == .loading)
-                }
-                .padding(metrics.value(12))
-                .background(CoorditFitLabPalette.empty.opacity(0.7))
-                .clipShape(RoundedRectangle(cornerRadius: metrics.value(7)))
             }
 
             Button("입력과 선택 버리기") {

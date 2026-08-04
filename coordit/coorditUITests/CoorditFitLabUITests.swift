@@ -110,7 +110,7 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertTrue(element("fitlab-reference-selection", in: app).waitForExistence(timeout: 5))
         XCTAssertEqual(
             element("fitlab-dto-contract-status", in: app).label,
-            "CONTRACT_OK url-request url-body size-keys reference product size recommendation-parts result report report-timeout adversarial"
+            "CONTRACT_OK url-request url-body size-keys recommendation-idempotency reference product size recommendation-parts result report report-timeout adversarial"
         )
         element("fitlab-reference-reference-fixture-hoodie", in: app).tap()
         element("fitlab-submit-analysis", in: app).tap()
@@ -547,6 +547,42 @@ final class CoorditFitLabUITests: XCTestCase {
         settleRendering()
         capture("result-upper-overview", app: upper)
         XCTAssertEqual(scrollIntoView("fitlab-size-score-M", in: upper).label, "M 사이즈 92.0점, 추천")
+        XCTAssertEqual(element("fitlab-size-score-M", in: upper).value as? String, "선택됨")
+        _ = scrollIntoView("fitlab-difference-chart", in: upper)
+        XCTAssertEqual(
+            element("fitlab-yarn-trail-shoulder_width", in: upper).value as? String,
+            "right|blue"
+        )
+        XCTAssertEqual(
+            element("fitlab-yarn-trail-chest_width", in: upper).value as? String,
+            "left|red"
+        )
+        XCTAssertEqual(
+            element("fitlab-yarn-trail-total_length", in: upper).value as? String,
+            "center|green"
+        )
+        XCTAssertEqual(
+            element("fitlab-yarn-trail-sleeve_length", in: upper).value as? String,
+            "left|green"
+        )
+        _ = scrollIntoView("fitlab-yarn-trail-sleeve_length", in: upper)
+        settleRendering()
+        capture("result-upper-m-yarn-chart", app: upper)
+        upper.swipeDown()
+        settleRendering()
+        capture("result-upper-m-yarn-chart-full", app: upper)
+        scrollIntoView("fitlab-size-score-L", in: upper, direction: .down).tap()
+        XCTAssertEqual(element("fitlab-size-score-L", in: upper).value as? String, "선택됨")
+        XCTAssertEqual(element("fitlab-size-score-M", in: upper).value as? String, "선택 안 됨")
+        XCTAssertEqual(element("fitlab-recommended-size", in: upper).label, "L")
+        XCTAssertEqual(element("fitlab-total-score", in: upper).label, "81")
+        XCTAssertTrue(element("fitlab-overlay-shoulder_width", in: upper).label.contains("여유"))
+        for key in ["shoulder_width", "chest_width", "total_length", "sleeve_length"] {
+            XCTAssertEqual(
+                element("fitlab-yarn-trail-\(key)", in: upper).value as? String,
+                "right|blue"
+            )
+        }
         upper.swipeUp()
         settleRendering()
         capture("result-upper-comparison", app: upper)
@@ -558,23 +594,19 @@ final class CoorditFitLabUITests: XCTestCase {
         _ = scrollIntoView("fitlab-difference-chart", in: upper)
         XCTAssertEqual(
             element("fitlab-measurement-shoulder_width", in: upper).value as? String,
-            "베스트 53 cm | 상품 54 cm | 차이 +1 cm | 여유"
+            "베스트 53 cm | 상품 56 cm | 차이 +3 cm | 여유"
         )
         XCTAssertEqual(
             element("fitlab-measurement-chest_width", in: upper).value as? String,
-            "베스트 58 cm | 상품 56.5 cm | 차이 -1.5 cm | 타이트"
+            "베스트 58 cm | 상품 60 cm | 차이 +2 cm | 여유"
         )
         XCTAssertEqual(
             element("fitlab-measurement-total_length", in: upper).value as? String,
-            "베스트 68 cm | 상품 68 cm | 차이 0 cm | 비슷"
+            "베스트 68 cm | 상품 70 cm | 차이 +2 cm | 여유"
         )
         XCTAssertEqual(
             element("fitlab-measurement-sleeve_length", in: upper).value as? String,
-            "베스트 61 cm | 상품 60.5 cm | 차이 -0.5 cm | 비슷"
-        )
-        XCTAssertEqual(
-            element("fitlab-difference-bar-sleeve_length", in: upper).value as? String,
-            "negative"
+            "베스트 61 cm | 상품 63 cm | 차이 +2 cm | 여유"
         )
         XCTAssertFalse(element("fitlab-measurement-waist_width", in: upper).exists)
         upper.terminate()
@@ -586,10 +618,10 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertFalse(element("fitlab-mannequin-upper", in: lower).exists)
         XCTAssertTrue(element("fitlab-overlay-waist_width", in: lower).label.contains("여유"))
         XCTAssertTrue(element("fitlab-overlay-rise", in: lower).label.contains("타이트"))
-        _ = scrollIntoView("fitlab-difference-bar-outseam", in: lower)
+        _ = scrollIntoView("fitlab-yarn-trail-outseam", in: lower)
         XCTAssertEqual(
-            element("fitlab-difference-bar-outseam", in: lower).value as? String,
-            "positive"
+            element("fitlab-yarn-trail-outseam", in: lower).value as? String,
+            "right|blue"
         )
         for _ in 0..<3 { lower.swipeDown() }
         settleRendering()
@@ -659,7 +691,7 @@ final class CoorditFitLabUITests: XCTestCase {
             XCTAssertEqual(state.label, expectedValue)
             XCTAssertEqual(
                 element("fitlab-dto-contract-status", in: app).label,
-                "CONTRACT_OK url-request url-body size-keys reference product size recommendation-parts result report report-timeout adversarial"
+                "CONTRACT_OK url-request url-body size-keys recommendation-idempotency reference product size recommendation-parts result report report-timeout adversarial"
             )
             app.terminate()
         }
@@ -669,7 +701,7 @@ final class CoorditFitLabUITests: XCTestCase {
             XCTAssertTrue(element("fitlab-history-detail", in: app).waitForExistence(timeout: 5))
             XCTAssertEqual(
                 element("fitlab-dto-contract-status", in: app).label,
-                "CONTRACT_OK url-request url-body size-keys reference product size recommendation-parts result report report-timeout adversarial"
+                "CONTRACT_OK url-request url-body size-keys recommendation-idempotency reference product size recommendation-parts result report report-timeout adversarial"
             )
             app.terminate()
         }

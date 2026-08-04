@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { env } from "../../config/env";
 import { buildFitReportInput } from "./fit-report.builder";
+import { buildFallbackFitReport } from "./fit-report.fallback";
 import { buildFitReportPrompt, FIT_REPORT_PROMPT_VERSION } from "./fit-report.prompt";
 import {
   hasAcceptedCoreNarrative,
   sanitizeGeneratedReport
 } from "./fit-report.sanitizer";
-import { buildFallbackFitReport } from "./fit-report.fallback";
 import type {
   FitReportInput,
   FitReportJson,
