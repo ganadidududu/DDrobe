@@ -11,7 +11,8 @@ export default defineConfig({
       "src/modules/product-import/tests/**/*.test.ts",
       "src/modules/clothing-items/clothing-items.service.test.ts",
       "src/modules/fit/fit.controller.test.ts",
-      "src/middleware/**/*.test.ts"
+      "src/middleware/**/*.test.ts",
+      "src/config/**/*.test.ts"
     ]
   }
 });

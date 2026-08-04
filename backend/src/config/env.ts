@@ -2,6 +2,11 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+const developmentCorsOrigins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000"
+] as const;
+
 const required = (key: string): string => {
   const value = process.env[key];
   if (!value) {
@@ -15,9 +20,51 @@ const integer = (key: string, fallback: number): number => {
   return Number.isInteger(value) && value > 0 ? value : fallback;
 };
 
+const corsOrigins = (nodeEnv: string): readonly string[] => {
+  const value = process.env.CORS_ORIGINS;
+
+  if (value === undefined) {
+    if (nodeEnv === "production") {
+      throw new Error("Missing required environment variable: CORS_ORIGINS");
+    }
+
+    return developmentCorsOrigins;
+  }
+
+  const origins = value
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+
+  if (origins.length === 0) {
+    throw new Error("CORS_ORIGINS must contain at least one origin");
+  }
+
+  for (const origin of origins) {
+    if (!URL.canParse(origin)) {
+      throw new Error(`CORS_ORIGINS contains an invalid origin: ${origin}`);
+    }
+
+    const parsedOrigin = new URL(origin);
+    const hasAllowedProtocol =
+      nodeEnv === "production"
+        ? parsedOrigin.protocol === "https:"
+        : parsedOrigin.protocol === "http:" || parsedOrigin.protocol === "https:";
+
+    if (!hasAllowedProtocol || parsedOrigin.origin !== origin) {
+      throw new Error(`CORS_ORIGINS contains an invalid origin: ${origin}`);
+    }
+  }
+
+  return origins;
+};
+
+const nodeEnv = process.env.NODE_ENV ?? "development";
+
 export const env = {
-  nodeEnv: process.env.NODE_ENV ?? "development",
+  nodeEnv,
   port: Number(process.env.PORT ?? 4000),
+  corsOrigins: corsOrigins(nodeEnv),
   supabaseUrl: required("SUPABASE_URL"),
   supabaseAnonKey: required("SUPABASE_ANON_KEY"),
   supabaseServiceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),
