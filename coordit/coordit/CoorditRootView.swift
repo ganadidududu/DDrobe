@@ -24,6 +24,7 @@ struct CoorditRootView: View {
         let initialRoute = initialSharedURL == nil ? startRoute : CoorditFrameRoute.fitLabInput
         _route = State(initialValue: initialRoute)
         _closetItems = State(initialValue: Self.initialClosetItems())
+        _closetDraft = State(initialValue: Self.initialClosetDraft())
         _threadBalance = State(initialValue: Self.initialThreadBalance())
         _showsThreadRechargePrompt = State(
             initialValue: Self.initialThreadRechargePrompt(startRoute: startRoute)
@@ -73,7 +74,13 @@ struct CoorditRootView: View {
                         await backendSession.refreshReferenceFitProfiles()
                     }
                 }
-            ) { navigate(to: $0) }
+            ) { nextRoute in
+                if nextRoute == .closetAddMethod {
+                    startNewClosetRegistration()
+                } else {
+                    navigate(to: nextRoute)
+                }
+            }
         case .fitLabInput,
              .fitLabLoading,
              .fitLabResultTop,
@@ -193,7 +200,7 @@ struct CoorditRootView: View {
                 items: closetItems,
                 initialSelection: selectedReferenceIDs,
                 onCommit: syncFitLabReferenceSelection,
-                onAddGarment: { navigate(to: .closetAddMethod) }
+                onAddGarment: startNewClosetRegistration
             )
         }
     }
@@ -219,6 +226,12 @@ struct CoorditRootView: View {
         }
     }
 
+    private func startNewClosetRegistration() {
+        closetDraft = CoorditClosetDraft()
+        closetAddSaveState.reset()
+        navigate(to: .closetAddMethod)
+    }
+
     private static func initialClosetItems(
         arguments: [String] = ProcessInfo.processInfo.arguments
     ) -> [CoorditClosetItem] {
@@ -229,6 +242,20 @@ struct CoorditRootView: View {
         }
         #endif
         return []
+    }
+
+    private static func initialClosetDraft(
+        arguments: [String] = ProcessInfo.processInfo.arguments
+    ) -> CoorditClosetDraft {
+        #if DEBUG
+        if arguments.contains("--coordit-test-prefilled-closet-draft") {
+            var draft = CoorditClosetDraft()
+            draft.method = .link
+            draft.productLink = "https://shop.example/products/previous-item"
+            return draft
+        }
+        #endif
+        return CoorditClosetDraft()
     }
 
     private static func initialThreadBalance(

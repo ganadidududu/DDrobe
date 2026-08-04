@@ -34,13 +34,13 @@ struct CoorditFitLabSubmissionView: View {
         .onChange(of: coordinator.recommendation?.fitAnalysisResultID) { _, _ in
             selectedSizeLabel = nil
         }
-        .alert("입력부터 다시 시작할까요?", isPresented: $showsDiscardConfirmation) {
-            Button("취소", role: .cancel) { }
-            Button("다시 시작", role: .destructive) {
+        .alert("새 상품을 등록할까요?", isPresented: $showsDiscardConfirmation) {
+            Button("계속 입력", role: .cancel) { }
+            Button("새 상품 등록", role: .destructive) {
                 coordinator.discardAndRestart()
             }
         } message: {
-            Text("완료된 API 기록은 서버에 남지만, 이 화면의 제출 체크포인트와 선택은 초기화돼요.")
+            Text("현재 입력한 상품 정보, 기준 의류 선택, 아직 저장하지 않은 분석 결과는 초기화돼요. 이미 저장된 분석 기록은 그대로 남아요.")
         }
     }
 
@@ -148,7 +148,7 @@ struct CoorditFitLabSubmissionView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("fitlab-background-analysis-guide")
 
-            Button("입력과 선택 버리기") {
+            Button("새 상품 등록하기") {
                 showsDiscardConfirmation = true
             }
             .buttonStyle(
@@ -244,7 +244,7 @@ struct CoorditFitLabSubmissionView: View {
                 )
             }
 
-            Button("입력과 선택 버리기") {
+            Button("새 상품 등록하기") {
                 showsDiscardConfirmation = true
             }
             .buttonStyle(
