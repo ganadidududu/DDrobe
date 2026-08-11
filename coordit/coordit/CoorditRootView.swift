@@ -44,17 +44,16 @@ struct CoorditRootView: View {
             }
 
             Group {
-                switch route {
+                if blocksUnauthenticatedContent {
+                    splashScreen
+                } else {
+                    switch route {
         case .main01:
             CoorditMain01Screen(initialTab: .home) { selectedTab in
                 navigate(to: CoorditFrameRoute.route(for: selectedTab, from: route))
             }
         case .splash:
-            CoorditSplashScreen(
-                presentation: splashPresentation,
-                onRouteChange: { navigate(to: $0) },
-                onAuthenticationRequested: { showsSplashAuthentication = true }
-            )
+            splashScreen
         case .main04:
             CoorditMain04Screen(
                 closetItems: $closetItems,
@@ -140,6 +139,7 @@ struct CoorditRootView: View {
                 selectedReferenceIDs: $selectedReferenceIDs,
                 addSaveState: $closetAddSaveState
             ) { navigate(to: $0) }
+                    }
                 }
             }
             .id(route)
@@ -153,15 +153,35 @@ struct CoorditRootView: View {
                     .zIndex(90)
             }
 
-            CoorditGlobalFitAnalysisBanner(
-                coordinator: fitLabCoordinator,
-                onOpenResult: { navigate(to: $0) },
-                onOpenFitLab: { navigate(to: .fitLabInput) }
-            )
-            .zIndex(100)
+            if backendSession.isAuthenticated && !blocksUnauthenticatedContent {
+                CoorditGlobalFitAnalysisBanner(
+                    coordinator: fitLabCoordinator,
+                    onOpenResult: { navigate(to: $0) },
+                    onOpenFitLab: { navigate(to: .fitLabInput) }
+                )
+                .zIndex(100)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .buttonStyle(CoorditPressFeedbackButtonStyle())
+        .task(id: backendSession.isAuthenticated) {
+            guard !backendSession.isAuthenticated else {
+                showsSplashAuthentication = false
+                return
+            }
+
+            threadBalance = 0
+            showsFitLabReferenceSelection = false
+            showsThreadRechargePrompt = false
+            guard !permitsUnauthenticatedUITestRoute else { return }
+
+            if route != .splash {
+                navigate(to: .splash)
+            }
+            showsSplashAuthentication = CoorditWelcomeLaunchState.shouldAutomaticallyPresentAuthentication(
+                isAuthenticated: false
+            )
+        }
         .task(id: backendSession.session?.user.id) {
             if let snapshot = await backendSession.loadClosetSnapshot(preserving: closetItems) {
                 closetItems = snapshot.items
@@ -280,7 +300,7 @@ struct CoorditRootView: View {
             return max(0, value)
         }
         #endif
-        return 36
+        return 0
     }
 
     private static func initialThreadRechargePrompt(
@@ -326,8 +346,37 @@ struct CoorditRootView: View {
         #endif
     }
 
+    private var splashScreen: some View {
+        CoorditSplashScreen(
+            presentation: splashPresentation,
+            onRouteChange: { navigate(to: $0) },
+            onAuthenticationRequested: { showsSplashAuthentication = true }
+        )
+    }
+
+    private var blocksUnauthenticatedContent: Bool {
+        !backendSession.isAuthenticated
+            && route != .splash
+            && !permitsUnauthenticatedUITestRoute
+    }
+
+    private var permitsUnauthenticatedUITestRoute: Bool {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        guard arguments.contains("--coordit-ui-testing"),
+              !arguments.contains("--coordit-enforce-auth-gate"),
+              let markerIndex = arguments.firstIndex(of: "--coordit-start-route"),
+              arguments.indices.contains(arguments.index(after: markerIndex))
+        else { return false }
+
+        return arguments[arguments.index(after: markerIndex)] != CoorditFrameRoute.splash.rawValue
+        #else
+        false
+        #endif
+    }
+
     private var showsScreenChrome: Bool {
-        route != .splash && route != .main01
+        !blocksUnauthenticatedContent && route != .splash && route != .main01
     }
 
     private var splashPresentation: CoorditSplashPresentation {
@@ -335,7 +384,7 @@ struct CoorditRootView: View {
     }
 
     private var showsSharedAppBackground: Bool {
-        route != .splash && route != .main01
+        !blocksUnauthenticatedContent && route != .splash && route != .main01
     }
 
     private var fitLabHistoryUserID: String? {

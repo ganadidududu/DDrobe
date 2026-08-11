@@ -46,6 +46,35 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         assertScreen("main04", in: app)
     }
 
+    func testReturningLoggedOutUserIsPromptedToAuthenticateBeforeContentLoads() throws {
+        let app = launchApp(
+            at: "splash",
+            extraArguments: ["--coordit-welcome-state", "returning"]
+        )
+
+        assertScreen("splash", in: app)
+        XCTAssertTrue(element("coordit-splash-auth-sheet", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["splash-auth-google"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["splash-auth-apple"].waitForExistence(timeout: 3))
+        XCTAssertFalse(element("coordit-screen-main04", in: app).exists)
+        XCTAssertFalse(element("coordit-thread-charge-balance", in: app).exists)
+    }
+
+    func testUnauthenticatedThreadChargeRouteCannotRevealThreadBalance() throws {
+        let app = launchApp(
+            at: "mypage-thread-charge",
+            extraArguments: [
+                "--coordit-welcome-state", "returning",
+                "--coordit-enforce-auth-gate",
+            ]
+        )
+
+        assertScreen("splash", in: app)
+        XCTAssertTrue(element("coordit-splash-auth-sheet", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(element("coordit-thread-charge-balance", in: app).exists)
+        XCTAssertFalse(app.staticTexts["36 실타래"].exists)
+    }
+
     func testSplashLogoIsHorizontallyCentered() throws {
         let app = launchApp(at: "splash")
         assertScreen("splash", in: app)
