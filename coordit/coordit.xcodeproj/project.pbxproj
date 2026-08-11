@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		42E5BCC88BBF47AB93ABDB85 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = D90D5318A0D046F19E4B2413 /* GoogleSignIn */; };
+		AD0B0000AD0B0000AD0B0001 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = AD0B0000AD0B0000AD0B0002 /* GoogleMobileAds */; };
 		657DB114EF6E44F28E0CB43C /* CoorditShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 0A7D45AE628A4917AB362C6F /* CoorditShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -102,6 +103,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				42E5BCC88BBF47AB93ABDB85 /* GoogleSignIn in Frameworks */,
+				AD0B0000AD0B0000AD0B0001 /* GoogleMobileAds in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
