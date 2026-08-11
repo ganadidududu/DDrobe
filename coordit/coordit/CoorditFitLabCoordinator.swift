@@ -382,12 +382,14 @@ final class CoorditFitLabCoordinator: ObservableObject {
                     let receivedReport = try await selectedAPI.report(
                         analysisID: recommendation.fitAnalysisResultID,
                         request: CoorditFitLabReportRequest(
+                            idempotencyKey: reportIdempotencyKey(),
                             selectedSizeLabel: recommendation.recommendedSize,
                             style: nil
                         )
                     )
                     try ensureActive(generation)
                     report = receivedReport
+                    authoritativeThreadBalance = receivedReport.availableThreads
                 } catch {
                     try ensureActive(generation)
                     throw CoorditFitLabError.transport(
@@ -481,6 +483,13 @@ final class CoorditFitLabCoordinator: ObservableObject {
         let idempotencyKey = UUID().uuidString
         checkpoint.idempotencyKey = idempotencyKey
         Self.savePendingSubmissionKey(.init(fingerprint: fingerprint, idempotencyKey: idempotencyKey))
+        return idempotencyKey
+    }
+
+    private func reportIdempotencyKey() -> String {
+        if let idempotencyKey = checkpoint.reportIdempotencyKey { return idempotencyKey }
+        let idempotencyKey = UUID().uuidString
+        checkpoint.reportIdempotencyKey = idempotencyKey
         return idempotencyKey
     }
 
@@ -735,7 +744,8 @@ final class CoorditFitLabCoordinator: ObservableObject {
                 fitLabel: base.fitLabel,
                 fitComment: base.fitComment,
                 recommendationConfidence: base.recommendationConfidence,
-                diff: base.diff
+                diff: base.diff,
+                allSizeScores: base.allSizeScores
             )
             if let snapshot = makeHistorySnapshot(
                 userID: userID,
@@ -760,7 +770,8 @@ final class CoorditFitLabCoordinator: ObservableObject {
             fitLabel: base.fitLabel,
             fitComment: base.fitComment,
             recommendationConfidence: base.recommendationConfidence,
-            diff: base.diff
+            diff: base.diff,
+            allSizeScores: base.allSizeScores
         )
         if let snapshot = makeHistorySnapshot(
             userID: userID,
@@ -951,9 +962,15 @@ final class CoorditFitLabCoordinator: ObservableObject {
             recommendation = CoorditFitLabFixtures.upperRecommendation
             report = fixture == "long-report" ? CoorditFitLabFixtures.longReport : CoorditFitLabFixtures.report
         case .fitLabResultBottom:
-            draft = CoorditFitLabFixtures.lowerResultDraft
-            recommendation = CoorditFitLabFixtures.lowerRecommendation
-            report = CoorditFitLabFixtures.lowerReport
+            if fixture == "size-score-numeric-labels" {
+                draft = CoorditFitLabFixtures.lowerNumericSizeLabelResultDraft
+                recommendation = CoorditFitLabFixtures.lowerNumericSizeLabelRecommendation
+                report = CoorditFitLabFixtures.lowerNumericSizeLabelReport
+            } else {
+                draft = CoorditFitLabFixtures.lowerResultDraft
+                recommendation = CoorditFitLabFixtures.lowerRecommendation
+                report = CoorditFitLabFixtures.lowerReport
+            }
         case .fitLabHistoryRegister, .fitLabHistoryDetail:
             recommendation = CoorditFitLabFixtures.lowerRecommendation
             report = CoorditFitLabFixtures.lowerReport

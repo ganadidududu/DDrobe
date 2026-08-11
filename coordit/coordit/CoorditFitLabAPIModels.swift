@@ -160,12 +160,13 @@ struct CoorditFitLabRecommendationResponse: Codable, Equatable, Sendable {
     let fitComment: String
     let recommendationConfidence: String
     let diff: [CoorditFitLabMeasurementKey: Double]
+    let allSizeScores: [CoorditFitLabReportResponse.ChartData.SizeScore]
     let partExplanations: [String]
     let availableThreads: Int?
 
     enum CodingKeys: String, CodingKey {
         case fitAnalysisResultID = "fitAnalysisResultId"
-        case recommendedSize, fitScore, fitLabel, fitComment, recommendationConfidence, diff, partExplanations, availableThreads
+        case recommendedSize, fitScore, fitLabel, fitComment, recommendationConfidence, diff, allSizeScores, partExplanations, availableThreads
     }
 
     init(
@@ -176,6 +177,7 @@ struct CoorditFitLabRecommendationResponse: Codable, Equatable, Sendable {
         fitComment: String,
         recommendationConfidence: String,
         diff: [CoorditFitLabMeasurementKey: Double],
+        allSizeScores: [CoorditFitLabReportResponse.ChartData.SizeScore] = [],
         partExplanations: [String] = [],
         availableThreads: Int? = nil
     ) {
@@ -186,6 +188,7 @@ struct CoorditFitLabRecommendationResponse: Codable, Equatable, Sendable {
         self.fitComment = fitComment
         self.recommendationConfidence = recommendationConfidence
         self.diff = diff
+        self.allSizeScores = allSizeScores
         self.partExplanations = partExplanations
         self.availableThreads = availableThreads
     }
@@ -202,6 +205,8 @@ struct CoorditFitLabRecommendationResponse: Codable, Equatable, Sendable {
         diff = Dictionary(uniqueKeysWithValues: rawDiff.compactMap { rawKey, value in
             CoorditFitLabMeasurementKey(rawValue: rawKey).map { ($0, value) }
         })
+        let decodedScores = (try? values.decode([LossyDecodable<CoorditFitLabReportResponse.ChartData.SizeScore>].self, forKey: .allSizeScores)) ?? []
+        allSizeScores = decodedScores.compactMap(\.value)
         partExplanations = (try? values.decode([String].self, forKey: .partExplanations)) ?? []
         availableThreads = try? values.decode(Int.self, forKey: .availableThreads)
     }
@@ -234,6 +239,7 @@ struct CoorditFitLabAnalysisResultRow: Codable, Identifiable, Equatable, Sendabl
 }
 
 struct CoorditFitLabReportRequest: Codable, Equatable, Sendable {
+    let idempotencyKey: String
     let selectedSizeLabel: String?
     let style: String?
 }
@@ -343,24 +349,27 @@ struct CoorditFitLabReportResponse: Codable, Equatable, Sendable {
     let modelName: String?
     let report: Report
     let chartData: ChartData
+    let availableThreads: Int?
 
     init(
         fitAnalysisResultID: String,
         source: String,
         modelName: String? = nil,
         report: Report,
-        chartData: ChartData
+        chartData: ChartData,
+        availableThreads: Int? = nil
     ) {
         self.fitAnalysisResultID = fitAnalysisResultID
         self.source = source
         self.modelName = modelName
         self.report = report
         self.chartData = chartData
+        self.availableThreads = availableThreads
     }
 
     enum CodingKeys: String, CodingKey {
         case fitAnalysisResultID = "fitAnalysisResultId"
-        case source, modelName, report, chartData
+        case source, modelName, report, chartData, availableThreads
     }
 
     init(from decoder: Decoder) throws {
@@ -370,6 +379,7 @@ struct CoorditFitLabReportResponse: Codable, Equatable, Sendable {
         modelName = try values.decodeIfPresent(String.self, forKey: .modelName)
         report = (try? values.decode(Report.self, forKey: .report)) ?? Report()
         chartData = (try? values.decode(ChartData.self, forKey: .chartData)) ?? ChartData()
+        availableThreads = try? values.decode(Int.self, forKey: .availableThreads)
     }
 }
 

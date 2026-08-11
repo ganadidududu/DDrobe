@@ -110,7 +110,7 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertTrue(element("fitlab-reference-selection", in: app).waitForExistence(timeout: 5))
         XCTAssertEqual(
             element("fitlab-dto-contract-status", in: app).label,
-            "CONTRACT_OK url-request url-body size-keys recommendation-idempotency reference product size recommendation-parts result report report-timeout adversarial"
+            "CONTRACT_OK url-request url-body size-keys recommendation-idempotency reference product size recommendation-parts result report report-idempotency report-timeout adversarial"
         )
         element("fitlab-reference-reference-fixture-hoodie", in: app).tap()
         element("fitlab-submit-analysis", in: app).tap()
@@ -121,13 +121,13 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertFalse(element("fitlab-report-fallback", in: app).exists)
     }
 
-    func testFitLabSubmissionConsumesOneThread() throws {
+    func testFitLabSubmissionConsumesOneThreadForAnalysisAndOneForReport() throws {
         let app = launchFitLab(
-            fixture: "submission-success",
-            extraArguments: ["--coordit-thread-balance", "1"]
+            fixture: "submission-report-thread-charge",
+            extraArguments: ["--coordit-thread-balance", "2"]
         )
         XCTAssertTrue(element("fitlab-reference-selection", in: app).waitForExistence(timeout: 5))
-        XCTAssertEqual(element("coordit-thread-balance-probe", in: app).label, "1")
+        XCTAssertEqual(element("coordit-thread-balance-probe", in: app).label, "2")
 
         element("fitlab-reference-reference-fixture-hoodie", in: app).tap()
         element("fitlab-submit-analysis", in: app).tap()
@@ -138,6 +138,22 @@ final class CoorditFitLabUITests: XCTestCase {
             element("fitlab-submission-ledger", in: app).label,
             "references=1|product=1|M-attempts=1|M-success=1|L-attempts=1|L-success=1|recommend=1|report=1"
         )
+    }
+
+    func testReportGenerationExplainsItsThreadCost() throws {
+        let app = launchFitLab(
+            fixture: "submission-report-thread-cost-notice",
+            extraArguments: ["--coordit-thread-balance", "2"]
+        )
+        XCTAssertTrue(element("fitlab-reference-selection", in: app).waitForExistence(timeout: 5))
+
+        element("fitlab-reference-reference-fixture-hoodie", in: app).tap()
+        element("fitlab-submit-analysis", in: app).tap()
+
+        let notice = element("fitlab-report-thread-cost-notice", in: app)
+        XCTAssertTrue(notice.waitForExistence(timeout: 8))
+        XCTAssertEqual(notice.label, "상세 리포트 1개 생성에 실타래 1개가 사용돼요.")
+        capture("report-thread-cost-notice", app: app)
     }
 
     func testFitLabSubmissionWithNoThreadRoutesToChargePrompt() throws {
@@ -199,6 +215,24 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertTrue(element("fitlab-loading-error", in: app).waitForExistence(timeout: 8))
         XCTAssertTrue(app.buttons["fitlab-loading-retry"].isHittable)
         XCTAssertFalse(element("coordit-screen-fitlab-result-top", in: app).exists)
+    }
+
+    func testReportComparesAllFitScoresWhenItsChartRankingIsUnavailable() throws {
+        let app = launchFitLab(fixture: "submission-report-without-chart-scores")
+        XCTAssertTrue(element("fitlab-reference-selection", in: app).waitForExistence(timeout: 5))
+
+        element("fitlab-reference-reference-fixture-hoodie", in: app).tap()
+        element("fitlab-submit-analysis", in: app).tap()
+
+        XCTAssertTrue(element("fitlab-fixture-result-upper", in: app).waitForExistence(timeout: 8))
+        XCTAssertEqual(
+            scrollIntoView("fitlab-size-score-M", in: app).label,
+            "M 사이즈 92.0점, 추천"
+        )
+        XCTAssertEqual(
+            scrollIntoView("fitlab-size-score-L", in: app).label,
+            "L 사이즈 81.0점"
+        )
     }
 
     func testFallbackReportCompletesAnalysisWithDeterministicReport() throws {
@@ -653,6 +687,25 @@ final class CoorditFitLabUITests: XCTestCase {
             "베스트 100 cm | 상품 102 cm | 차이 +2 cm | 여유"
         )
         XCTAssertFalse(element("fitlab-measurement-shoulder_width", in: lower).exists)
+    }
+
+    func testNumericSizeLabelsStayReadableInScoreComparison() throws {
+        let app = launchFitLab(route: "fitlab-result-bottom", fixture: "size-score-numeric-labels")
+
+        XCTAssertEqual(
+            scrollIntoView("fitlab-size-score-M(095)", in: app).label,
+            "M(095) 사이즈 72.0점"
+        )
+        XCTAssertEqual(
+            element("fitlab-size-score-L(100)", in: app).label,
+            "L(100) 사이즈 88.0점, 추천"
+        )
+        XCTAssertEqual(
+            element("fitlab-size-score-XL(105)", in: app).label,
+            "XL(105) 사이즈 79.0점"
+        )
+        settleRendering()
+        capture("size-score-comparison-numeric-labels", app: app)
     }
 
     func testLongDescriptionAndMissingMeasurementsRemainReachable() throws {

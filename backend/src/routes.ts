@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { reassessClothingItemFit } from "./modules/clothing-items/fit-reassessment.controller";
+import { env } from "./config/env";
 import { signup, login, loginWithApple, loginWithGoogle } from "./modules/auth/auth.controller";
 import { completeOnboardingController } from "./modules/auth/auth-onboarding.controller";
 import { createBodyMeasurement, listBodyMeasurements } from "./modules/body-measurements/body-measurements.controller";
@@ -53,7 +53,10 @@ import {
   markRecommendationPurchased
 } from "./modules/recommendation-logs/recommendation-logs.controller";
 import { deleteMe, getMe, updateMe } from "./modules/users/users.controller";
-import { getThreadBalanceController } from "./modules/thread-wallet/thread-wallet.controller";
+import {
+  appleIapPurchaseController,
+  getThreadBalanceController
+} from "./modules/thread-wallet/thread-wallet.controller";
 import {
   generateStylingController,
   listSavedStylingController,
@@ -77,6 +80,9 @@ routes.get("/users/me", getMe);
 routes.patch("/users/me", updateMe);
 routes.delete("/users/me", deleteMe);
 routes.get("/thread-wallet/balance", getThreadBalanceController);
+if (env.appleIapEnabled) {
+  routes.post("/thread-wallet/iap/verify", appleIapPurchaseController);
+}
 routes.post("/body-measurements", createBodyMeasurement);
 routes.get("/body-measurements", listBodyMeasurements);
 
@@ -90,8 +96,6 @@ routes.post("/clothing-items/:id/sizes", createClothingSize);
 routes.get("/clothing-items/:id/sizes", listClothingSizes);
 routes.patch("/clothing-sizes/:id", updateClothingSize);
 routes.delete("/clothing-sizes/:id", deleteClothingSize);
-routes.post("/clothing-items/:id/fit-reassessment", reassessClothingItemFit);
-
 routes.post("/reference-clothing", createReferenceClothing);
 routes.get("/reference-clothing", listReferenceClothing);
 routes.get("/reference-clothing/by-category/:category", getReferenceClothingByCategory);
