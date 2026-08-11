@@ -20,13 +20,18 @@ enum CoorditGoogleSignInError: LocalizedError {
     }
 }
 
+struct CoorditGoogleSignInCredential {
+    let idToken: String
+    let nonce: String
+}
+
 enum CoorditGoogleSignIn {
     static var isConfigured: Bool {
         infoValue("GIDClientID") != nil && infoValue("GIDServerClientID") != nil
     }
 
     @MainActor
-    static func signInIDToken() async throws -> String {
+    static func signInCredential() async throws -> CoorditGoogleSignInCredential {
         guard isConfigured, let clientID = infoValue("GIDClientID") else {
             throw CoorditGoogleSignInError.missingConfiguration
         }
@@ -40,8 +45,14 @@ enum CoorditGoogleSignIn {
             throw CoorditGoogleSignInError.missingPresenter
         }
 
+        let nonce = UUID().uuidString
         return try await withCheckedThrowingContinuation { continuation in
-            GIDSignIn.sharedInstance.signIn(withPresenting: presenter) { result, error in
+            GIDSignIn.sharedInstance.signIn(
+                withPresenting: presenter,
+                hint: nil,
+                additionalScopes: nil,
+                nonce: nonce
+            ) { result, error in
                 if let error {
                     continuation.resume(throwing: error)
                     return
@@ -52,7 +63,7 @@ enum CoorditGoogleSignIn {
                     return
                 }
 
-                continuation.resume(returning: token)
+                continuation.resume(returning: CoorditGoogleSignInCredential(idToken: token, nonce: nonce))
             }
         }
     }
