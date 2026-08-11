@@ -13,6 +13,7 @@ export default defineConfig({
       "src/modules/fit/fit.controller.test.ts",
       "src/modules/fit-report/fit-report.controller.test.ts",
       "src/modules/auth/auth-apple.http.test.ts",
+      "src/modules/auth/auth-google.http.test.ts",
       "src/config/env.test.ts",
       "src/middleware/**/*.test.ts"
     ]
