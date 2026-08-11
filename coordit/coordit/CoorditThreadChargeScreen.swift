@@ -238,7 +238,7 @@ struct CoorditThreadRechargeRequiredPopup: View {
                             .foregroundStyle(CoorditSettingsStyle.ink)
                             .multilineTextAlignment(.center)
 
-                        Text("FIT LAB 분석에는 실타래 1개가 필요해요.")
+                        Text("FIT LAB 분석과 상세 리포트 생성에는 각각 실타래 1개가 필요해요.")
                             .font(CoorditTypography.gmarketMedium(size: metrics.value(11), relativeTo: .caption))
                             .foregroundStyle(CoorditSettingsStyle.muted)
                             .multilineTextAlignment(.center)

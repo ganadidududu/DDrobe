@@ -114,20 +114,6 @@ extension CoorditClosetFamilyView {
                 .clipShape(RoundedRectangle(cornerRadius: metrics.value(7)))
                 .padding(.top, metrics.value(1))
 
-                CoorditClosetPrimaryButton(title: "현재 기준치로 재평가", metrics: metrics, height: 39) {
-                    Task { await reassessSelectedItem(item) }
-                }
-                .accessibilityIdentifier("closet-reevaluate")
-                .disabled(reassessingItemID == item.id)
-                .padding(.top, metrics.value(2))
-
-                if let reassessmentMessage {
-                    Text(reassessmentMessage)
-                        .font(CoorditTypography.gmarketMedium(size: metrics.value(10)))
-                        .foregroundStyle(CoorditClosetColors.navy)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .accessibilityIdentifier("closet-reassessment-status")
-                }
                 }
                 .padding(.top, metrics.value(20))
                 .padding(.horizontal, metrics.value(27))
@@ -139,10 +125,6 @@ extension CoorditClosetFamilyView {
             .coorditScrollEdgeTreatment(topFade: metrics.value(18))
         }
         .accessibilityIdentifier("coordit-screen-\(screenIdentifier)")
-        .task(id: detailAssessmentTaskID(for: item)) {
-            engineScoredItemIDs.remove(item.id)
-            await reassessSelectedItem(item, announcesProgress: false)
-        }
         .onAppear {
             #if DEBUG
             runDetailPhotoTestScenario(for: item.id)
@@ -252,7 +234,7 @@ extension CoorditClosetFamilyView {
 
     private func scorePanel(metrics: CoorditResponsiveMetrics, item: CoorditClosetItem) -> some View {
         VStack(alignment: .leading, spacing: metrics.value(8)) {
-            Text("현재 기준 의류 기준")
+            Text("저장된 핏 결과")
                 .font(CoorditTypography.gmarketMedium(size: metrics.value(10)))
                 .foregroundStyle(CoorditClosetColors.navy.opacity(0.42))
             Text("FIT SCORE")
@@ -329,71 +311,9 @@ extension CoorditClosetFamilyView {
     }
 
     private func detailScoreTitle(for item: CoorditClosetItem) -> String {
-        if reassessingItemID == item.id, !engineScoredItemIDs.contains(item.id) {
-            return "총점 | 계산 중"
-        }
-        return engineScoredItemIDs.contains(item.id) ? "총점 | \(CoorditFitLabResultMeasurement.score(item.score))" : "총점 | -"
+        guard item.score > 0 else { return "총점 | -" }
+        return "총점 | \(CoorditFitLabResultMeasurement.score(item.score))"
     }
-
-    private func detailAssessmentTaskID(for item: CoorditClosetItem) -> String {
-        let referenceKey = selectedReferenceIDs.sorted().joined(separator: ",")
-        return "\(item.id)|\(item.backendClothingItemId ?? "local")|\(referenceKey)"
-    }
-
-    private func reassessSelectedItem(
-        _ item: CoorditClosetItem,
-        announcesProgress: Bool = true
-    ) async {
-        reassessingItemID = item.id
-        reassessmentMessage = announcesProgress
-            ? "선택한 의류의 핏 스코어를 계산하고 있어요."
-            : nil
-        defer { reassessingItemID = nil }
-
-        #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("--coordit-ui-testing"),
-           item.backendClothingItemId == nil {
-            guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
-            items[index].score = item.category == .top ? 89 : 92
-            items[index].fitDiffs = fixtureDiffs(for: item.category)
-            engineScoredItemIDs.insert(item.id)
-            reassessmentMessage = announcesProgress
-                ? "선택한 의류의 핏 스코어를 다시 계산했어요."
-                : nil
-            return
-        }
-        #endif
-
-        guard let clothingItemID = item.backendClothingItemId else {
-            reassessmentMessage = "서버에 저장된 의류만 재평가할 수 있어요."
-            return
-        }
-        guard let assessment = await backendSession.reassessClothingItem(id: clothingItemID) else {
-            reassessmentMessage = backendSession.statusText
-            return
-        }
-        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
-        items[index].score = assessment.fitScore
-        items[index].fitDiffs = assessment.diffs
-        engineScoredItemIDs.insert(item.id)
-        reassessmentMessage = announcesProgress
-            ? "선택한 의류의 핏 스코어를 다시 계산했어요."
-            : nil
-    }
-
-    #if DEBUG
-    private func fixtureDiffs(for category: CoorditClosetCategory) -> CoorditMeasurementMap {
-        category == .top
-            ? CoorditMeasurementMap(
-                totalLength: -3, shoulderWidth: 1, chestWidth: -5, sleeveLength: 0.5,
-                waistWidth: nil, hipWidth: nil, rise: nil, outseam: nil
-            )
-            : CoorditMeasurementMap(
-                totalLength: nil, shoulderWidth: nil, chestWidth: nil, sleeveLength: nil,
-                waistWidth: 0.5, hipWidth: -2, rise: 1, outseam: -3
-            )
-    }
-    #endif
 
     private func detailAction(_ title: String, metrics: CoorditResponsiveMetrics, action: @escaping () -> Void) -> some View {
         Button(action: action) {

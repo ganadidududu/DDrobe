@@ -2,6 +2,11 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+const developmentCorsOrigins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000"
+] as const;
+
 const required = (key: string): string => {
   const value = process.env[key];
   if (!value) {
@@ -15,13 +20,75 @@ const integer = (key: string, fallback: number): number => {
   return Number.isInteger(value) && value > 0 ? value : fallback;
 };
 
+const corsOrigins = (nodeEnv: string): readonly string[] => {
+  const value = process.env.CORS_ORIGINS;
+
+  if (value === undefined) {
+    if (nodeEnv === "production") {
+      throw new Error("Missing required environment variable: CORS_ORIGINS");
+    }
+
+    return developmentCorsOrigins;
+  }
+
+  const origins = value
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+
+  if (origins.length === 0) {
+    throw new Error("CORS_ORIGINS must contain at least one origin");
+  }
+
+  for (const origin of origins) {
+    if (!URL.canParse(origin)) {
+      throw new Error(`CORS_ORIGINS contains an invalid origin: ${origin}`);
+    }
+
+    const parsedOrigin = new URL(origin);
+    const hasAllowedProtocol =
+      nodeEnv === "production"
+        ? parsedOrigin.protocol === "https:"
+        : parsedOrigin.protocol === "http:" || parsedOrigin.protocol === "https:";
+
+    if (!hasAllowedProtocol || parsedOrigin.origin !== origin) {
+      throw new Error(`CORS_ORIGINS contains an invalid origin: ${origin}`);
+    }
+  }
+
+  return origins;
+};
+
+const optionalPositiveInteger = (key: string): number | null => {
+  const rawValue = process.env[key];
+  if (!rawValue) return null;
+  const value = Number(rawValue);
+  return Number.isInteger(value) && value > 0 ? value : null;
+};
+
+const commaSeparated = (key: string): readonly string[] => {
+  const rawValue = process.env[key];
+  if (!rawValue) return [];
+  return rawValue.split(",").map((value) => value.trim()).filter((value) => value.length > 0);
+};
+
+const nodeEnv = process.env.NODE_ENV ?? "development";
+
 export const env = {
-  nodeEnv: process.env.NODE_ENV ?? "development",
+  nodeEnv,
   port: Number(process.env.PORT ?? 4000),
+  corsOrigins: corsOrigins(nodeEnv),
   supabaseUrl: required("SUPABASE_URL"),
   supabaseAnonKey: required("SUPABASE_ANON_KEY"),
   supabaseServiceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),
   jwtSecret: process.env.JWT_SECRET ?? "local-dev-secret",
+  appleIapBundleId: process.env.APPLE_IAP_BUNDLE_ID ?? "com.inseong.coordit",
+  appleIapAppAppleId: optionalPositiveInteger("APPLE_IAP_APPLE_ID"),
+  appleIapRootCertificatePaths: commaSeparated("APPLE_IAP_ROOT_CERTIFICATE_PATHS"),
+  appleIapEnabled: process.env.APPLE_IAP_ENABLED === "true",
+  admobRewardedAdUnitId: process.env.ADMOB_REWARDED_AD_UNIT_ID ?? null,
+  admobRewardItem: process.env.ADMOB_REWARD_ITEM ?? null,
+  admobRewardAmount: optionalPositiveInteger("ADMOB_REWARD_AMOUNT"),
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? null,
   openRouterApiKey: process.env.OPENROUTER_API_KEY ?? null,
   openRouterModel: process.env.OPENROUTER_MODEL ?? "google/gemini-2.5-flash",

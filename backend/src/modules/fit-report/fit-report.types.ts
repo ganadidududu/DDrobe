@@ -163,12 +163,14 @@ export interface FitReportJson {
 }
 
 export interface GenerateFitReportOptions {
+  idempotencyKey?: string;
   selectedSizeLabel?: string;
   style?: ReportStyle;
   includeDebug?: boolean;
 }
 
 export interface GenerateFitReportResult {
+  availableThreads: number;
   fitAnalysisResultId: string;
   source: "openrouter" | "fallback";
   modelName: string;

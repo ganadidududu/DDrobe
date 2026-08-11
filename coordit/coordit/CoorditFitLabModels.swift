@@ -179,9 +179,10 @@ struct CoorditFitLabSubmissionCheckpoint: Codable, Equatable, Sendable {
     var productID: String?
     var sizeIDsByDraftID: [UUID: String] = [:]
     var idempotencyKey: String?
+    var reportIdempotencyKey: String?
 
     var isEmpty: Bool {
-        productID == nil && sizeIDsByDraftID.isEmpty && idempotencyKey == nil
+        productID == nil && sizeIDsByDraftID.isEmpty && idempotencyKey == nil && reportIdempotencyKey == nil
     }
 }
 

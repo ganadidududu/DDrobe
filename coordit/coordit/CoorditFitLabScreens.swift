@@ -128,6 +128,7 @@ struct CoorditFitLabFamilyView: View {
             && !fixture.hasPrefix("submission-")
             && fixture != "upper-result"
             && fixture != "lower-result"
+            && fixture != "size-score-numeric-labels"
             && fixture != "long-report"
             && fixture != "saved-history"
             && !fixture.hasPrefix("history-")
@@ -685,6 +686,14 @@ private struct CoorditFitLabLoadingScreen: View {
                 .font(CoorditTypography.gmarketMedium(size: metrics.value(10), relativeTo: .caption))
                 .foregroundStyle(CoorditFitLabPalette.muted)
                 .multilineTextAlignment(.center)
+
+            if coordinator.submissionStep == .generatingReport {
+                Text("상세 리포트 1개 생성에 실타래 1개가 사용돼요.")
+                    .font(CoorditTypography.gmarketMedium(size: metrics.value(10), relativeTo: .caption))
+                    .foregroundStyle(CoorditFitLabPalette.muted)
+                    .multilineTextAlignment(.center)
+                    .accessibilityIdentifier("fitlab-report-thread-cost-notice")
+            }
 
             if let error = coordinator.error {
                 VStack(spacing: metrics.value(10)) {

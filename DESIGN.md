@@ -98,7 +98,7 @@ Text scales through SwiftUI relative text styles. Feature titles use `.headline`
 ### Orbit loading indicator
 
 - **Structure**: the existing mannequin and orbit artwork are layered with one independent sparkle that travels along the tilted ring.
-- **Variants**: FitLab uses report-generation copy and exposes retry feedback; Closet uses owned-garment registration copy.
+- **Variants**: FitLab uses report-generation copy, explicitly states that one detailed report uses one thread, and exposes retry feedback; Closet uses owned-garment registration copy.
 - **Motion**: while work is active, the sparkle completes a steady elliptical orbit in 1.8 seconds. Reduce Motion keeps the sparkle stationary.
 - **Accessibility**: mannequin, ring, and sparkle are decorative; the surrounding loading screen owns the operation label and stable identifier.
 

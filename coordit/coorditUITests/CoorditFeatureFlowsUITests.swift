@@ -365,55 +365,33 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Wide Denim"].exists)
     }
 
-    func testClosetReassessmentUpdatesOnlySelectedItemWithNeutralStatus() throws {
+    func testClosetDetailDoesNotOfferReassessment() throws {
         let app = launchApp(at: "closet-detail-bottom")
         assertScreen("closet-detail-bottom", in: app)
 
         let reassess = app.buttons["closet-reevaluate"]
         for _ in 0..<3 where !reassess.exists { app.swipeUp() }
-        XCTAssertTrue(reassess.waitForExistence(timeout: 5))
-        reassess.tap()
+        XCTAssertFalse(reassess.exists, "옷장 상세에서는 재평가를 제공하지 않아야 해요.")
+        XCTAssertFalse(element("closet-reassessment-status", in: app).exists)
 
-        let status = element("closet-reassessment-status", in: app)
-        XCTAssertTrue(status.waitForExistence(timeout: 5))
-        XCTAssertEqual(status.label, "선택한 의류의 핏 스코어를 다시 계산했어요.")
-        XCTAssertTrue(app.buttons["총점 | 92.0"].waitForExistence(timeout: 5))
-        XCTAssertTrue(element("Wide Denim", in: app).exists)
-        let reassessmentCapture = XCTAttachment(screenshot: app.screenshot())
-        reassessmentCapture.name = "closet-reassessment-complete"
-        reassessmentCapture.lifetime = .keepAlways
-        add(reassessmentCapture)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "closet-detail-without-reassessment"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
     }
 
-    func testClosetDetailAutomaticallyLoadsEngineScoreForUpperAndLower() throws {
-        for (route, expectedScore, tightOverlay, otherOverlay, otherDirection) in [
-            ("closet-detail-top", "총점 | 89.0", "closet-overlay-chest_width", "closet-overlay-shoulder_width", "여유"),
-            ("closet-detail-bottom", "총점 | 92.0", "closet-overlay-hip_width", "closet-overlay-waist_width", "비슷"),
+    func testClosetDetailShowsItsSavedScoreWithoutReassessment() throws {
+        for (route, expectedScore) in [
+            ("closet-detail-top", "총점 | 94.0"),
+            ("closet-detail-bottom", "총점 | 91.0"),
         ] {
             let app = launchApp(at: route)
             assertScreen(route, in: app)
 
             let totalScore = element("closet-detail-total-score", in: app)
             XCTAssertTrue(totalScore.waitForExistence(timeout: 5))
-            let loaded = XCTNSPredicateExpectation(
-                predicate: NSPredicate(format: "label == %@", expectedScore),
-                object: totalScore
-            )
-            XCTAssertEqual(XCTWaiter.wait(for: [loaded], timeout: 5), .completed)
-            XCTAssertTrue(element(tightOverlay, in: app).label.contains("타이트"))
-            XCTAssertTrue(element(otherOverlay, in: app).label.contains(otherDirection))
-            let mannequin = element(
-                route == "closet-detail-top" ? "closet-mannequin-top" : "closet-mannequin-bottom",
-                in: app
-            )
-            let visibleBottom = app.windows.firstMatch.frame.maxY - 145
-            for _ in 0..<5 where mannequin.frame.maxY > visibleBottom {
-                app.swipeUp()
-            }
-            let capture = XCTAttachment(screenshot: app.screenshot())
-            capture.name = "\(route)-silhouette-overlay"
-            capture.lifetime = .keepAlways
-            add(capture)
+            XCTAssertEqual(totalScore.label, expectedScore)
+            XCTAssertFalse(app.buttons["closet-reevaluate"].exists)
             app.terminate()
         }
     }

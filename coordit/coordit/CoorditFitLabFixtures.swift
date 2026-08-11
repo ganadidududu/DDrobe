@@ -64,7 +64,7 @@ enum CoorditFitLabHistoryFixtureResetRegistry {
 
 #if DEBUG
 enum CoorditFitLabContractProbe {
-    static let expectedStatus = "CONTRACT_OK url-request url-body size-keys recommendation-idempotency reference product size recommendation-parts result report report-timeout adversarial"
+    static let expectedStatus = "CONTRACT_OK url-request url-body size-keys recommendation-idempotency reference product size recommendation-parts result report report-idempotency report-timeout adversarial"
 
     static let status: String = {
         do {
@@ -137,7 +137,7 @@ enum CoorditFitLabContractProbe {
             )
             let recommendation = try decoder.decode(
                 CoorditFitLabRecommendationResponse.self,
-                from: Data(#"{"fitAnalysisResultId":"analysis-1","recommendedSize":"M","fitScore":92,"fitLabel":"good_fit","fitComment":"좋아요","recommendationConfidence":"high","diff":{"shoulder_width":1,"future_measurement":99},"partExplanations":["어깨 원문","가슴 원문"],"futureOptional":{"nested":true}}"#.utf8)
+                from: Data(#"{"fitAnalysisResultId":"analysis-1","recommendedSize":"M","fitScore":92,"fitLabel":"good_fit","fitComment":"좋아요","recommendationConfidence":"high","diff":{"shoulder_width":1,"future_measurement":99},"allSizeScores":[{"sizeLabel":"M","fitScore":92,"fitLabel":"good_fit","weightedFitDistance":0.8,"recommendationConfidence":"high"},{"sizeLabel":"L","fitScore":81,"fitLabel":"good_fit","weightedFitDistance":2.1,"recommendationConfidence":"high"}],"partExplanations":["어깨 원문","가슴 원문"],"futureOptional":{"nested":true}}"#.utf8)
             )
             let result = try decoder.decode(
                 CoorditFitLabAnalysisResultRow.self,
@@ -148,6 +148,7 @@ enum CoorditFitLabContractProbe {
                 product.productName == "후드",
                 size.externalProductID == "product-1",
                 recommendation.diff == [.shoulderWidth: 1],
+                recommendation.allSizeScores.map(\.sizeLabel) == ["M", "L"],
                 recommendation.partExplanations == ["어깨 원문", "가슴 원문"],
                 result.recommendedSizeLabel == "M"
             else { return "CONTRACT_ERROR response-decode" }
@@ -167,8 +168,19 @@ enum CoorditFitLabContractProbe {
             let reportRequest = try api.makeRequest(
                 path: "/fit-analysis-results/analysis-1/report",
                 method: "POST",
-                body: CoorditFitLabReportRequest(selectedSizeLabel: "M", style: "detailed")
+                body: CoorditFitLabReportRequest(
+                    idempotencyKey: "00000000-0000-4000-8000-000000000002",
+                    selectedSizeLabel: "M",
+                    style: "detailed"
+                )
             )
+            guard
+                let reportBody = reportRequest.httpBody,
+                let reportObject = try JSONSerialization.jsonObject(with: reportBody) as? [String: Any],
+                reportObject["idempotencyKey"] as? String == "00000000-0000-4000-8000-000000000002"
+            else {
+                return "CONTRACT_ERROR report-idempotency"
+            }
             guard reportRequest.timeoutInterval >= 180 else {
                 return "CONTRACT_ERROR report-timeout \(reportRequest.timeoutInterval)"
             }
@@ -313,6 +325,9 @@ final class CoorditFitLabFixtureAPI: CoorditFitLabAPI {
     func report(analysisID: String, request: CoorditFitLabReportRequest) async throws -> CoorditFitLabReportResponse {
         reportAttempts += 1
         requestLedger.append("report:\(analysisID)")
+        if fixtureName == "submission-report-without-chart-scores" {
+            return CoorditFitLabFixtures.reportWithoutSizeScoreRanking
+        }
         if fixtureName == "submission-report-failure", reportAttempts == 1 {
             throw CoorditFitLabError.server(statusCode: 503, message: "리포트 생성 지연")
         }
@@ -333,6 +348,22 @@ final class CoorditFitLabFixtureAPI: CoorditFitLabAPI {
             await withCheckedContinuation { continuation in
                 reportContinuation = continuation
             }
+        }
+        if fixtureName == "submission-report-thread-cost-notice" {
+            await withCheckedContinuation { continuation in
+                reportContinuation = continuation
+            }
+        }
+        if fixtureName == "submission-report-thread-charge" {
+            let completed = CoorditFitLabFixtures.report
+            return CoorditFitLabReportResponse(
+                fitAnalysisResultID: completed.fitAnalysisResultID,
+                source: completed.source,
+                modelName: completed.modelName,
+                report: completed.report,
+                chartData: completed.chartData,
+                availableThreads: 0
+            )
         }
         return CoorditFitLabFixtures.report
     }
@@ -521,6 +552,28 @@ enum CoorditFitLabFixtures {
         selectedReferenceIDs: ["reference-fixture-1"]
     )
 
+    nonisolated static let lowerNumericSizeLabelResultDraft = CoorditFitLabDraft(
+        source: .manual,
+        garmentKind: .lower,
+        category: .pants,
+        productName: "픽스처 팬츠",
+        sizes: [
+            CoorditFitLabSizeDraft(
+                label: "M(095)",
+                measurements: [.waistWidth: 38, .hipWidth: 49, .rise: 28, .outseam: 99]
+            ),
+            CoorditFitLabSizeDraft(
+                label: "L(100)",
+                measurements: [.waistWidth: 40, .hipWidth: 50, .rise: 29, .outseam: 102]
+            ),
+            CoorditFitLabSizeDraft(
+                label: "XL(105)",
+                measurements: [.waistWidth: 42, .hipWidth: 52, .rise: 31, .outseam: 104]
+            )
+        ],
+        selectedReferenceIDs: ["reference-fixture-1"]
+    )
+
     nonisolated static let submissionDraft = CoorditFitLabDraft(
         source: .manual,
         garmentKind: .upper,
@@ -548,6 +601,11 @@ enum CoorditFitLabFixtures {
         fitComment: "기준 옷과 가장 비슷해요.",
         recommendationConfidence: "high",
         diff: [.shoulderWidth: 1, .chestWidth: 0.5, .totalLength: -1, .sleeveLength: 0],
+        allSizeScores: [
+            .init(sizeLabel: "S", fitScore: 76, fitLabel: "acceptable", weightedFitDistance: 2.8, recommendationConfidence: "high"),
+            .init(sizeLabel: "M", fitScore: 92, fitLabel: "good_fit", weightedFitDistance: 0.8, recommendationConfidence: "high"),
+            .init(sizeLabel: "L", fitScore: 81, fitLabel: "good_fit", weightedFitDistance: 2.1, recommendationConfidence: "high"),
+        ],
         partExplanations: [
             "어깨는 기준 옷보다 정확히 1cm 여유로워요.",
             "가슴은 기준 옷과 거의 같아요.",
@@ -561,7 +619,27 @@ enum CoorditFitLabFixtures {
         fitLabel: "good_fit",
         fitComment: "하의 기준 옷과 비슷해요.",
         recommendationConfidence: "high",
-        diff: [.waistWidth: 1, .hipWidth: 0.5, .rise: -0.5, .outseam: 1]
+        diff: [.waistWidth: 1, .hipWidth: 0.5, .rise: -0.5, .outseam: 1],
+        allSizeScores: [
+            .init(sizeLabel: "M", fitScore: 72, fitLabel: "acceptable", weightedFitDistance: 3.1, recommendationConfidence: "high"),
+            .init(sizeLabel: "L", fitScore: 88, fitLabel: "good_fit", weightedFitDistance: 1.1, recommendationConfidence: "high"),
+            .init(sizeLabel: "XL", fitScore: 79, fitLabel: "acceptable", weightedFitDistance: 2.4, recommendationConfidence: "high"),
+        ]
+    )
+
+    nonisolated static let lowerNumericSizeLabelRecommendation = CoorditFitLabRecommendationResponse(
+        fitAnalysisResultID: "analysis-fixture-lower-numeric-labels",
+        recommendedSize: "L(100)",
+        fitScore: 88,
+        fitLabel: "good_fit",
+        fitComment: "하의 기준 옷과 비슷해요.",
+        recommendationConfidence: "high",
+        diff: [.waistWidth: 1, .hipWidth: 0.5, .rise: -0.5, .outseam: 1],
+        allSizeScores: [
+            .init(sizeLabel: "M(095)", fitScore: 72, fitLabel: "acceptable", weightedFitDistance: 3.1, recommendationConfidence: "high"),
+            .init(sizeLabel: "L(100)", fitScore: 88, fitLabel: "good_fit", weightedFitDistance: 1.1, recommendationConfidence: "high"),
+            .init(sizeLabel: "XL(105)", fitScore: 79, fitLabel: "acceptable", weightedFitDistance: 2.4, recommendationConfidence: "high"),
+        ]
     )
 
     nonisolated static let report = CoorditFitLabReportResponse(
@@ -596,6 +674,17 @@ enum CoorditFitLabFixtures {
         )
     )
 
+    nonisolated static let reportWithoutSizeScoreRanking = CoorditFitLabReportResponse(
+        fitAnalysisResultID: report.fitAnalysisResultID,
+        source: report.source,
+        modelName: report.modelName,
+        report: report.report,
+        chartData: .init(
+            idealVsProduct: report.chartData.idealVsProduct,
+            differenceBar: report.chartData.differenceBar
+        )
+    )
+
     nonisolated static let lowerReport = CoorditFitLabReportResponse(
         fitAnalysisResultID: "analysis-fixture-lower",
         source: "ollama",
@@ -625,6 +714,18 @@ enum CoorditFitLabFixtures {
                 .init(sizeLabel: "L", fitScore: 88, fitLabel: "good_fit", weightedFitDistance: 1.1, recommendationConfidence: "high"),
                 .init(sizeLabel: "XL", fitScore: 79, fitLabel: "acceptable", weightedFitDistance: 2.4, recommendationConfidence: "high"),
             ]
+        )
+    )
+
+    nonisolated static let lowerNumericSizeLabelReport = CoorditFitLabReportResponse(
+        fitAnalysisResultID: lowerNumericSizeLabelRecommendation.fitAnalysisResultID,
+        source: lowerReport.source,
+        modelName: lowerReport.modelName,
+        report: lowerReport.report,
+        chartData: .init(
+            idealVsProduct: lowerReport.chartData.idealVsProduct,
+            differenceBar: lowerReport.chartData.differenceBar,
+            sizeScoreRanking: lowerNumericSizeLabelRecommendation.allSizeScores
         )
     )
 
