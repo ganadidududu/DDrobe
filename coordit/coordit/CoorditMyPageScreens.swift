@@ -44,8 +44,8 @@ struct CoorditMyPageFamilyView: View {
     @State var bugReportSent = false
     @State var backendEmail = ""
     @State var backendPassword = ""
-    @StateObject private var rewardedAdService = CoorditRewardedAdService()
-    @State private var rewardBalanceBefore = 0
+    @StateObject var rewardedAdService = CoorditRewardedAdService()
+    @State var rewardBalanceBefore = 0
 
     var body: some View {
         CoorditScreenScaffold(
