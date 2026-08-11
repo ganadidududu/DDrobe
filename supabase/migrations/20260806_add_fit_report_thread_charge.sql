@@ -1,37 +1,65 @@
-create table if not exists public.thread_balances (
-  user_id uuid primary key references public.users(id) on delete cascade,
-  available_threads integer not null default 36 check (available_threads >= 0),
-  updated_at timestamptz not null default now()
-);
+alter table public.thread_ledger_entries
+  drop constraint if exists thread_ledger_entries_reason_check;
 
-create table if not exists public.thread_ledger_entries (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.users(id) on delete cascade,
-  idempotency_key uuid not null,
-  fit_analysis_result_id uuid references public.fit_analysis_results(id) on delete set null,
-  amount integer not null check (amount <> 0),
-  reason text not null check (reason in ('fit_analysis', 'iap_purchase', 'admin_adjustment')),
-  created_at timestamptz not null default now(),
-  unique (user_id, idempotency_key)
-);
+alter table public.thread_ledger_entries
+  add constraint thread_ledger_entries_reason_check
+  check (reason in ('fit_analysis', 'fit_report', 'iap_purchase', 'admin_adjustment'));
 
-alter table public.thread_balances enable row level security;
-alter table public.thread_ledger_entries enable row level security;
+alter table public.thread_ledger_entries
+  drop constraint if exists thread_ledger_entries_user_id_idempotency_key_key;
 
-create index if not exists idx_thread_ledger_entries_user_created
-  on public.thread_ledger_entries(user_id, created_at desc);
+alter table public.thread_ledger_entries
+  add constraint thread_ledger_entries_user_id_idempotency_key_reason_key
+  unique (user_id, idempotency_key, reason);
 
-create or replace function public.get_thread_balance(p_user_id uuid)
-returns table(available_threads integer)
+create or replace function public.consume_fit_report_thread(
+  p_user_id uuid,
+  p_idempotency_key uuid,
+  p_fit_analysis_result_id uuid
+)
+returns table(available_threads integer, status text)
 language plpgsql security definer set search_path = public
 as $$
+declare current_balance integer;
 begin
   insert into public.thread_balances(user_id) values (p_user_id)
   on conflict (user_id) do nothing;
-  return query select balance.available_threads
-  from public.thread_balances balance where balance.user_id = p_user_id;
+
+  select balance.available_threads into current_balance
+  from public.thread_balances balance
+  where balance.user_id = p_user_id
+  for update;
+
+  if exists (
+    select 1 from public.thread_ledger_entries entry
+    where entry.user_id = p_user_id
+      and entry.idempotency_key = p_idempotency_key
+      and entry.reason = 'fit_report'
+  ) then
+    return query select current_balance, 'already_consumed'::text;
+    return;
+  end if;
+
+  if current_balance <= 0 then
+    return query select current_balance, 'insufficient'::text;
+    return;
+  end if;
+
+  update public.thread_balances
+  set available_threads = thread_balances.available_threads - 1, updated_at = now()
+  where user_id = p_user_id
+  returning thread_balances.available_threads into current_balance;
+
+  insert into public.thread_ledger_entries(
+    user_id, idempotency_key, fit_analysis_result_id, amount, reason
+  ) values (p_user_id, p_idempotency_key, p_fit_analysis_result_id, -1, 'fit_report');
+
+  return query select current_balance, 'consumed'::text;
 end;
 $$;
+
+revoke all on function public.consume_fit_report_thread(uuid, uuid, uuid) from public, anon, authenticated;
+grant execute on function public.consume_fit_report_thread(uuid, uuid, uuid) to service_role;
 
 create or replace function public.consume_fit_analysis_thread(
   p_user_id uuid, p_idempotency_key uuid, p_fit_analysis_result_id uuid
@@ -43,8 +71,12 @@ declare current_balance integer;
 begin
   insert into public.thread_balances(user_id) values (p_user_id)
   on conflict (user_id) do nothing;
+
   select balance.available_threads into current_balance
-  from public.thread_balances balance where balance.user_id = p_user_id for update;
+  from public.thread_balances balance
+  where balance.user_id = p_user_id
+  for update;
+
   if exists (
     select 1 from public.thread_ledger_entries entry
     where entry.user_id = p_user_id
@@ -54,15 +86,21 @@ begin
     return query select current_balance, 'already_consumed'::text;
     return;
   end if;
+
   if current_balance <= 0 then
     return query select current_balance, 'insufficient'::text;
     return;
   end if;
-  update public.thread_balances set available_threads = thread_balances.available_threads - 1, updated_at = now()
-  where user_id = p_user_id returning available_threads into current_balance;
+
+  update public.thread_balances
+  set available_threads = thread_balances.available_threads - 1, updated_at = now()
+  where user_id = p_user_id
+  returning available_threads into current_balance;
+
   insert into public.thread_ledger_entries(
     user_id, idempotency_key, fit_analysis_result_id, amount, reason
   ) values (p_user_id, p_idempotency_key, p_fit_analysis_result_id, -1, 'fit_analysis');
+
   return query select current_balance, 'consumed'::text;
 end;
 $$;
@@ -156,11 +194,3 @@ begin
   return query select saved_result.id, current_balance, 'consumed'::text;
 end;
 $$;
-
-revoke all on table public.thread_balances, public.thread_ledger_entries from anon, authenticated;
-revoke all on function public.get_thread_balance(uuid) from public, anon, authenticated;
-revoke all on function public.consume_fit_analysis_thread(uuid, uuid, uuid) from public, anon, authenticated;
-revoke all on function public.create_fit_analysis_result_and_consume_thread(uuid, uuid, jsonb) from public, anon, authenticated;
-grant execute on function public.get_thread_balance(uuid) to service_role;
-grant execute on function public.consume_fit_analysis_thread(uuid, uuid, uuid) to service_role;
-grant execute on function public.create_fit_analysis_result_and_consume_thread(uuid, uuid, jsonb) to service_role;

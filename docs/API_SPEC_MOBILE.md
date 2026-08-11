@@ -688,6 +688,24 @@ DB 필드 `fit_score`, `fit_label`, `recommendation_confidence`,
 migration이 필요하지 않다. 클라이언트와 report builder는 legacy-tolerant 하게
 두 필드가 없는 row를 기존 confidence와 diff 정보만으로 처리해야 한다.
 
+### 실타래 Apple 인앱결제 검증
+
+| 항목 | 내용 |
+| --- | --- |
+| Endpoint | `POST /thread-wallet/iap/verify` |
+| 필수 입력 | StoreKit 2의 `Transaction.jwsRepresentation`을 담은 `signedTransaction` |
+| 인증 | Supabase-issued access token 필요 |
+| 주요 반환값 | `availableThreads`, `status` (`credited` 또는 `already_credited`) |
+
+앱은 StoreKit에서 검증된 거래의 JWS만 전송한다. 백엔드는 Apple 서명을 검증하고
+`appAccountToken`, 소모성 상품 ID, 거래 환경을 확인한 뒤 원자적으로 실타래를 적립한다.
+같은 Apple `transactionId`를 재전송하면 실타래를 중복 지급하지 않고 현재 잔액과
+`already_credited`를 반환한다. 최초 적립은 `201`, 중복 재시도는 `200`이다.
+
+앱은 백엔드가 `credited` 또는 `already_credited`를 응답한 뒤에만 StoreKit 거래를
+완료 처리한다. 구매 가격과 패키지 명칭은 하드코딩하지 않고 App Store Connect에서
+받은 `Product` 정보로 표시한다.
+
 ### 최근 추천 결과 조회
 
 | 항목 | 내용 |
@@ -717,8 +735,8 @@ migration이 필요하지 않다. 클라이언트와 report builder는 legacy-to
 | 기능명 | OpenRouter 핏 리포트 생성 |
 | 목적 | 저장된 추천 결과를 바탕으로 그래프 데이터와 한국어 핏 리포트를 생성한다. |
 | Endpoint | `POST /fit-analysis-results/:id/report` |
-| 필수 입력 | `id` |
-| 주요 반환값 | `report`, `chartData`, `source`, `modelName`, `promptVersion` |
+| 필수 입력 | `id`, UUID 형식의 `idempotencyKey` |
+| 주요 반환값 | `report`, `chartData`, `source`, `modelName`, `promptVersion`, `availableThreads` |
 | 사용 화면 | Fit Lab result, Styling |
 
 리포트 응답의 `report` JSON 필드와 `chartData` 구조는 유지된다. `includeDebug = true`
@@ -726,10 +744,14 @@ migration이 필요하지 않다. 클라이언트와 report builder는 legacy-to
 품질 요약, 피드백 신뢰도, 주요 기여 부위가 포함될 수 있다. 이 값은 디버그와
 QA용 선택 메타데이터이며 모바일 클라이언트는 없어도 기존 리포트를 렌더링해야 한다.
 
+상세 리포트 생성은 실타래 1개를 사용한다. 같은 `idempotencyKey`로 재시도하면
+실타래를 다시 차감하지 않고, 응답의 `availableThreads`를 현재 잔액으로 사용한다.
+
 요청 예:
 
 ```json
 {
+  "idempotencyKey": "550e8400-e29b-41d4-a716-446655440000",
   "selectedSizeLabel": "L",
   "style": "concise_but_explanatory",
   "includeDebug": false

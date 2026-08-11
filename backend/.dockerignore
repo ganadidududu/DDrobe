@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+.env.*
+coverage
+npm-debug.log*
+.git
+.gitignore
+src/**/*.test.ts

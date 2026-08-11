@@ -104,22 +104,6 @@ struct CoorditReferenceClothingResponse: Codable, Equatable {
     }
 }
 
-struct CoorditClothingFitAssessmentResponse: Codable, Equatable {
-    let fitScore: Double
-    let fitLabel: String
-    let fitComment: String
-    let diffs: CoorditMeasurementMap
-    let partStatuses: CoorditMeasurementStatusMap?
-
-    enum CodingKeys: String, CodingKey {
-        case fitScore = "fit_score"
-        case fitLabel = "fit_label"
-        case fitComment = "fit_comment"
-        case diffs
-        case partStatuses = "part_statuses"
-    }
-}
-
 struct CoorditExternalProductResponse: Codable, Equatable {
     let id: String
     let productName: String

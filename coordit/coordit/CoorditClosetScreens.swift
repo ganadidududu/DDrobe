@@ -135,9 +135,6 @@ struct CoorditClosetFamilyView: View {
     @State var detailVariant: CoorditClosetCategory
     @State var detailPhotoSelection: PhotosPickerItem?
     @State var detailPhotoGenerations: [String: Int]
-    @State var reassessingItemID: String?
-    @State var reassessmentMessage: String?
-    @State var engineScoredItemIDs: Set<String>
     @State var isRenamingDetailItem: Bool
     @State var pendingDetailName: String
     @State var showsDeleteConfirmation: Bool
@@ -168,9 +165,6 @@ struct CoorditClosetFamilyView: View {
         _detailVariant = State(initialValue: route == .closetDetailBottom ? .bottom : .top)
         _detailPhotoSelection = State(initialValue: nil)
         _detailPhotoGenerations = State(initialValue: [:])
-        _reassessingItemID = State(initialValue: nil)
-        _reassessmentMessage = State(initialValue: nil)
-        _engineScoredItemIDs = State(initialValue: [])
         _isRenamingDetailItem = State(initialValue: false)
         _pendingDetailName = State(initialValue: "")
         _showsDeleteConfirmation = State(initialValue: false)

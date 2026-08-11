@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { env } from "../../config/env";
+import { consumeFitReportThread } from "../thread-wallet/thread-wallet.service";
 import { buildFitReportInput } from "./fit-report.builder";
 import { buildFallbackFitReport } from "./fit-report.fallback";
 import { buildFitReportPrompt, FIT_REPORT_PROMPT_VERSION } from "./fit-report.prompt";
@@ -128,11 +129,16 @@ const callOpenRouter = async (prompt: string, modelName: string): Promise<FitRep
 export const generateFitReport = async (
   userId: string,
   fitAnalysisResultId: string,
-  options: GenerateFitReportOptions = {}
+  options: GenerateFitReportOptions & { idempotencyKey: string }
 ): Promise<GenerateFitReportResult> => {
   const reportInput = await buildFitReportInput(userId, fitAnalysisResultId, options);
   const prompt = buildFitReportPrompt(reportInput);
   const modelName = env.openRouterModel;
+  const availableThreads = await consumeFitReportThread(
+    userId,
+    options.idempotencyKey,
+    fitAnalysisResultId
+  );
 
   try {
     const generatedReport = await callOpenRouter(prompt, modelName);
@@ -144,6 +150,7 @@ export const generateFitReport = async (
     );
     const coreNarrativeAccepted = hasAcceptedCoreNarrative(generatedReport, reportInput);
     return {
+      availableThreads,
       fitAnalysisResultId,
       source: coreNarrativeAccepted ? "openrouter" : "fallback",
       modelName,
@@ -154,6 +161,7 @@ export const generateFitReport = async (
     };
   } catch {
     return {
+      availableThreads,
       fitAnalysisResultId,
       source: "fallback",
       modelName,

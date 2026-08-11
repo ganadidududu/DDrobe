@@ -1,0 +1,54 @@
+name: Backend CI
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate backend
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      SUPABASE_URL: http://localhost:54321
+      SUPABASE_ANON_KEY: ci-test-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: ci-test-service-role-key
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run complete test suite
+        run: npm test
+
+      - name: Build backend
+        run: npm run build
+
+      - name: Build Docker image
+        working-directory: .
+        run: docker build -f backend/Dockerfile -t coordit-backend-ci backend

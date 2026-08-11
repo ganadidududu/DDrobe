@@ -28,6 +28,26 @@ const main = async (): Promise<void> => {
   Object.defineProperty(supabase, "from", {
     value: (table: string): FakeSupabaseQuery => new FakeSupabaseQuery(table)
   });
+  let reportThreadStatus: "already_consumed" | "consumed" | "insufficient" = "consumed";
+  let reportThreadRequests = 0;
+  Object.defineProperty(supabase, "rpc", {
+    value: (functionName: string, params: Record<string, string>) => ({
+      single: async () => {
+        assert.equal(functionName, "consume_fit_report_thread");
+        assert.equal(params.p_user_id, userId);
+        assert.equal(params.p_fit_analysis_result_id, fitResultId);
+        assert.equal(params.p_idempotency_key, "77777777-7777-4777-8777-777777777777");
+        reportThreadRequests += 1;
+        return {
+          data: {
+            available_threads: 34,
+            status: reportThreadStatus
+          },
+          error: null
+        };
+      }
+    })
+  });
 
   useLegacyFitResult();
   const legacyReportInput = await reportBuilder.buildFitReportInput(userId, fitResultId);
@@ -226,7 +246,10 @@ const main = async (): Promise<void> => {
     });
   };
 
-  const generated = await reportService.generateFitReport(userId, fitResultId, { includeDebug: true });
+  const generated = await reportService.generateFitReport(userId, fitResultId, {
+    idempotencyKey: "77777777-7777-4777-8777-777777777777",
+    includeDebug: true
+  });
   assert.equal(Reflect.get(observedOpenRouterRequest ?? {}, "model"), "google/gemini-2.5-flash");
   assert.equal(Reflect.get(observedOpenRouterRequest ?? {}, "stream"), false);
   const responseFormat = Reflect.get(observedOpenRouterRequest ?? {}, "response_format");
@@ -240,6 +263,8 @@ const main = async (): Promise<void> => {
   assert.equal(generated.source, "openrouter");
   assert.equal(generated.modelName, "google/gemini-2.5-flash");
   assert.equal(generated.promptVersion, "fit_report_v6");
+  assert.equal(generated.availableThreads, 34);
+  assert.equal(reportThreadRequests, 1);
   assert.equal(generated.report.summary.includes("S"), true);
   assert.equal(generated.report.recommendationReason.includes("67"), true);
   const generatedReliability = generated.reportInput?.explanation.feedbackReliability;
@@ -267,7 +292,9 @@ const main = async (): Promise<void> => {
       headers: { "Content-Type": "application/json" }
     });
 
-  const sanitized = await reportService.generateFitReport(userId, fitResultId);
+  const sanitized = await reportService.generateFitReport(userId, fitResultId, {
+    idempotencyKey: "77777777-7777-4777-8777-777777777777"
+  });
   assert.equal(sanitized.source, "fallback");
   assert.equal(sanitized.report.measurementAnalysis.length, reportInput.measurements.length);
   assert.equal(JSON.stringify(sanitized.report.measurementAnalysis).includes("999"), false);
@@ -281,6 +308,14 @@ const main = async (): Promise<void> => {
   assert.doesNotMatch(
     JSON.stringify(sanitized.report),
     /저신뢰도|신뢰도|피드백|한\s*벌뿐|판단\s*근거[^.!?\n]{0,20}제한/
+  );
+
+  reportThreadStatus = "insufficient";
+  await assert.rejects(
+    () => reportService.generateFitReport(userId, fitResultId, {
+      idempotencyKey: "77777777-7777-4777-8777-777777777777"
+    }),
+    /실타래가 부족해요/
   );
 
   console.log("fit-report tests passed");

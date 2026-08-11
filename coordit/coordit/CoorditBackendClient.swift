@@ -194,10 +194,6 @@ struct CoorditBackendClient {
         try await send(path: "/reference-clothing/\(id)/deactivate", method: "PATCH", token: token, body: Optional<String>.none)
     }
 
-    func reassessClothingItem(token: String, id: String) async throws -> CoorditClothingFitAssessmentResponse {
-        try await send(path: "/clothing-items/\(id)/fit-reassessment", method: "POST", token: token, body: Optional<String>.none)
-    }
-
     func referenceFitProfile(
         token: String,
         garmentKind: String

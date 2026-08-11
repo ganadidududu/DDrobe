@@ -982,19 +982,24 @@ private struct CoorditClosetAddLoadingScreen: View {
                 VStack(spacing: metrics.value(13)) {
                     if isSaving {
                         CoorditOrbitLoadingIndicator(metrics: metrics)
-                    } else {
+                        Text("보유 의류를 등록하고 있어요")
+                            .font(CoorditTypography.gmarketMedium(size: metrics.value(15)))
+                            .foregroundStyle(Color.black.opacity(0.76))
+                        Text("선택한 사이즈와 실측 정보를 옷장에 저장하고 있어요.")
+                            .font(CoorditTypography.gmarketMedium(size: metrics.value(9)))
+                            .foregroundStyle(CoorditClosetColors.navy.opacity(0.42))
+                            .multilineTextAlignment(.center)
+                    } else if let errorMessage {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.system(size: metrics.value(30), weight: .semibold))
                             .foregroundStyle(.orange)
-                    }
-                    Text(isSaving ? "보유 의류를 등록하고 있어요" : "저장하지 못했어요")
-                        .font(CoorditTypography.gmarketMedium(size: metrics.value(15)))
-                        .foregroundStyle(Color.black.opacity(0.76))
-                    Text(errorMessage ?? "선택한 사이즈와 실측 정보를 옷장에 저장하고 있어요.")
-                        .font(CoorditTypography.gmarketMedium(size: metrics.value(9)))
-                        .foregroundStyle(CoorditClosetColors.navy.opacity(0.42))
-                        .multilineTextAlignment(.center)
-                    if !isSaving {
+                        Text("저장하지 못했어요")
+                            .font(CoorditTypography.gmarketMedium(size: metrics.value(15)))
+                            .foregroundStyle(Color.black.opacity(0.76))
+                        Text(errorMessage)
+                            .font(CoorditTypography.gmarketMedium(size: metrics.value(9)))
+                            .foregroundStyle(CoorditClosetColors.navy.opacity(0.42))
+                            .multilineTextAlignment(.center)
                         Button("다시 시도", action: onRetry)
                             .buttonStyle(
                                 CoorditContentActionButtonStyle(
