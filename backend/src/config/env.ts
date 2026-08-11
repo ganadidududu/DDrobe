@@ -36,4 +36,7 @@ export const env = {
   domainRequestDelayMs: integer("DOMAIN_REQUEST_DELAY_MS", 1_500),
   userRateLimitPerMinute: integer("USER_RATE_LIMIT_PER_MINUTE", 5),
   crawlerUserAgent: process.env.USER_AGENT ?? "CoorditProductImporter/1.0",
+  admobRewardedAdUnitId: process.env.ADMOB_REWARDED_AD_UNIT_ID ?? "",
+  admobRewardItem: process.env.ADMOB_REWARDED_REWARD_ITEM ?? "실타래",
+  admobRewardAmount: integer("ADMOB_REWARDED_REWARD_AMOUNT", 1),
 };
