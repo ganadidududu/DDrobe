@@ -44,6 +44,9 @@ struct CoorditMyPageFamilyView: View {
     @State var bugReportSent = false
     @State var backendEmail = ""
     @State var backendPassword = ""
+    @StateObject private var rewardedAdService = CoorditRewardedAdService()
+    @State private var rewardBalanceBefore = 0
+
     var body: some View {
         CoorditScreenScaffold(
             route: route,
@@ -97,11 +100,45 @@ struct CoorditMyPageFamilyView: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.96)))
             }
         }
+
         .task {
             await backendSession.bootstrap()
             syncBackendProfile()
             syncBackendBodyMeasurement()
         }
+        .task(id: route) {
+            guard route == .myPageThreadCharge else { return }
+            await prepareRewardedAd()
+        }
+        .onChange(of: rewardedAdService.status) { _, status in
+            guard route == .myPageThreadCharge else { return }
+            switch status {
+            case .idle:
+                Task { await prepareRewardedAd() }
+            case .awaitingServerSettlement:
+                Task { await settleRewardBalance() }
+            default:
+                break
+            }
+        }
+    }
+
+
+    private func prepareRewardedAd() async {
+        await rewardedAdService.prepare {
+            try await backendSession.createThreadRewardAttempt()
+        }
+    }
+
+    private func settleRewardBalance() async {
+        for _ in 0..<8 {
+            try? await Task.sleep(for: .seconds(2))
+            if let updatedBalance = await backendSession.fetchThreadBalance(), updatedBalance > rewardBalanceBefore {
+                threadBalance = updatedBalance
+                break
+            }
+        }
+        rewardedAdService.finishServerSettlement()
     }
 
     private var routeIdentifier: String {
