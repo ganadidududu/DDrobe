@@ -8,7 +8,7 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test:fit": "tsx src/modules/fit/fit-score.engine.test.ts",
-    "test:report": "tsx src/modules/fit-report/fit-report.service.test.ts && tsx src/modules/fit-report/fit-report.fallback.test.ts",
+    "test:report": "tsx src/modules/fit-report/fit-report.service.test.ts && tsx src/modules/fit-report/fit-report.fallback.test.ts && tsx src/modules/fit-report/fit-report.idempotency.test.ts",
     "test:thread-wallet": "SUPABASE_URL=http://localhost:54321 SUPABASE_ANON_KEY=test-anon-key SUPABASE_SERVICE_ROLE_KEY=test-service-role-key tsx src/modules/thread-wallet/thread-wallet.service.test.ts && SUPABASE_URL=http://localhost:54321 SUPABASE_ANON_KEY=test-anon-key SUPABASE_SERVICE_ROLE_KEY=test-service-role-key tsx src/modules/thread-wallet/thread-wallet.controller.test.ts",
     "test": "npm run test:fit && npm run test:report && npm run test:thread-wallet && vitest run",
     "test:product-import": "vitest run src/modules/product-import/tests",

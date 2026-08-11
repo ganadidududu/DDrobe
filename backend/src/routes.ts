@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { env } from "./config/env";
 import { signup, login, loginWithApple, loginWithGoogle } from "./modules/auth/auth.controller";
 import { completeOnboardingController } from "./modules/auth/auth-onboarding.controller";
 import { createBodyMeasurement, listBodyMeasurements } from "./modules/body-measurements/body-measurements.controller";
@@ -79,7 +80,9 @@ routes.get("/users/me", getMe);
 routes.patch("/users/me", updateMe);
 routes.delete("/users/me", deleteMe);
 routes.get("/thread-wallet/balance", getThreadBalanceController);
-routes.post("/thread-wallet/iap/verify", appleIapPurchaseController);
+if (env.appleIapEnabled) {
+  routes.post("/thread-wallet/iap/verify", appleIapPurchaseController);
+}
 routes.post("/body-measurements", createBodyMeasurement);
 routes.get("/body-measurements", listBodyMeasurements);
 

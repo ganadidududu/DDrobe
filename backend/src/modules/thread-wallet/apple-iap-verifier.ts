@@ -65,12 +65,14 @@ const createAppleTransactionVerifier = async (): Promise<AppleTransactionVerifie
     configuration.bundleId,
     configuration.appAppleId
   );
-  const sandboxVerifier = new SignedDataVerifier(
-    rootCertificates,
-    true,
-    Environment.SANDBOX,
-    configuration.bundleId
-  );
+  const sandboxVerifier = env.nodeEnv === "production"
+    ? null
+    : new SignedDataVerifier(
+      rootCertificates,
+      true,
+      Environment.SANDBOX,
+      configuration.bundleId
+    );
 
   return {
     verify: async (signedTransaction: string): Promise<AppleIapVerifiedTransaction> => {
@@ -80,6 +82,10 @@ const createAppleTransactionVerifier = async (): Promise<AppleTransactionVerifie
         );
       } catch (error) {
         if (!(error instanceof VerificationException)) throw error;
+      }
+
+      if (!sandboxVerifier) {
+        throw createHttpError(400, "Apple 구매 거래를 검증할 수 없어요.");
       }
 
       try {

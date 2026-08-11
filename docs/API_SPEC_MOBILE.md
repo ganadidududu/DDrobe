@@ -706,6 +706,10 @@ migration이 필요하지 않다. 클라이언트와 report builder는 legacy-to
 완료 처리한다. 구매 가격과 패키지 명칭은 하드코딩하지 않고 App Store Connect에서
 받은 `Product` 정보로 표시한다.
 
+현재는 `APPLE_IAP_ENABLED=false`가 기본값이라 이 endpoint가 등록되지 않고 iOS 구매
+버튼도 비활성화된다. StoreKit 2 결제·Apple Root CA 비밀 볼륨·App Store Connect 상품을
+모두 검증한 출시 단계에서만 이 값을 `true`로 바꾼다.
+
 ### 최근 추천 결과 조회
 
 | 항목 | 내용 |

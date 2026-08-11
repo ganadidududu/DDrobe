@@ -85,6 +85,7 @@ export const env = {
   appleIapBundleId: process.env.APPLE_IAP_BUNDLE_ID ?? "com.inseong.coordit",
   appleIapAppAppleId: optionalPositiveInteger("APPLE_IAP_APPLE_ID"),
   appleIapRootCertificatePaths: commaSeparated("APPLE_IAP_ROOT_CERTIFICATE_PATHS"),
+  appleIapEnabled: process.env.APPLE_IAP_ENABLED === "true",
   admobRewardedAdUnitId: process.env.ADMOB_REWARDED_AD_UNIT_ID ?? null,
   admobRewardItem: process.env.ADMOB_REWARD_ITEM ?? null,
   admobRewardAmount: optionalPositiveInteger("ADMOB_REWARD_AMOUNT"),

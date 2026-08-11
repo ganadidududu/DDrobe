@@ -1,4 +1,5 @@
 import { supabase } from "../../config/supabase";
+import { env } from "../../config/env";
 import { createHttpError } from "../../shared/utils/http-error";
 import type { PreparedFitRecommendation } from "../fit/fit.service";
 import { verifyAppleTransaction } from "./apple-iap-verifier";
@@ -10,6 +11,11 @@ interface ThreadBalanceRow {
 interface ThreadConsumptionRow extends ThreadBalanceRow {
   status: "already_consumed" | "consumed" | "insufficient";
 }
+
+export type FitReportThreadConsumption = {
+  readonly availableThreads: number;
+  readonly status: "already_consumed" | "consumed";
+};
 
 interface ThreadLedgerRow {
   fit_analysis_result_id: string | null;
@@ -59,6 +65,7 @@ export type AppleIapPurchaseRequest = {
 type AppleIapPurchaseDependencies = {
   readonly verifyAppleTransaction: (signedTransaction: string) => Promise<AppleIapVerifiedTransaction>;
   readonly creditAppleTransaction: (input: AppleIapCreditInput) => Promise<AppleIapCreditResult>;
+  readonly allowSandboxTransactions: boolean;
 };
 
 const threadAmountForAppleProduct = (productId: string): number => {
@@ -81,6 +88,9 @@ export const settleAppleIapPurchase = async (
   const transaction = await dependencies.verifyAppleTransaction(request.signedTransaction);
   if (transaction.appAccountToken.toLowerCase() !== request.userId.toLowerCase()) {
     throw createHttpError(403, "이 계정으로 구매한 실타래만 충전할 수 있어요.");
+  }
+  if (transaction.environment === "Sandbox" && !dependencies.allowSandboxTransactions) {
+    throw createHttpError(400, "프로덕션에서는 Apple Sandbox 구매를 충전할 수 없어요.");
   }
   return dependencies.creditAppleTransaction({
     userId: request.userId,
@@ -116,7 +126,8 @@ export const submitAppleIapPurchase = async (
 ): Promise<AppleIapCreditResult> => {
   return settleAppleIapPurchase(request, {
     verifyAppleTransaction,
-    creditAppleTransaction: creditAppleIapTransaction
+    creditAppleTransaction: creditAppleIapTransaction,
+    allowSandboxTransactions: env.nodeEnv !== "production"
   });
 };
 
@@ -154,7 +165,7 @@ export const consumeFitReportThread = async (
   userId: string,
   idempotencyKey: string,
   fitAnalysisResultId: string
-): Promise<number> => {
+): Promise<FitReportThreadConsumption> => {
   const { data, error } = await supabase
     .rpc("consume_fit_report_thread", {
       p_user_id: userId,
@@ -166,7 +177,10 @@ export const consumeFitReportThread = async (
   if (data.status === "insufficient") {
     throw createHttpError(402, "실타래가 부족해요. 충전 후 다시 시도해 주세요.");
   }
-  return data.available_threads;
+  return {
+    availableThreads: data.available_threads,
+    status: data.status
+  };
 };
 
 export const findFitAnalysisThreadConsumption = async (

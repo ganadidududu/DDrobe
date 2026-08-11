@@ -66,11 +66,14 @@ Supabase 대시보드에서 새 **스테이징 전용** 프로젝트를 만들�
 1. `supabase/schema.sql`
 2. `supabase/indexes.sql`
 3. `supabase/rls.sql`
-4. 필요할 때만 `supabase/seed.sql` (선택 사항)
+4. `supabase/migrations/20260730_add_thread_wallet.sql`
+5. `supabase/migrations/20260806_add_fit_report_thread_charge.sql`
+6. `supabase/migrations/20260809_add_apple_iap_thread_credit.sql`
+7. 필요할 때만 `supabase/seed.sql` (선택 사항)
 
 ### 기존 스테이징 프로젝트
 
-기존 프로젝트를 계속 사용할 때는 현재 테이블에 URL 가져오기 필드가 있는지 먼저 확인한다. 없다면 `supabase/migrations/20260726_add_product_url_import.sql` **하나만** SQL Editor에서 실행한 뒤 `POST /api/v1/products/import-url/preview`를 테스트한다. 이 마이그레이션은 이미 있는 컬럼·테이블을 건너뛰도록 작성되어 있다. 새 프로젝트에는 이 분기를 적용하지 않는다.
+기존 프로젝트를 계속 사용할 때는 현재 테이블에 URL 가져오기 필드가 있는지 먼저 확인한다. 없다면 `supabase/migrations/20260726_add_product_url_import.sql`를 실행한 뒤 `POST /api/v1/products/import-url/preview`를 테스트한다. 이어서 아직 적용하지 않은 실타래 마이그레이션을 `20260730_add_thread_wallet.sql` → `20260806_add_fit_report_thread_charge.sql` → `20260809_add_apple_iap_thread_credit.sql` 순서로 실행한다. 새 프로젝트에는 URL 가져오기 분기를 적용하지 않는다.
 
 두 경우 모두 스키마·RLS·마이그레이션이 현재 코드와 맞는지 별도로 확인하고, 배포 전 [Supabase Production Checklist](https://supabase.com/docs/guides/deployment/going-into-prod)도 확인한다.
 
@@ -84,6 +87,8 @@ Cloud Run에는 아래 **이름의 비밀**을 Secret Manager에 저장하고, �
 | `coordit-staging-jwt-secret` | `JWT_SECRET` | 강력 권장 |
 | `coordit-staging-anthropic-api-key` | `ANTHROPIC_API_KEY` | 선택 |
 | `coordit-staging-openrouter-api-key` | `OPENROUTER_API_KEY` | 선택 |
+
+Apple 인앱결제는 기본적으로 비활성화되어 있다. `APPLE_IAP_ENABLED=true`로 바꾸기 전에는 App Store Connect 상품·StoreKit 클라이언트·Apple App ID를 준비하고, Apple Root CA 인증서를 Secret Manager에 저장한 뒤 런타임 서비스 계정에 접근 권한을 준다. 인증서는 환경변수 값이 아닌 파일로 읽으므로 Cloud Run 비밀 볼륨으로 한 파일씩 마운트한다. 예를 들어 `--update-secrets=/secrets/apple-root-ca.pem=coordit-staging-apple-root-ca:latest`로 마운트한 뒤 `APPLE_IAP_ROOT_CERTIFICATE_PATHS=/secrets/apple-root-ca.pem` 및 `APPLE_IAP_APPLE_ID=<APPLE_APP_ID>`를 설정한다. 이 단계가 끝나기 전에는 `APPLE_IAP_ENABLED=false`를 유지한다.
 
 Secret Manager에서 비밀을 만든 뒤, 아래에서 만든 런타임 서비스 계정에 각 비밀의 **Secret Manager Secret Accessor** 권한을 부여한다. 콘솔에서는 Secret Manager → 비밀 선택 → Permissions에서 설정한다. 이 권한이 없으면 서비스가 시작하지 못한다.
 
@@ -178,7 +183,7 @@ gcloud run deploy coordit-backend-staging \
   --min-instances 0 \
   --max-instances 2 \
   --allow-unauthenticated \
-  --set-env-vars NODE_ENV=production,CORS_ORIGINS=<WEB_STAGING_ORIGIN> \
+  --set-env-vars NODE_ENV=production,CORS_ORIGINS=<WEB_STAGING_ORIGIN>,APPLE_IAP_ENABLED=false \
   --set-secrets SUPABASE_URL=coordit-staging-supabase-url:latest,SUPABASE_ANON_KEY=coordit-staging-supabase-anon-key:latest,SUPABASE_SERVICE_ROLE_KEY=coordit-staging-supabase-service-role-key:latest,JWT_SECRET=coordit-staging-jwt-secret:latest
 ```
 
@@ -193,7 +198,7 @@ Google Cloud Console → **Cloud Run** → **Deploy container**를 연다.
 1. 위에서 푸시한 Artifact Registry 이미지와 태그를 선택한다.
 2. 서비스 이름에 `coordit-backend-staging`, 리전에 `asia-northeast3`을 입력한다.
 3. Container(s), Volumes, Networking, Security에서 컨테이너 포트 `8080`, 메모리 `1 GiB`, 동시성 `1`, 최소 인스턴스 `0`, 최대 인스턴스 `2`를 입력한다.
-4. Variables & Secrets에서 `NODE_ENV=production`과 `CORS_ORIGINS`(스테이징 웹 앱 origin)를 설정하고, 표에 있는 환경변수 이름과 Secret Manager 비밀을 연결한다. 비밀값을 UI나 메모에 복사하지 않는다.
+4. Variables & Secrets에서 `NODE_ENV=production`, `CORS_ORIGINS`(스테이징 웹 앱 origin), `APPLE_IAP_ENABLED=false`를 설정하고, 표에 있는 환경변수 이름과 Secret Manager 비밀을 연결한다. 비밀값을 UI나 메모에 복사하지 않는다. Apple 결제를 출시할 때만 별도 비밀 볼륨과 인증서 경로를 위 지침에 맞춰 추가한다.
 5. 인증은 팀의 공개 API 정책을 확인한 뒤 Allow public access를 선택한다. 선택하면 `/health`와 API URL을 누구나 요청할 수 있으므로 앱 인증과 속도 제한을 별도로 점검한다.
 6. **Create**를 누르고 Revision이 Ready 상태가 될 때까지 기다린다.
 

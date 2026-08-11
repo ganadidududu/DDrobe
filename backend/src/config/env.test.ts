@@ -9,6 +9,7 @@ const requiredEnvironment = {
 const environmentKeys = [
   "NODE_ENV",
   "CORS_ORIGINS",
+  "APPLE_IAP_ENABLED",
   "ADMOB_REWARDED_AD_UNIT_ID",
   "ADMOB_REWARD_ITEM",
   "ADMOB_REWARD_AMOUNT",
@@ -67,5 +68,19 @@ describe("production CORS origins", () => {
     expect(env.admobRewardedAdUnitId).toBe("ca-app-pub-1234567890123456/1234567890");
     expect(env.admobRewardItem).toBe("thread");
     expect(env.admobRewardAmount).toBe(1);
+  });
+
+  it("keeps Apple IAP settlement disabled by default", async () => {
+    const { env } = await loadProductionEnv("https://app.example");
+
+    expect(env.appleIapEnabled).toBe(false);
+  });
+
+  it("enables Apple IAP settlement only when explicitly enabled", async () => {
+    process.env.APPLE_IAP_ENABLED = "true";
+
+    const { env } = await loadProductionEnv("https://app.example");
+
+    expect(env.appleIapEnabled).toBe(true);
   });
 });

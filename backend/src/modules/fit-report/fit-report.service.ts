@@ -134,15 +134,28 @@ export const generateFitReport = async (
   const reportInput = await buildFitReportInput(userId, fitAnalysisResultId, options);
   const prompt = buildFitReportPrompt(reportInput);
   const modelName = env.openRouterModel;
-  const availableThreads = await consumeFitReportThread(
+  const threadConsumption = await consumeFitReportThread(
     userId,
     options.idempotencyKey,
     fitAnalysisResultId
   );
+  const fallbackReport = buildFallbackFitReport(reportInput);
+
+  if (threadConsumption.status === "already_consumed") {
+    return {
+      availableThreads: threadConsumption.availableThreads,
+      fitAnalysisResultId,
+      source: "fallback",
+      modelName,
+      promptVersion: FIT_REPORT_PROMPT_VERSION,
+      report: fallbackReport,
+      chartData: reportInput.chartData,
+      ...(options.includeDebug ? { reportInput, prompt } : {})
+    };
+  }
 
   try {
     const generatedReport = await callOpenRouter(prompt, modelName);
-    const fallbackReport = buildFallbackFitReport(reportInput);
     const report = sanitizeGeneratedReport(
       generatedReport,
       reportInput,
@@ -150,7 +163,7 @@ export const generateFitReport = async (
     );
     const coreNarrativeAccepted = hasAcceptedCoreNarrative(generatedReport, reportInput);
     return {
-      availableThreads,
+      availableThreads: threadConsumption.availableThreads,
       fitAnalysisResultId,
       source: coreNarrativeAccepted ? "openrouter" : "fallback",
       modelName,
@@ -161,12 +174,12 @@ export const generateFitReport = async (
     };
   } catch {
     return {
-      availableThreads,
+      availableThreads: threadConsumption.availableThreads,
       fitAnalysisResultId,
       source: "fallback",
       modelName,
       promptVersion: FIT_REPORT_PROMPT_VERSION,
-      report: buildFallbackFitReport(reportInput),
+      report: fallbackReport,
       chartData: reportInput.chartData,
       ...(options.includeDebug ? { reportInput, prompt } : {})
     };
