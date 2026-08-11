@@ -106,6 +106,13 @@ final class CoorditBackendSessionStore: ObservableObject {
         }
     }
 
+    func createThreadRewardAttempt() async throws -> CoorditThreadRewardAttempt {
+        guard let token = session?.accessToken else {
+            throw CoorditBackendClientError.server(statusCode: 401, message: "로그인 후 광고 보상을 받을 수 있어요.")
+        }
+        return try await client.createThreadRewardAttempt(token: token)
+    }
+
     func login(email: String, password: String) async {
         await authenticate {
             try await client.login(email: email, password: password)
