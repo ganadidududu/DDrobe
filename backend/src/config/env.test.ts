@@ -59,7 +59,7 @@ describe("production CORS origins", () => {
     // Given: a release environment with a configured rewarded-ad unit.
     process.env.ADMOB_REWARDED_AD_UNIT_ID = "ca-app-pub-1234567890123456/1234567890";
     process.env.ADMOB_REWARD_ITEM = "thread";
-    process.env.ADMOB_REWARD_AMOUNT = "1";
+    process.env.ADMOB_REWARD_AMOUNT = "2";
 
     // When: the environment module is loaded.
     const { env } = await loadProductionEnv("https://app.example");
@@ -67,7 +67,7 @@ describe("production CORS origins", () => {
     // Then: the verified SSV callback can compare the exact configured reward.
     expect(env.admobRewardedAdUnitId).toBe("ca-app-pub-1234567890123456/1234567890");
     expect(env.admobRewardItem).toBe("thread");
-    expect(env.admobRewardAmount).toBe(1);
+    expect(env.admobRewardAmount).toBe(2);
   });
 
   it("keeps Apple IAP settlement disabled by default", async () => {
