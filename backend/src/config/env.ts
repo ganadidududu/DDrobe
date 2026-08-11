@@ -86,9 +86,6 @@ export const env = {
   appleIapAppAppleId: optionalPositiveInteger("APPLE_IAP_APPLE_ID"),
   appleIapRootCertificatePaths: commaSeparated("APPLE_IAP_ROOT_CERTIFICATE_PATHS"),
   appleIapEnabled: process.env.APPLE_IAP_ENABLED === "true",
-  admobRewardedAdUnitId: process.env.ADMOB_REWARDED_AD_UNIT_ID ?? null,
-  admobRewardItem: process.env.ADMOB_REWARD_ITEM ?? null,
-  admobRewardAmount: optionalPositiveInteger("ADMOB_REWARD_AMOUNT"),
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? null,
   openRouterApiKey: process.env.OPENROUTER_API_KEY ?? null,
   openRouterModel: process.env.OPENROUTER_MODEL ?? "google/gemini-2.5-flash",
@@ -103,4 +100,7 @@ export const env = {
   domainRequestDelayMs: integer("DOMAIN_REQUEST_DELAY_MS", 1_500),
   userRateLimitPerMinute: integer("USER_RATE_LIMIT_PER_MINUTE", 5),
   crawlerUserAgent: process.env.USER_AGENT ?? "CoorditProductImporter/1.0",
+  admobRewardedAdUnitId: process.env.ADMOB_REWARDED_AD_UNIT_ID ?? "",
+  admobRewardItem: process.env.ADMOB_REWARD_ITEM ?? "실타래",
+  admobRewardAmount: integer("ADMOB_REWARD_AMOUNT", 1),
 };

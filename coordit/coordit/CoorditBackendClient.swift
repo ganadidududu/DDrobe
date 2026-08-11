@@ -128,6 +128,10 @@ struct CoorditBackendClient {
         try await send(path: "/thread-wallet/balance", method: "GET", token: token, body: Optional<String>.none)
     }
 
+    func createThreadRewardAttempt(token: String) async throws -> CoorditThreadRewardAttempt {
+        try await send(path: "/thread-wallet/reward-attempts", method: "POST", token: token, body: Optional<String>.none)
+    }
+
     func createClothingItem(token: String, request: CreateClothingItemRequest) async throws -> CoorditClothingItemResponse {
         try await send(path: "/clothing-items", method: "POST", token: token, body: request)
     }
@@ -298,6 +302,12 @@ private struct AppleAuthRequest: Encodable {
 
 private struct UpdateProfileRequest: Encodable {
     let displayName: String
+}
+
+struct CoorditThreadRewardAttempt: Decodable {
+    let attemptId: String
+    let expiresAt: String
+    let status: String
 }
 
 struct BodyMeasurementRequest: Encodable {

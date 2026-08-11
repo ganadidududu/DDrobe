@@ -58,6 +58,11 @@ import {
   getThreadBalanceController
 } from "./modules/thread-wallet/thread-wallet.controller";
 import {
+  createRewardAttemptController,
+  getRewardAttemptController,
+  receiveRewardedSSVController
+} from "./modules/admob-reward/admob-reward.controller";
+import {
   generateStylingController,
   listSavedStylingController,
   saveStylingLookController,
@@ -72,6 +77,9 @@ routes.post("/auth/login", login);
 routes.post("/auth/google", loginWithGoogle);
 routes.post("/auth/apple", loginWithApple);
 
+// AdMob signs these callbacks itself, so this must stay before authMiddleware.
+routes.get("/webhooks/admob/rewarded", receiveRewardedSSVController);
+
 routes.use(authMiddleware);
 
 routes.post("/auth/onboarding", completeOnboardingController);
@@ -80,6 +88,8 @@ routes.get("/users/me", getMe);
 routes.patch("/users/me", updateMe);
 routes.delete("/users/me", deleteMe);
 routes.get("/thread-wallet/balance", getThreadBalanceController);
+routes.post("/thread-wallet/reward-attempts", createRewardAttemptController);
+routes.get("/thread-wallet/reward-attempts/:id", getRewardAttemptController);
 if (env.appleIapEnabled) {
   routes.post("/thread-wallet/iap/verify", appleIapPurchaseController);
 }

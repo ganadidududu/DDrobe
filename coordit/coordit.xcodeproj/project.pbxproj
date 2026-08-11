@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		42E5BCC88BBF47AB93ABDB85 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = D90D5318A0D046F19E4B2413 /* GoogleSignIn */; };
+		AD0B0000AD0B0000AD0B0001 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = AD0B0000AD0B0000AD0B0002 /* GoogleMobileAds */; };
 		657DB114EF6E44F28E0CB43C /* CoorditShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 0A7D45AE628A4917AB362C6F /* CoorditShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -102,6 +103,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				42E5BCC88BBF47AB93ABDB85 /* GoogleSignIn in Frameworks */,
+				AD0B0000AD0B0000AD0B0001 /* GoogleMobileAds in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -158,6 +160,7 @@
 			name = coordit;
 			packageProductDependencies = (
 				D90D5318A0D046F19E4B2413 /* GoogleSignIn */,
+				AD0B0000AD0B0000AD0B0002 /* GoogleMobileAds */,
 			);
 			productName = coordit;
 			productReference = E1ED09032FFCE8A70048FDDE /* coordit.app */;
@@ -241,6 +244,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				563B6A6CC5434884A3F5C97F /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				AD0B0000AD0B0000AD0B0003 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E1ED09042FFCE8A70048FDDE /* Products */;
@@ -656,6 +660,7 @@
 				minimumVersion = 9.0.0;
 			};
 		};
+AD0B0000AD0B0000AD0B0003 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = { isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads.git"; requirement = { kind = upToNextMajorVersion; minimumVersion = 12.0.0; }; };
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -664,6 +669,7 @@
 			package = 563B6A6CC5434884A3F5C97F /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignIn;
 		};
+AD0B0000AD0B0000AD0B0002 /* GoogleMobileAds */ = { isa = XCSwiftPackageProductDependency; package = AD0B0000AD0B0000AD0B0003 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */; productName = GoogleMobileAds; };
 /* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E1ED08FB2FFCE8A70048FDDE /* Project object */;
