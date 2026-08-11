@@ -45,13 +45,13 @@ enum CoorditGoogleSignIn {
             throw CoorditGoogleSignInError.missingPresenter
         }
 
-        let nonce = UUID().uuidString
+        let nonce = CoorditGoogleNonce.make()
         return try await withCheckedThrowingContinuation { continuation in
             GIDSignIn.sharedInstance.signIn(
                 withPresenting: presenter,
                 hint: nil,
                 additionalScopes: nil,
-                nonce: nonce
+                nonce: nonce.googleRequestValue
             ) { result, error in
                 if let error {
                     continuation.resume(throwing: error)
@@ -63,7 +63,7 @@ enum CoorditGoogleSignIn {
                     return
                 }
 
-                continuation.resume(returning: CoorditGoogleSignInCredential(idToken: token, nonce: nonce))
+                continuation.resume(returning: CoorditGoogleSignInCredential(idToken: token, nonce: nonce.rawValue))
             }
         }
     }
