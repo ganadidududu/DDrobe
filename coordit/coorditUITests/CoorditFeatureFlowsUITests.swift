@@ -6,7 +6,7 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    func testFreshInstallSplashPresentsSocialAuthenticationSheet() throws {
+    func testFreshInstallShowsDirectSocialAuthenticationEntry() throws {
         let app = launchApp(
             at: "splash",
             extraArguments: ["--coordit-welcome-state", "fresh"]
@@ -14,20 +14,19 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         assertScreen("splash", in: app)
 
         let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "fresh-install-welcome"
+        screenshot.name = "fresh-install-direct-auth"
         screenshot.lifetime = .keepAlways
         add(screenshot)
 
-        let signupEntry = app.buttons["splash-signup-entry"]
-        XCTAssertTrue(signupEntry.waitForExistence(timeout: 5), "Missing splash signup entry")
-        XCTAssertEqual(signupEntry.label, "로그인/회원가입")
-        XCTAssertFalse(element("coordit-splash-tap-hint", in: app).exists)
-        signupEntry.tap()
-
         XCTAssertTrue(element("coordit-splash-auth-sheet", in: app).waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["splash-auth-google"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["splash-auth-apple"].waitForExistence(timeout: 3))
-        XCTAssertFalse(element("coordit-screen-mypage-account", in: app).exists)
+        let googleLogin = element("splash-auth-google", in: app)
+        let appleLogin = element("splash-auth-apple", in: app)
+        XCTAssertTrue(googleLogin.waitForExistence(timeout: 3))
+        XCTAssertTrue(googleLogin.isHittable)
+        XCTAssertTrue(appleLogin.waitForExistence(timeout: 3))
+        XCTAssertTrue(appleLogin.isHittable)
+        XCTAssertFalse(app.buttons["splash-signup-entry"].exists)
+        XCTAssertFalse(app.staticTexts["당신을 위한 디지털 옷장"].exists)
     }
 
     func testReturningAuthenticatedSplashRestoresTapHint() throws {
@@ -57,11 +56,49 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         XCTAssertEqual(logoCenter, screenCenter, accuracy: 6)
     }
 
-    func testMyPageAccountShowsGoogleLoginButton() throws {
+    func testSignedInMyPageAccountShowsLogoutWithoutSocialProviders() throws {
+        let app = launchApp(
+            at: "mypage-account",
+            extraArguments: ["--coordit-ui-testing-authenticated"]
+        )
+        assertScreen("mypage-account", in: app)
+
+        XCTAssertTrue(element("mypage-backend-local-logout", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(element("mypage-backend-google-login", in: app).exists)
+        XCTAssertFalse(element("mypage-backend-apple-login", in: app).exists)
+    }
+
+    func testSignedOutMyPageAccountDoesNotOfferSocialProviders() throws {
         let app = launchApp(at: "mypage-account")
         assertScreen("mypage-account", in: app)
 
-        XCTAssertTrue(app.buttons["mypage-backend-google-login"].waitForExistence(timeout: 5))
+        XCTAssertFalse(element("mypage-backend-google-login", in: app).exists)
+        XCTAssertFalse(element("mypage-backend-apple-login", in: app).exists)
+    }
+
+    func testIncompleteSocialAccountMustFinishOnboardingBeforeUsingTheApp() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--coordit-ui-testing",
+            "--coordit-ui-testing-authenticated",
+            "--coordit-ui-testing-onboarding-incomplete",
+        ]
+        app.launch()
+
+        XCTAssertTrue(element("coordit-onboarding-title", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(element("onboarding-display-name", in: app).exists)
+        XCTAssertTrue(element("onboarding-birth-year", in: app).exists)
+        XCTAssertTrue(element("onboarding-birth-month", in: app).exists)
+        XCTAssertTrue(element("onboarding-birth-day", in: app).exists)
+        XCTAssertFalse(element("onboarding-gender-non_binary", in: app).exists)
+        app.buttons["onboarding-next"].tap()
+        XCTAssertTrue(app.buttons["나중에 입력하기"].waitForExistence(timeout: 5))
+        XCTAssertTrue(element("onboarding-measurement-height", in: app).exists)
+        XCTAssertTrue(element("onboarding-measurement-weight", in: app).exists)
+        XCTAssertFalse(element("onboarding-measurement-outseam", in: app).exists)
+        app.buttons["나중에 입력하기"].tap()
+        XCTAssertTrue(app.staticTexts["[필수] 서비스 이용약관"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["[필수] 개인정보 처리방침"].waitForExistence(timeout: 5))
     }
 
     func testFitLabInputSourcesAndHistoryFlow() throws {

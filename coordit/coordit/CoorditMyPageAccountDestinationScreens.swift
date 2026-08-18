@@ -67,59 +67,12 @@ extension CoorditMyPageFamilyView {
 
     func passwordChange(metrics: CoorditResponsiveMetrics) -> some View {
         VStack(spacing: metrics.value(18)) {
-            CoorditSettingsCard(metrics: metrics) {
-                VStack(spacing: metrics.value(13)) {
-                    CoorditSettingsTextField(
-                        title: "현재 비밀번호",
-                        placeholder: "현재 비밀번호",
-                        text: $currentPassword,
-                        identifier: "mypage-password-current",
-                        metrics: metrics,
-                        isSecure: true
-                    )
-                    CoorditSettingsTextField(
-                        title: "새 비밀번호",
-                        placeholder: "8자 이상 입력하세요",
-                        text: $newPassword,
-                        identifier: "mypage-password-new",
-                        metrics: metrics,
-                        isSecure: true
-                    )
-                    CoorditSettingsTextField(
-                        title: "새 비밀번호 확인",
-                        placeholder: "한 번 더 입력하세요",
-                        text: $confirmedPassword,
-                        identifier: "mypage-password-confirm",
-                        metrics: metrics,
-                        isSecure: true
-                    )
-                }
-                .padding(.horizontal, metrics.value(13))
-            }
-
-            if passwordChanged {
-                CoorditSettingsStatusBanner(
-                    text: "비밀번호 변경 준비가 완료됐어요.",
-                    identifier: "mypage-password-changed",
-                    metrics: metrics
-                )
-            } else if !confirmedPassword.isEmpty && newPassword != confirmedPassword {
-                CoorditSettingsStatusBanner(
-                    text: "새 비밀번호가 서로 일치하지 않아요.",
-                    identifier: "mypage-password-mismatch",
-                    metrics: metrics,
-                    isWarning: true
-                )
-            }
-
-            CoorditSettingsPrimaryButton(
-                title: "비밀번호 변경",
-                identifier: "mypage-password-submit",
-                metrics: metrics,
-                isEnabled: canChangePassword
-            ) {
-                passwordChanged = true
-            }
+            CoorditSettingsInfoPanel(
+                symbol: "person.badge.key.fill",
+                title: "비밀번호는 사용하지 않아요",
+                detail: "Coordit은 Google 또는 Apple 계정으로만 로그인합니다. 계정 접근 수단은 해당 제공자 설정에서 관리할 수 있어요.",
+                metrics: metrics
+            )
         }
     }
 
@@ -207,8 +160,5 @@ extension CoorditMyPageFamilyView {
         profileAvatarSymbols[profileAvatarIndex]
     }
 
-    private var canChangePassword: Bool {
-        !currentPassword.isEmpty && newPassword.count >= 8 && newPassword == confirmedPassword
-    }
 }
 #endif

@@ -10,7 +10,7 @@ struct CoorditRootView: View {
     @State private var closetAddSaveState = CoorditClosetAddSaveState()
     @State private var selectedReferenceIDs: Set<String> = []
     @State private var showsFitLabReferenceSelection = false
-    @State private var showsSplashAuthentication = false
+    @State private var showsOnboarding = false
     @State private var threadBalance: Int
     @State private var showsThreadRechargePrompt = false
     @State private var sharedFitLabImportURL: URL?
@@ -44,17 +44,14 @@ struct CoorditRootView: View {
             }
 
             Group {
-                switch route {
+                if canShowSelectedRoute {
+                    switch route {
         case .main01:
             CoorditMain01Screen(initialTab: .home) { selectedTab in
                 navigate(to: CoorditFrameRoute.route(for: selectedTab, from: route))
             }
         case .splash:
-            CoorditSplashScreen(
-                presentation: splashPresentation,
-                onRouteChange: { navigate(to: $0) },
-                onAuthenticationRequested: { showsSplashAuthentication = true }
-            )
+            splashScreen
         case .main04:
             CoorditMain04Screen(
                 closetItems: $closetItems,
@@ -140,6 +137,9 @@ struct CoorditRootView: View {
                 selectedReferenceIDs: $selectedReferenceIDs,
                 addSaveState: $closetAddSaveState
             ) { navigate(to: $0) }
+                    }
+                } else {
+                    splashScreen
                 }
             }
             .id(route)
@@ -148,21 +148,32 @@ struct CoorditRootView: View {
             .environment(\.coorditShowsScreenChrome, false)
             .environment(\.coorditShowsScreenBackground, false)
 
-            if showsScreenChrome {
+            if canShowSelectedRoute && showsScreenChrome {
                 CoorditScreenChrome(route: route) { navigate(to: $0) }
                     .zIndex(90)
             }
 
-            CoorditGlobalFitAnalysisBanner(
-                coordinator: fitLabCoordinator,
-                onOpenResult: { navigate(to: $0) },
-                onOpenFitLab: { navigate(to: .fitLabInput) }
-            )
-            .zIndex(100)
+            if canShowSelectedRoute {
+                CoorditGlobalFitAnalysisBanner(
+                    coordinator: fitLabCoordinator,
+                    onOpenResult: { navigate(to: $0) },
+                    onOpenFitLab: { navigate(to: .fitLabInput) }
+                )
+                .zIndex(100)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .buttonStyle(CoorditPressFeedbackButtonStyle())
         .task(id: backendSession.session?.user.id) {
+            await backendSession.bootstrap()
+            if backendSession.isAuthenticated, !backendSession.onboardingComplete {
+                presentOnboardingIfNeeded()
+                return
+            }
+            guard canShowSelectedRoute else {
+                presentOnboardingIfNeeded()
+                return
+            }
             if let snapshot = await backendSession.loadClosetSnapshot(preserving: closetItems) {
                 closetItems = snapshot.items
                 selectedReferenceIDs = snapshot.selectedReferenceIDs
@@ -208,10 +219,12 @@ struct CoorditRootView: View {
                 onAddGarment: startNewClosetRegistration
             )
         }
-        .sheet(isPresented: $showsSplashAuthentication) {
-            CoorditSplashAuthenticationSheet {
+        .fullScreenCover(isPresented: $showsOnboarding) {
+            CoorditOnboardingView {
+                showsOnboarding = false
+                guard backendSession.canUseProduct else { return }
                 CoorditWelcomeLaunchState.markWelcomeCompleted()
-                showsSplashAuthentication = false
+                navigate(to: .main04)
             }
         }
     }
@@ -221,6 +234,10 @@ struct CoorditRootView: View {
     }
 
     private func navigate(to nextRoute: CoorditFrameRoute) {
+        guard nextRoute == .splash || canShowSelectedRoute else {
+            route = .splash
+            return
+        }
         let destination = nextRoute == .fitLabInput && fitLabCoordinator.isAnalysisRunning
             ? CoorditFrameRoute.fitLabLoading
             : nextRoute
@@ -331,7 +348,41 @@ struct CoorditRootView: View {
     }
 
     private var splashPresentation: CoorditSplashPresentation {
-        CoorditWelcomeLaunchState.splashPresentation(isAuthenticated: backendSession.isAuthenticated)
+        CoorditWelcomeLaunchState.splashPresentation(isAuthenticated: backendSession.canUseProduct)
+    }
+
+    @ViewBuilder
+    private var splashScreen: some View {
+        if backendSession.isAuthenticated {
+            CoorditSplashScreen(
+                presentation: splashPresentation,
+                onRouteChange: { navigate(to: $0) },
+                onAuthenticationRequested: {}
+            )
+        } else {
+            CoorditAuthenticationEntryView {
+                if backendSession.onboardingComplete {
+                    CoorditWelcomeLaunchState.markWelcomeCompleted()
+                    navigate(to: .main04)
+                } else {
+                    showsOnboarding = true
+                }
+            }
+        }
+    }
+
+    private var canShowSelectedRoute: Bool {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--coordit-ui-testing") {
+            return true
+        }
+        #endif
+        return route == .splash || backendSession.canUseProduct
+    }
+
+    private func presentOnboardingIfNeeded() {
+        guard backendSession.isAuthenticated, !backendSession.onboardingComplete else { return }
+        showsOnboarding = true
     }
 
     private var showsSharedAppBackground: Bool {

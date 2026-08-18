@@ -15,6 +15,7 @@ type UserProfileUpsertRow = {
   email: string;
   display_name: string;
   gender?: string;
+  birth_date?: string;
   birth_year?: number;
   updated_at: string;
 };
@@ -23,11 +24,6 @@ type BodyMeasurementWriteRow = {
   user_id?: string;
   height_cm?: number | null;
   weight_kg?: number | null;
-  shoulder_width?: number | null;
-  chest_circumference?: number | null;
-  waist_circumference?: number | null;
-  hip_circumference?: number | null;
-  outseam?: number | null;
   raw_data: Record<string, unknown>;
   updated_at: string;
 };
@@ -40,6 +36,7 @@ const toProfileRow = (profile: OnboardingUserProfile): UserProfileUpsertRow => {
     updated_at: new Date().toISOString()
   };
   if (profile.gender !== undefined) row.gender = profile.gender;
+  if (profile.birthDate !== undefined) row.birth_date = profile.birthDate;
   if (profile.birthYear !== undefined) row.birth_year = profile.birthYear;
   return row;
 };
@@ -55,11 +52,6 @@ const toBodyMeasurementRow = (
   if (userId !== undefined) row.user_id = userId;
   if (values.height_cm !== undefined) row.height_cm = values.height_cm;
   if (values.weight_kg !== undefined) row.weight_kg = values.weight_kg;
-  if (values.shoulder_width !== undefined) row.shoulder_width = values.shoulder_width;
-  if (values.chest_circumference !== undefined) row.chest_circumference = values.chest_circumference;
-  if (values.waist_circumference !== undefined) row.waist_circumference = values.waist_circumference;
-  if (values.hip_circumference !== undefined) row.hip_circumference = values.hip_circumference;
-  if (values.outseam !== undefined) row.outseam = values.outseam;
   return row;
 };
 

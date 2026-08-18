@@ -83,14 +83,6 @@ struct CoorditBackendClient {
         try await send(path: "/health", method: "GET", token: nil, body: Optional<String>.none)
     }
 
-    func login(email: String, password: String) async throws -> CoorditAuthSession {
-        try await send(path: "/auth/login", method: "POST", token: nil, body: AuthRequest(email: email, password: password))
-    }
-
-    func signup(email: String, password: String) async throws -> CoorditAuthSession {
-        try await send(path: "/auth/signup", method: "POST", token: nil, body: AuthRequest(email: email, password: password))
-    }
-
     func loginWithGoogle(idToken: String) async throws -> CoorditAuthSession {
         try await send(path: "/auth/google", method: "POST", token: nil, body: GoogleAuthRequest(idToken: idToken))
     }
@@ -106,6 +98,17 @@ struct CoorditBackendClient {
 
     func me(token: String) async throws -> CoorditUserProfile {
         try await send(path: "/users/me", method: "GET", token: token, body: Optional<String>.none)
+    }
+
+    func onboardingStatus(token: String) async throws -> CoorditOnboardingStatus {
+        try await send(path: "/auth/onboarding/status", method: "GET", token: token, body: Optional<String>.none)
+    }
+
+    func completeOnboarding(
+        token: String,
+        request: CoorditOnboardingRequest
+    ) async throws -> CoorditOnboardingStatus {
+        try await send(path: "/auth/onboarding", method: "POST", token: token, body: request)
     }
 
     func updateMe(token: String, displayName: String) async throws -> CoorditUserProfile {
@@ -284,11 +287,6 @@ struct CoorditBackendClient {
             )
         }
     }
-}
-
-private struct AuthRequest: Encodable {
-    let email: String
-    let password: String
 }
 
 private struct GoogleAuthRequest: Encodable {

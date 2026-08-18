@@ -11,8 +11,6 @@ final class CoorditMyPageNestedNavigationUITests: XCTestCase {
 
     private let destinations = [
         Destination(parentRoute: "mypage-account", rowLabel: "프로필 수정", route: "mypage-profile-edit"),
-        Destination(parentRoute: "mypage-account", rowLabel: "비밀번호 변경", route: "mypage-password-change"),
-        Destination(parentRoute: "mypage-account", rowLabel: "로그아웃", route: "mypage-logout"),
         Destination(parentRoute: "mypage-account", rowLabel: "회원 탈퇴", route: "mypage-account-deletion"),
         Destination(parentRoute: "mypage-body", rowLabel: "신체 치수 관리", route: "mypage-body-measurements"),
         Destination(parentRoute: "mypage-privacy", rowLabel: "개인정보 처리방침", route: "mypage-privacy-policy"),
@@ -52,49 +50,13 @@ final class CoorditMyPageNestedNavigationUITests: XCTestCase {
         }
     }
 
-    func testMyPageLoginEntryOpensAccountLogin() throws {
-        let app = launchApp(at: "mypage")
-        assertScreen("mypage", in: app)
-
-        let loginEntry = app.buttons["로그인 / 회원가입"]
-        XCTAssertTrue(loginEntry.waitForExistence(timeout: 5), "Missing My Page login entry")
-        tap(loginEntry, in: app)
-
-        assertScreen("mypage-account", in: app)
-        XCTAssertTrue(element("mypage-backend-email", in: app).waitForExistence(timeout: 5))
-        XCTAssertTrue(element("mypage-backend-password", in: app).waitForExistence(timeout: 5))
-        app.terminate()
-        XCTAssertTrue(app.wait(for: .notRunning, timeout: 5))
-    }
-
-    func testDeviceSignupThroughLiveBackend() throws {
-        let baseURL = try requireLiveBackendBaseURL()
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "--coordit-ui-testing",
-            "--coordit-start-route",
-            "mypage-account",
-            "--coordit-api-base-url",
-            baseURL,
-        ]
-        app.launch()
+    func testSignedInAccountShowsLogoutInsteadOfSocialProviders() throws {
+        let app = launchApp(at: "mypage-account", authenticated: true)
         assertScreen("mypage-account", in: app)
 
-        let email = "iphone-ui-\(Int(Date().timeIntervalSince1970))@coordit.local"
-        typeText(email, into: "mypage-backend-email", in: app)
-        typeText("password1234", into: "mypage-backend-password", in: app)
-
-        let signup = app.buttons["mypage-backend-signup"]
-        XCTAssertTrue(signup.waitForExistence(timeout: 5), "Missing signup button")
-        XCTAssertTrue(signup.isEnabled, "Signup button should be enabled after valid credentials")
-        tap(signup, in: app)
-
-        let status = element("mypage-backend-status", in: app)
-        XCTAssertTrue(status.waitForExistence(timeout: 5), "Missing backend status banner")
-        let predicate = NSPredicate(format: "label CONTAINS %@", "백엔드 로그인 완료")
-        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: status)
-        let result = XCTWaiter.wait(for: [expectation], timeout: 20)
-        XCTAssertEqual(result, .completed, "Signup failed with status: \(status.label)")
+        XCTAssertTrue(element("mypage-backend-local-logout", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(element("mypage-backend-google-login", in: app).exists)
+        XCTAssertFalse(element("mypage-backend-apple-login", in: app).exists)
     }
 
     func testSharedFitLabLaunchURLRoutesToURLInput() throws {
@@ -255,12 +217,6 @@ final class CoorditMyPageNestedNavigationUITests: XCTestCase {
         var app = launchApp(at: "mypage-profile-edit")
         completeAction("프로필 저장", expecting: "mypage-profile-saved", in: app)
 
-        app = launchApp(at: "mypage-password-change")
-        typeText("current-password", into: "mypage-password-current", in: app)
-        typeText("new-password", into: "mypage-password-new", in: app)
-        typeText("new-password", into: "mypage-password-confirm", in: app)
-        completeAction("비밀번호 변경", expecting: "mypage-password-changed", in: app)
-
         app = launchApp(at: "mypage-logout")
         completeAction("로그아웃 확인", expecting: "mypage-logout-complete", in: app)
 
@@ -291,21 +247,23 @@ final class CoorditMyPageNestedNavigationUITests: XCTestCase {
         completeAction("문의 보내기", expecting: "mypage-contact-sent", in: app)
     }
 
-    func testPasswordFormCanSubmitAfterTypingOnCompactScreen() throws {
+    func testPasswordRouteExplainsSocialOnlyAuthentication() throws {
         let app = launchApp(at: "mypage-password-change")
-        typeText("current-password", into: "mypage-password-current", in: app)
-        typeText("new-password", into: "mypage-password-new", in: app)
-        typeText("new-password", into: "mypage-password-confirm", in: app)
-        completeAction("비밀번호 변경", expecting: "mypage-password-changed", in: app)
+        XCTAssertTrue(app.staticTexts["비밀번호는 사용하지 않아요"].waitForExistence(timeout: 5))
+        XCTAssertFalse(element("mypage-password-current", in: app).exists)
     }
 
-    private func launchApp(at route: String) -> XCUIApplication {
+    private func launchApp(at route: String, authenticated: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = [
+        var launchArguments = [
             "--coordit-ui-testing",
             "--coordit-start-route",
             route,
         ]
+        if authenticated {
+            launchArguments.append("--coordit-ui-testing-authenticated")
+        }
+        app.launchArguments = launchArguments
         app.launch()
         return app
     }

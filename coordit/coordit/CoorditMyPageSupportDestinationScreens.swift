@@ -44,7 +44,7 @@ extension CoorditMyPageFamilyView {
             CoorditSettingsInfoPanel(
                 symbol: "hand.raised.fill",
                 title: "개인정보를 투명하게 다룹니다",
-                detail: "시행일 2026.06.30 · COORDIT 서비스 기준",
+                detail: "시행일 2026.07.07 · COORDIT 서비스 기준",
                 metrics: metrics
             )
 
@@ -81,7 +81,7 @@ extension CoorditMyPageFamilyView {
             CoorditSettingsInfoPanel(
                 symbol: "doc.text.fill",
                 title: "COORDIT 서비스 이용약관",
-                detail: "시행일 2026.06.30 · 앱 사용 전 주요 내용을 확인해 주세요.",
+                detail: "시행일 2026.07.07 · 앱 사용 전 주요 내용을 확인해 주세요.",
                 metrics: metrics
             )
 

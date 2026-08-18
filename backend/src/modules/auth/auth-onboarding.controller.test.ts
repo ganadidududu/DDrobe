@@ -21,6 +21,7 @@ const result: CompleteOnboardingResult = {
     id: "user-1", email: "user@example.com",
     display_name: "Mina",
     gender: null,
+    birth_date: null,
     birth_year: null,
     created_at: "2026-07-08T00:00:00.000Z", updated_at: "2026-07-08T00:00:00.000Z"
   },
@@ -199,6 +200,7 @@ const tests: readonly {
           id: "user-1", email: "user@example.com",
           display_name: "Mina",
           gender: null,
+          birth_date: null,
           birth_year: null,
           created_at: "2026-07-08T00:00:00.000Z", updated_at: "2026-07-08T00:00:00.000Z"
         },

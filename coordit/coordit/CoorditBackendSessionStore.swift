@@ -17,6 +17,7 @@ final class CoorditBackendSessionStore: ObservableObject {
     @Published private(set) var session: CoorditAuthSession?
     @Published private(set) var profile: CoorditUserProfile?
     @Published private(set) var latestBodyMeasurement: CoorditBodyMeasurement?
+    @Published private(set) var onboardingComplete = false
     @Published private(set) var referenceFitProfiles: [String: CoorditReferenceFitProfileResponse] = [:]
     @Published private(set) var statusText = "백엔드 연결 확인 전"
     @Published private(set) var isWorking = false
@@ -45,10 +46,13 @@ final class CoorditBackendSessionStore: ObservableObject {
                 email: "ui-test@coordit.invalid",
                 displayName: "코딧 테스트 사용자",
                 gender: nil,
+                birthDate: nil,
                 birthYear: nil,
                 createdAt: "2026-01-01T00:00:00Z",
                 updatedAt: "2026-01-01T00:00:00Z"
             )
+            onboardingComplete = !ProcessInfo.processInfo.arguments.contains("--coordit-ui-testing-onboarding-incomplete")
+            statusText = "테스트 계정으로 로그인됨"
         } else {
             usesAuthenticatedUITestFixture = false
             session = tokenStore.load()
@@ -71,6 +75,10 @@ final class CoorditBackendSessionStore: ObservableObject {
         session != nil
     }
 
+    var canUseProduct: Bool {
+        isAuthenticated && onboardingComplete
+    }
+
     var emailText: String {
         profile?.email ?? session?.user.email ?? "로그인 필요"
     }
@@ -91,6 +99,7 @@ final class CoorditBackendSessionStore: ObservableObject {
             isWarning = !health.ok
             if session != nil {
                 try await refreshAccount()
+                try await refreshOnboardingStatus()
             }
         }
     }
@@ -103,18 +112,6 @@ final class CoorditBackendSessionStore: ObservableObject {
             statusText = error.localizedDescription
             isWarning = true
             return nil
-        }
-    }
-
-    func login(email: String, password: String) async {
-        await authenticate {
-            try await client.login(email: email, password: password)
-        }
-    }
-
-    func signup(email: String, password: String) async {
-        await authenticate {
-            try await client.signup(email: email, password: password)
         }
     }
 
@@ -140,6 +137,7 @@ final class CoorditBackendSessionStore: ObservableObject {
         session = nil
         profile = nil
         latestBodyMeasurement = nil
+        onboardingComplete = false
         referenceFitProfiles = [:]
         statusText = "이 기기에서 로그아웃했어요."
         isWarning = false
@@ -160,6 +158,7 @@ final class CoorditBackendSessionStore: ObservableObject {
             session = nil
             profile = nil
             latestBodyMeasurement = nil
+            onboardingComplete = false
             referenceFitProfiles = [:]
             statusText = "계정과 저장된 데이터를 삭제했어요."
             isWarning = false
@@ -185,6 +184,25 @@ final class CoorditBackendSessionStore: ObservableObject {
             statusText = "신체 치수를 백엔드에 저장했어요."
             isWarning = false
         }
+    }
+
+    func completeOnboarding(_ request: CoorditOnboardingRequest) async -> Bool {
+        guard let token = session?.accessToken else {
+            statusText = "초기 설정은 로그인 후 저장할 수 있어요."
+            isWarning = true
+            return false
+        }
+
+        var completed = false
+        await run {
+            let status = try await client.completeOnboarding(token: token, request: request)
+            onboardingComplete = status.onboardingComplete
+            try await refreshAccount()
+            statusText = "나만의 핏 프로필을 저장했어요."
+            isWarning = false
+            completed = status.onboardingComplete
+        }
+        return completed
     }
 
     func prefillClosetProduct(
@@ -549,7 +567,8 @@ final class CoorditBackendSessionStore: ObservableObject {
             try tokenStore.save(nextSession)
             session = nextSession
             try await refreshAccount()
-            statusText = "백엔드 로그인 완료"
+            try await refreshOnboardingStatus()
+            statusText = onboardingComplete ? "백엔드 로그인 완료" : "초기 설정을 완료해 주세요."
             isWarning = false
         }
     }
@@ -558,6 +577,14 @@ final class CoorditBackendSessionStore: ObservableObject {
         guard let token = session?.accessToken else { return }
         profile = try await client.me(token: token)
         latestBodyMeasurement = try await client.listBodyMeasurements(token: token).first
+    }
+
+    private func refreshOnboardingStatus() async throws {
+        guard let token = session?.accessToken else {
+            onboardingComplete = false
+            return
+        }
+        onboardingComplete = try await client.onboardingStatus(token: token).onboardingComplete
     }
 
     private func runAuthenticated(_ action: (String) async throws -> Void) async {

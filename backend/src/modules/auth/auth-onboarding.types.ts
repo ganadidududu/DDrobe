@@ -21,9 +21,8 @@ export type CompleteOnboardingPayload = {
   readonly displayName?: unknown;
   readonly display_name?: unknown;
   readonly gender?: unknown;
-  readonly birthYear?: unknown;
-  readonly birth_year?: unknown;
-  readonly age?: unknown;
+  readonly birthDate?: unknown;
+  readonly birth_date?: unknown;
   readonly bodyMeasurements?: unknown;
   readonly body_measurements?: unknown;
   readonly consents?: unknown;
@@ -40,17 +39,13 @@ export type OnboardingUserProfile = {
   readonly email: string;
   readonly displayName: string;
   readonly gender?: string;
+  readonly birthDate?: string;
   readonly birthYear?: number;
 };
 
 export type OnboardingBodyMeasurementValues = {
   readonly height_cm?: number | null;
   readonly weight_kg?: number | null;
-  readonly shoulder_width?: number | null;
-  readonly chest_circumference?: number | null;
-  readonly waist_circumference?: number | null;
-  readonly hip_circumference?: number | null;
-  readonly outseam?: number | null;
   readonly raw_data: Record<string, unknown>;
 };
 

@@ -11,7 +11,7 @@
     "test:report": "tsx src/modules/fit-report/fit-report.service.test.ts && tsx src/modules/fit-report/fit-report.fallback.test.ts",
     "test": "npm run test:fit && npm run test:report && vitest run",
     "test:product-import": "vitest run src/modules/product-import/tests",
-    "test:auth-onboarding": "tsx src/modules/auth/auth-onboarding.service.test.ts && tsx src/modules/auth/auth-onboarding.validation.test.ts && tsx src/modules/auth/auth-onboarding.controller.test.ts"
+    "test:auth-onboarding": "tsx src/modules/auth/auth-onboarding.service.test.ts && tsx src/modules/auth/auth-onboarding.validation.test.ts && tsx src/modules/auth/auth-onboarding.controller.test.ts && tsx src/modules/auth/auth-onboarding-status.service.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",

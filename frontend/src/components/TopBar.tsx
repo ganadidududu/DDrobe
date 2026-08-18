@@ -16,11 +16,17 @@ const NAV_ITEMS = [
 export function TopBar() {
   const pathname = usePathname();
   const router   = useRouter();
-  const { userEmail, logout } = useAuth();
+  const { userEmail, userProfile, logout } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
 
   const initial = userEmail ? userEmail.charAt(0).toUpperCase() : "인";
-  const displayName = userEmail ? userEmail.split("@")[0] : null;
+  const displayName = userProfile?.display_name ?? (userEmail ? userEmail.split("@")[0] : null);
+
+  const handleLogout = async (): Promise<void> => {
+    await logout();
+    setShowMenu(false);
+    router.push("/login");
+  };
 
   return (
     <header style={{
@@ -97,13 +103,19 @@ export function TopBar() {
                 boxShadow: "0 8px 24px rgba(0,0,0,0.1)", zIndex: 100,
               }}>
                 <button
-                  onClick={() => { router.push("/onboarding"); setShowMenu(false); }}
+                  onClick={() => { router.push("/mypage"); setShowMenu(false); }}
                   style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", background: "none", border: "none", fontSize: 13, cursor: "pointer", color: "var(--obsidian)", fontFamily: "var(--font-korean)" }}
                 >
-                  체형 설정
+                  마이페이지
                 </button>
                 <button
-                  onClick={() => { logout(); setShowMenu(false); router.push("/login"); }}
+                  onClick={() => { router.push("/onboarding?mode=edit"); setShowMenu(false); }}
+                  style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", background: "none", border: "none", fontSize: 13, cursor: "pointer", color: "var(--obsidian)", fontFamily: "var(--font-korean)" }}
+                >
+                  핏 프로필 설정
+                </button>
+                <button
+                  onClick={() => void handleLogout()}
                   style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", background: "none", border: "none", fontSize: 13, cursor: "pointer", color: "var(--fit-tight)", fontFamily: "var(--font-korean)" }}
                 >
                   로그아웃

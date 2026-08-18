@@ -27,6 +27,7 @@ export const updateMe = async (
       await updateUserProfile(user.id, {
         display_name: asOptionalString(req.body.displayName ?? req.body.display_name),
         gender: asOptionalString(req.body.gender),
+        birth_date: asOptionalString(req.body.birthDate ?? req.body.birth_date),
         birth_year: asOptionalNumber(req.body.birthYear ?? req.body.birth_year)
       })
     );

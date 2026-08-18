@@ -23,6 +23,7 @@ export type ParsedConsent = {
 export type ParsedOnboardingInput = {
   readonly displayName: string;
   readonly gender?: string;
+  readonly birthDate?: string;
   readonly birthYear?: number;
   readonly bodyMeasurements: OnboardingBodyMeasurementValues | null;
   readonly consents: readonly ParsedConsent[];
@@ -30,13 +31,10 @@ export type ParsedOnboardingInput = {
 
 const BODY_MEASUREMENT_FIELDS = [
   ["height_cm", "heightCm", "height_cm"],
-  ["weight_kg", "weightKg", "weight_kg"],
-  ["shoulder_width", "shoulderWidth", "shoulder_width"],
-  ["chest_circumference", "chestCircumference", "chest_circumference"],
-  ["waist_circumference", "waistCircumference", "waist_circumference"],
-  ["hip_circumference", "hipCircumference", "hip_circumference"],
-  ["outseam", "outseam", "outseam"]
+  ["weight_kg", "weightKg", "weight_kg"]
 ] as const;
+
+const ALLOWED_GENDERS = ["female", "male", "prefer_not_to_say"] as const;
 
 const isConsentKey = (key: string): key is ConsentKey => {
   switch (key) {
@@ -95,23 +93,30 @@ const parseBodyMeasurements = (value: unknown): OnboardingBodyMeasurementValues 
   return {
     height_cm: parsed.height_cm,
     weight_kg: parsed.weight_kg,
-    shoulder_width: parsed.shoulder_width,
-    chest_circumference: parsed.chest_circumference,
-    waist_circumference: parsed.waist_circumference,
-    hip_circumference: parsed.hip_circumference,
-    outseam: parsed.outseam,
     raw_data: { ...rawData, source: "onboarding" }
   };
 };
 
-const parseBirthYear = (payload: CompleteOnboardingPayload): number | undefined => {
-  const parsed = asOptionalNumber(payload.birthYear ?? payload.birth_year);
-  if (parsed === null) return undefined;
-  return Math.trunc(parsed);
+const parseBirthDate = (payload: CompleteOnboardingPayload): string | undefined => {
+  const date = asOptionalString(payload.birthDate ?? payload.birth_date);
+  if (!date) return undefined;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw createHttpError(400, "birthDate must use YYYY-MM-DD");
+  }
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
+    throw createHttpError(400, "birthDate must be a real calendar date");
+  }
+  return date;
 };
 
 const parseGender = (payload: CompleteOnboardingPayload): string | undefined => {
-  return asOptionalString(payload.gender) ?? undefined;
+  const gender = asOptionalString(payload.gender);
+  if (!gender) return undefined;
+  if (!ALLOWED_GENDERS.some((allowedGender) => allowedGender === gender)) {
+    throw createHttpError(400, "gender is not supported");
+  }
+  return gender;
 };
 
 const parseRequiredConsent = (
@@ -183,10 +188,13 @@ export const parseOnboardingInput = async (
     if (!isConsentKey(key)) throw createHttpError(400, `${key} is not a supported consent key`);
   }
 
+  const birthDate = parseBirthDate(payload);
+
   return {
     displayName,
     gender: parseGender(payload),
-    birthYear: parseBirthYear(payload),
+    birthDate,
+    birthYear: birthDate ? Number(birthDate.slice(0, 4)) : undefined,
     bodyMeasurements: parseBodyMeasurements(payload.bodyMeasurements ?? payload.body_measurements),
     consents: parsedConsents
   };

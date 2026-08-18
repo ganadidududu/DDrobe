@@ -76,6 +76,17 @@ const tests: readonly {
     }
   },
   {
+    name: "non binary gender is rejected and writes nothing",
+    run: async (complete) => {
+      const fake = createFakeRepository();
+      await assertRejectsWithStatus(
+        () => complete(fake.repository, { id: "user-1", email: "user@example.com" }, payload({ gender: "non_binary" })),
+        400
+      );
+      assert.deepEqual(fake.operations, []);
+    }
+  },
+  {
     name: "unknown consent key returns 400 and writes nothing",
     run: async (complete) => {
       const fake = createFakeRepository();

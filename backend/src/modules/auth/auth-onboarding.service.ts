@@ -58,6 +58,7 @@ export const completeOnboardingWithRepository = async (
     email: authUser.email,
     displayName: parsed.displayName,
     gender: parsed.gender,
+    birthDate: parsed.birthDate,
     birthYear: parsed.birthYear
   });
 

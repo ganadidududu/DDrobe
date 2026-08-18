@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import type { ReactNode } from "react";
+import { AuthRouteGuard } from "../components/AuthRouteGuard";
 import { AuthProvider } from "../lib/auth-context";
 import "../styles/globals.css";
 
@@ -11,8 +13,24 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ko">
+      <head>
+        {process.env.NODE_ENV === "development" && (
+          <>
+            <Script
+              src="//unpkg.com/react-grab/dist/index.global.js"
+              crossOrigin="anonymous"
+              strategy="beforeInteractive"
+            />
+            <Script
+              src="//unpkg.com/react-scan/dist/auto.global.js"
+              crossOrigin="anonymous"
+              strategy="afterInteractive"
+            />
+          </>
+        )}
+      </head>
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider><AuthRouteGuard>{children}</AuthRouteGuard></AuthProvider>
       </body>
     </html>
   );

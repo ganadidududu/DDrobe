@@ -51,31 +51,21 @@ Content-Type: application/json
 
 ## 3. Auth
 
-### 회원가입
+### 소셜 로그인 및 회원가입
 
 | 항목 | 내용 |
 | --- | --- |
-| 기능명 | 회원가입 |
-| 목적 | 신규 사용자를 만들고 기본 프로필을 준비한다. |
-| Endpoint | `POST /auth/signup` |
-| 필수 입력 | `email`, `password`, `displayName` |
-| 주요 반환값 | 사용자 정보, 인증 세션 또는 로그인 가능 상태 |
-| 사용 화면 | Auth |
+| 기능명 | Google / Apple 로그인 |
+| 목적 | 비밀번호를 저장하지 않고 Supabase OAuth 세션을 만든 뒤 신규 사용자를 초기 설정으로 보낸다. |
+| Endpoint | Supabase Auth `signInWithOAuth` 및 PKCE callback |
+| 지원 provider | `google`, `apple` |
+| 주요 반환값 | Supabase access token, refresh token, OAuth 사용자 |
+| 사용 화면 | `/login`, `/auth/callback` |
 
-### 로그인
-
-| 항목 | 내용 |
-| --- | --- |
-| 기능명 | 로그인 |
-| 목적 | access token과 refresh token을 받아 보호 API를 호출할 수 있게 한다. |
-| Endpoint | `POST /auth/login` |
-| 필수 입력 | `email`, `password` |
-| 주요 반환값 | `accessToken`, `refreshToken`, `user` |
-| 사용 화면 | Auth |
+이 API 서버는 더 이상 이메일/비밀번호 회원가입 또는 로그인 route를 제공하지 않는다. 앱은 소셜 로그인으로 얻은 Supabase access token을 이후 보호 API의 bearer token으로 사용한다.
 
 ### OAuth 온보딩 계약
 
-이 섹션은 백엔드/API 계약이다. 현재 문서는 프론트엔드 구현 완료를 의미하지 않는다.
 모바일 또는 웹 클라이언트는 Supabase OAuth를 완료한 뒤 Supabase access token을
 Coordit 백엔드 보호 API의 bearer token으로 넘긴다.
 
@@ -86,15 +76,15 @@ Coordit 백엔드 보호 API의 bearer token으로 넘긴다.
 | Endpoint | `POST /auth/onboarding` |
 | 인증 | `Authorization: Bearer <supabase_access_token>` |
 | 필수 입력 | `displayName`, `consents.terms_of_service`, `consents.privacy_policy` |
-| 선택 입력 | `gender`, `birthYear`, `bodyMeasurements`, `consents.fit_data_improvement`, `consents.marketing` |
+| 선택 입력 | `gender`, `birthDate`, `bodyMeasurements`, `consents.fit_data_improvement`, `consents.marketing` |
 | 주요 반환값 | `user`, `consentStatus`, `onboardingComplete`, `bodyMeasurementsSaved` |
 | 사용 화면 | Auth onboarding |
 
 OAuth provider 방향:
 
-- Google은 지금 지원할 provider다.
-- Kakao는 나중에 같은 온보딩 계약을 재사용할 provider다.
-- Coordit DB에는 Google/Kakao provider access token 또는 refresh token을 저장하지 않는다.
+- Google과 Apple이 현재 지원 provider다.
+- 이후 provider도 같은 온보딩 계약을 재사용한다.
+- Coordit DB에는 provider access token 또는 refresh token을 저장하지 않는다.
 - provider별 로그인, code exchange, redirect allow-list는 Supabase Auth 설정과 클라이언트
   OAuth 플로우가 담당한다.
 
@@ -103,9 +93,9 @@ Supabase 연동 사실:
 - Google OAuth는 Supabase Google provider 설정, Google OAuth client, Supabase callback URL,
   앱 redirect URL allow-list가 필요하다.
   참고: <https://supabase.com/docs/guides/auth/social-login/auth-google>
-- Kakao OAuth는 Supabase Kakao provider 설정, Kakao REST API key/client secret, Supabase
-  callback URL, Kakao Login redirect URI가 필요하다.
-  참고: <https://supabase.com/docs/guides/auth/social-login/auth-kakao>
+- Apple OAuth는 Supabase Apple provider 설정, Apple Services ID, Supabase callback URL,
+  앱 redirect URL allow-list가 필요하다.
+  참고: <https://supabase.com/docs/guides/auth/social-login/auth-apple>
 - PKCE 플로우에서는 callback에서 authorization code를 session으로 교환한다.
   참고: <https://supabase.com/docs/guides/auth/sessions/pkce-flow>,
   <https://supabase.com/docs/reference/javascript/auth-exchangecodeforsession>
@@ -130,12 +120,10 @@ Content-Type: application/json
 {
   "displayName": "테스트",
   "gender": "female",
-  "birthYear": 1995,
+  "birthDate": "1995-05-17",
   "bodyMeasurements": {
     "heightCm": 168,
-    "weightKg": 58,
-    "shoulderWidth": 40,
-    "outseam": 96
+    "weightKg": 58
   },
   "consents": {
     "terms_of_service": {
@@ -162,8 +150,9 @@ Content-Type: application/json
 
 - `terms_of_service`와 `privacy_policy`는 필수이며 `accepted: true`여야 한다.
 - `fit_data_improvement`와 `marketing`은 선택 동의다. 거절하거나 생략해도 온보딩을 막지 않는다.
-- `birthYear`를 사용한다. 매년 값이 바뀌는 `age`는 canonical 입력/저장값으로 사용하지 않는다.
-- `bodyMeasurements`는 선택이다. 사용자가 신체 치수를 나중에 입력하기로 하면 이 필드를 생략한다.
+- `birthDate`는 `YYYY-MM-DD` 형식의 실제 생일이다. `age` 또는 출생연도만의 값은 canonical 입력으로 사용하지 않는다.
+- `gender`는 `female`, `male`, `prefer_not_to_say`만 허용한다.
+- `bodyMeasurements`는 선택이며 초기 설정에는 `heightCm`, `weightKg`만 받는다. 사용자가 나중에 입력하기로 하면 이 필드를 생략한다.
 - `bodyMeasurements`가 생략되거나 숫자 측정값이 없으면 백엔드는 `body_measurements` row를 만들지 않는다.
 - `bodyMeasurements`에 하나 이상의 숫자 측정값이 있으면 온보딩 출처의 신체 치수 row를 저장한다.
 
@@ -176,6 +165,7 @@ Content-Type: application/json
     "email": "user@example.com",
     "display_name": "테스트",
     "gender": "female",
+    "birth_date": "1995-05-17",
     "birth_year": 1995
   },
   "consentStatus": {
@@ -196,7 +186,7 @@ Content-Type: application/json
 `bodyMeasurements`를 건너뛴 성공 응답에서는 `bodyMeasurementsSaved`가 `false`다.
 이 호출은 같은 사용자가 다시 호출할 수 있는 완료/갱신 성격의 요청이며 성공 시 HTTP 200을 사용한다.
 
-### 인증 상태 확인
+### 인증 및 온보딩 상태 확인
 
 | 항목 | 내용 |
 | --- | --- |
@@ -206,6 +196,17 @@ Content-Type: application/json
 | 필수 입력 | Authorization header |
 | 주요 반환값 | 사용자 프로필 |
 | 사용 화면 | App bootstrap, Profile |
+
+| 항목 | 내용 |
+| --- | --- |
+| 기능명 | 온보딩 완료 상태 확인 |
+| 목적 | 필수 약관의 최신 버전 동의와 기본 프로필 저장 여부를 검사해 보호 화면 진입을 결정한다. |
+| Endpoint | `GET /auth/onboarding/status` |
+| 필수 입력 | Authorization header |
+| 주요 반환값 | `{ "onboardingComplete": boolean }` |
+| 사용 화면 | App bootstrap, route guard |
+
+`POST /auth/onboarding`, `GET /auth/onboarding/status`, `GET/PATCH/DELETE /users/me`를 제외한 보호 API는 온보딩 완료 상태가 아니면 HTTP 403을 반환한다.
 
 ## 4. Profile
 
@@ -217,7 +218,7 @@ Content-Type: application/json
 | 목적 | 사용자 표시 이름과 기본 정보를 가져온다. |
 | Endpoint | `GET /users/me` |
 | 필수 입력 | Authorization header |
-| 주요 반환값 | `id`, `email`, `display_name`, `gender`, `birth_year` |
+| 주요 반환값 | `id`, `email`, `display_name`, `gender`, `birth_date` |
 | 사용 화면 | Home, Profile |
 
 ### 내 프로필 수정
