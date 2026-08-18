@@ -6,14 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		42E5BCC88BBF47AB93ABDB85 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = D90D5318A0D046F19E4B2413 /* GoogleSignIn */; };
+		AD0B0000AD0B0000AD0B0001 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = AD0B0000AD0B0000AD0B0002 /* GoogleMobileAds */; };
+		657DB114EF6E44F28E0CB43C /* CoorditShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 0A7D45AE628A4917AB362C6F /* CoorditShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
-		F6B6F368E1C64473A98FBEB7 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = E1ED08FB2FFCE8A70048FDDE /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = E6DB292085C64610AF7286EF;
-			remoteInfo = CoorditShareExtension;
-		};
 		E1ED09182FFCF0010048FDDE /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = E1ED08FB2FFCE8A70048FDDE /* Project object */;
@@ -21,12 +20,14 @@
 			remoteGlobalIDString = E1ED09022FFCE8A70048FDDE;
 			remoteInfo = coordit;
 		};
+		F6B6F368E1C64473A98FBEB7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E1ED08FB2FFCE8A70048FDDE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E6DB292085C64610AF7286EF;
+			remoteInfo = CoorditShareExtension;
+		};
 /* End PBXContainerItemProxy section */
-
-/* Begin PBXBuildFile section */
-		657DB114EF6E44F28E0CB43C /* CoorditShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 0A7D45AE628A4917AB362C6F /* CoorditShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		42E5BCC88BBF47AB93ABDB85 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = D90D5318A0D046F19E4B2413 /* GoogleSignIn */; };
-/* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		49673B3D918345B9B4215A6B /* Embed App Extensions */ = {
@@ -49,21 +50,19 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		122EC9F5FCC142F6A0735A08 /* Exceptions for "CoorditShareExtension" folder in "CoorditShareExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = E6DB292085C64610AF7286EF /* CoorditShareExtension */;
+		};
 		21E78E5AE55D4BB085EBF442 /* Exceptions for "coordit" folder in "coordit" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				coordit.entitlements,
 			);
 			target = E1ED09022FFCE8A70048FDDE /* coordit */;
-		};
-		122EC9F5FCC142F6A0735A08 /* Exceptions for "CoorditShareExtension" folder in "CoorditShareExtension" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				CoorditShareExtension.entitlements,
-				Info.plist,
-			);
-			target = E6DB292085C64610AF7286EF /* CoorditShareExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -92,22 +91,23 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		BE7705CAF5554C2492EF04F9 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E1ED09002FFCE8A70048FDDE /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				42E5BCC88BBF47AB93ABDB85 /* GoogleSignIn in Frameworks */,
+				AD0B0000AD0B0000AD0B0001 /* GoogleMobileAds in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		E1ED09132FFCF0010048FDDE /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		BE7705CAF5554C2492EF04F9 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -160,32 +160,11 @@
 			name = coordit;
 			packageProductDependencies = (
 				D90D5318A0D046F19E4B2413 /* GoogleSignIn */,
+				AD0B0000AD0B0000AD0B0002 /* GoogleMobileAds */,
 			);
 			productName = coordit;
 			productReference = E1ED09032FFCE8A70048FDDE /* coordit.app */;
 			productType = "com.apple.product-type.application";
-		};
-		E6DB292085C64610AF7286EF /* CoorditShareExtension */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = B2FFD72B0F9A42E093CD04DF /* Build configuration list for PBXNativeTarget "CoorditShareExtension" */;
-			buildPhases = (
-				98352FCE4FC9439694481BE1 /* Sources */,
-				BE7705CAF5554C2492EF04F9 /* Frameworks */,
-				A3DEC7A37D3244B0BE77BDBA /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				4D00EA8AFC5D4D0DB53F57C1 /* CoorditShareExtension */,
-			);
-			name = CoorditShareExtension;
-			packageProductDependencies = (
-			);
-			productName = CoorditShareExtension;
-			productReference = 0A7D45AE628A4917AB362C6F /* CoorditShareExtension.appex */;
-			productType = "com.apple.product-type.app-extension";
 		};
 		E1ED09162FFCF0010048FDDE /* coorditUITests */ = {
 			isa = PBXNativeTarget;
@@ -210,6 +189,28 @@
 			productReference = E1ED09112FFCF0010048FDDE /* coorditUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		E6DB292085C64610AF7286EF /* CoorditShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B2FFD72B0F9A42E093CD04DF /* Build configuration list for PBXNativeTarget "CoorditShareExtension" */;
+			buildPhases = (
+				98352FCE4FC9439694481BE1 /* Sources */,
+				BE7705CAF5554C2492EF04F9 /* Frameworks */,
+				A3DEC7A37D3244B0BE77BDBA /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				4D00EA8AFC5D4D0DB53F57C1 /* CoorditShareExtension */,
+			);
+			name = CoorditShareExtension;
+			packageProductDependencies = (
+			);
+			productName = CoorditShareExtension;
+			productReference = 0A7D45AE628A4917AB362C6F /* CoorditShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -223,12 +224,12 @@
 					E1ED09022FFCE8A70048FDDE = {
 						CreatedOnToolsVersion = 26.5;
 					};
-					E6DB292085C64610AF7286EF = {
-						CreatedOnToolsVersion = 26.5;
-					};
 					E1ED09162FFCF0010048FDDE = {
 						CreatedOnToolsVersion = 26.5;
 						TestTargetID = E1ED09022FFCE8A70048FDDE;
+					};
+					E6DB292085C64610AF7286EF = {
+						CreatedOnToolsVersion = 26.5;
 					};
 				};
 			};
@@ -243,6 +244,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				563B6A6CC5434884A3F5C97F /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				AD0B0000AD0B0000AD0B0003 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E1ED09042FFCE8A70048FDDE /* Products */;
@@ -257,6 +259,13 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		A3DEC7A37D3244B0BE77BDBA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E1ED09012FFCE8A70048FDDE /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -271,16 +280,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A3DEC7A37D3244B0BE77BDBA /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		98352FCE4FC9439694481BE1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-/* End PBXResourcesBuildPhase section */
-
-/* Begin PBXSourcesBuildPhase section */
 		E1ED08FF2FFCE8A70048FDDE /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -289,13 +298,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		E1ED09152FFCF0010048FDDE /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		98352FCE4FC9439694481BE1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -318,6 +320,66 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		7B0996500A524B948C5105D9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = CoorditShareExtension/CoorditShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 87V7WR9QND;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = CoorditShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.inseong.coordit.CoorditShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		AA1A3F88849848449BD986A0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = CoorditShareExtension/CoorditShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 87V7WR9QND;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = CoorditShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.inseong.coordit.CoorditShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
 		E1ED090C2FFCE8A80048FDDE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -447,11 +509,10 @@
 				DEVELOPMENT_TEAM = 87V7WR9QND;
 				ENABLE_PREVIEWS = YES;
 				EXCLUDED_SOURCE_FILE_NAMES = Info.plist;
-					GENERATE_INFOPLIST_FILE = NO;
-					COORDIT_API_BASE_URL = "http://localhost:4000";
-					GOOGLE_IOS_CLIENT_ID = "";
-				GOOGLE_REVERSED_CLIENT_ID = "";
-				GOOGLE_WEB_CLIENT_ID = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				GOOGLE_IOS_CLIENT_ID = "789827940031-1dn0g314b7d7kmpbd8sghodgd00ldpa7.apps.googleusercontent.com";
+				GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.789827940031-1dn0g314b7d7kmpbd8sghodgd00ldpa7";
+				GOOGLE_WEB_CLIENT_ID = "789827940031-omahjmi6eepp4rpf5ue7kjqndf8rhjr7.apps.googleusercontent.com";
 				INFOPLIST_FILE = coordit/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -483,9 +544,9 @@
 				ENABLE_PREVIEWS = YES;
 				EXCLUDED_SOURCE_FILE_NAMES = Info.plist;
 				GENERATE_INFOPLIST_FILE = NO;
-				GOOGLE_IOS_CLIENT_ID = "";
-				GOOGLE_REVERSED_CLIENT_ID = "";
-				GOOGLE_WEB_CLIENT_ID = "";
+				GOOGLE_IOS_CLIENT_ID = "789827940031-1dn0g314b7d7kmpbd8sghodgd00ldpa7.apps.googleusercontent.com";
+				GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.789827940031-1dn0g314b7d7kmpbd8sghodgd00ldpa7";
+				GOOGLE_WEB_CLIENT_ID = "789827940031-omahjmi6eepp4rpf5ue7kjqndf8rhjr7.apps.googleusercontent.com";
 				INFOPLIST_FILE = coordit/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -549,69 +610,18 @@
 			};
 			name = Release;
 		};
-		AA1A3F88849848449BD986A0 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_ENTITLEMENTS = CoorditShareExtension/CoorditShareExtension.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 87V7WR9QND;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = CoorditShareExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.inseong.coordit.CoorditShareExtension;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
-			};
-			name = Debug;
-		};
-		7B0996500A524B948C5105D9 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_ENTITLEMENTS = CoorditShareExtension/CoorditShareExtension.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 87V7WR9QND;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = CoorditShareExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.inseong.coordit.CoorditShareExtension;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		B2FFD72B0F9A42E093CD04DF /* Build configuration list for PBXNativeTarget "CoorditShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA1A3F88849848449BD986A0 /* Debug */,
+				7B0996500A524B948C5105D9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		E1ED08FE2FFCE8A70048FDDE /* Build configuration list for PBXProject "coordit" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -639,15 +649,6 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		B2FFD72B0F9A42E093CD04DF /* Build configuration list for PBXNativeTarget "CoorditShareExtension" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				AA1A3F88849848449BD986A0 /* Debug */,
-				7B0996500A524B948C5105D9 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -659,6 +660,7 @@
 				minimumVersion = 9.0.0;
 			};
 		};
+AD0B0000AD0B0000AD0B0003 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = { isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads.git"; requirement = { kind = upToNextMajorVersion; minimumVersion = 12.0.0; }; };
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -667,6 +669,7 @@
 			package = 563B6A6CC5434884A3F5C97F /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignIn;
 		};
+AD0B0000AD0B0000AD0B0002 /* GoogleMobileAds */ = { isa = XCSwiftPackageProductDependency; package = AD0B0000AD0B0000AD0B0003 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */; productName = GoogleMobileAds; };
 /* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E1ED08FB2FFCE8A70048FDDE /* Project object */;

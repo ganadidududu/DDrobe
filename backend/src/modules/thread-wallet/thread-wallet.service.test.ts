@@ -49,7 +49,8 @@ const tests: readonly { readonly name: string; readonly run: () => Promise<void>
             creditCalls += 1;
             creditedInput = input;
             return { availableThreads: 46, status: "credited" as const };
-          }
+          },
+          allowSandboxTransactions: true
         }
       );
 
@@ -79,10 +80,37 @@ const tests: readonly { readonly name: string; readonly run: () => Promise<void>
             creditAppleTransaction: async () => {
               creditCalls += 1;
               return { availableThreads: 46, status: "credited" as const };
-            }
+            },
+            allowSandboxTransactions: true
           }
         ),
         403
+      );
+
+      assert.equal(creditCalls, 0);
+    }
+  },
+  {
+    name: "rejects a Sandbox transaction when the release environment disallows it",
+    run: async () => {
+      let creditCalls = 0;
+
+      await expectHttpError(
+        settleAppleIapPurchase(
+          {
+            userId: verifiedTransaction.appAccountToken,
+            signedTransaction: "signed-apple-transaction"
+          },
+          {
+            verifyAppleTransaction: async () => verifiedTransaction,
+            creditAppleTransaction: async () => {
+              creditCalls += 1;
+              return { availableThreads: 46, status: "credited" as const };
+            },
+            allowSandboxTransactions: false
+          }
+        ),
+        400
       );
 
       assert.equal(creditCalls, 0);
@@ -107,7 +135,8 @@ const tests: readonly { readonly name: string; readonly run: () => Promise<void>
             creditAppleTransaction: async () => {
               creditCalls += 1;
               return { availableThreads: 46, status: "credited" as const };
-            }
+            },
+            allowSandboxTransactions: true
           }
         ),
         400

@@ -2,8 +2,7 @@ import SwiftUI
 
 #if os(iOS)
 private enum CoorditThreadChargeAvailability {
-    // StoreKit verification and rewarded-ad settlement must be implemented before enabling either path.
-    static let rewardedAds = false
+    // StoreKit verification is required before enabling package purchases.
     static let purchases = false
 }
 
@@ -44,7 +43,10 @@ extension CoorditMyPageFamilyView {
             .accessibilityIdentifier("coordit-thread-charge-balance")
             .padding(.bottom, contentMetrics.value(CoorditDesignTokens.ChargeMetrics.balanceToAdSpacing))
 
-            Button(action: {}) {
+            Button {
+                rewardBalanceBefore = threadBalance
+                rewardedAdService.present()
+            } label: {
                 HStack(spacing: contentMetrics.value(CoorditDesignTokens.ChargeMetrics.adContentSpacing)) {
                     ZStack {
                         RoundedRectangle(
@@ -97,14 +99,24 @@ extension CoorditMyPageFamilyView {
                 )
             }
             .coorditPressFeedback()
-            .disabled(!CoorditThreadChargeAvailability.rewardedAds)
-            .opacity(CoorditThreadChargeAvailability.rewardedAds ? 1 : 0.48)
+            .disabled(!rewardedAdService.isReady)
+            .opacity(rewardedAdService.isReady ? 1 : 0.48)
             .accessibilityLabel("광고 보고 실타래 충전하기")
             .accessibilityIdentifier("coordit-thread-charge-ad-cta")
             .padding(.bottom, contentMetrics.value(CoorditDesignTokens.ChargeMetrics.adToPackagesSpacing))
 
-            if !CoorditThreadChargeAvailability.rewardedAds || !CoorditThreadChargeAvailability.purchases {
-                Text("실타래 충전은 출시 준비 중이에요.")
+            if let message = rewardedAdService.status.message {
+                Text(message)
+                    .font(CoorditTypography.gmarketMedium(size: contentMetrics.value(10), relativeTo: .caption))
+                    .foregroundStyle(CoorditSettingsStyle.muted)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("coordit-thread-charge-ad-status")
+                    .padding(.bottom, contentMetrics.value(10))
+            }
+
+            if !CoorditThreadChargeAvailability.purchases {
+                Text("패키지 구매는 출시 준비 중이에요.")
                     .font(CoorditTypography.gmarketMedium(size: contentMetrics.value(10), relativeTo: .caption))
                     .foregroundStyle(CoorditSettingsStyle.muted)
                     .multilineTextAlignment(.center)
@@ -226,7 +238,7 @@ struct CoorditThreadRechargeRequiredPopup: View {
                             .foregroundStyle(CoorditSettingsStyle.ink)
                             .multilineTextAlignment(.center)
 
-                        Text("FIT LAB 분석에는 실타래 1개가 필요해요.")
+                        Text("FIT LAB 분석과 상세 리포트 생성에는 각각 실타래 1개가 필요해요.")
                             .font(CoorditTypography.gmarketMedium(size: metrics.value(11), relativeTo: .caption))
                             .foregroundStyle(CoorditSettingsStyle.muted)
                             .multilineTextAlignment(.center)

@@ -83,8 +83,13 @@ struct CoorditBackendClient {
         try await send(path: "/health", method: "GET", token: nil, body: Optional<String>.none)
     }
 
-    func loginWithGoogle(idToken: String) async throws -> CoorditAuthSession {
-        try await send(path: "/auth/google", method: "POST", token: nil, body: GoogleAuthRequest(idToken: idToken))
+    func loginWithGoogle(idToken: String, nonce: String) async throws -> CoorditAuthSession {
+        try await send(
+            path: "/auth/google",
+            method: "POST",
+            token: nil,
+            body: GoogleAuthRequest(idToken: idToken, nonce: nonce)
+        )
     }
 
     func loginWithApple(idToken: String, nonce: String) async throws -> CoorditAuthSession {
@@ -129,6 +134,10 @@ struct CoorditBackendClient {
 
     func threadBalance(token: String) async throws -> CoorditThreadBalanceResponse {
         try await send(path: "/thread-wallet/balance", method: "GET", token: token, body: Optional<String>.none)
+    }
+
+    func createThreadRewardAttempt(token: String) async throws -> CoorditThreadRewardAttempt {
+        try await send(path: "/thread-wallet/reward-attempts", method: "POST", token: token, body: Optional<String>.none)
     }
 
     func createClothingItem(token: String, request: CreateClothingItemRequest) async throws -> CoorditClothingItemResponse {
@@ -195,10 +204,6 @@ struct CoorditBackendClient {
 
     func deactivateReferenceClothing(token: String, id: String) async throws -> CoorditReferenceClothingResponse {
         try await send(path: "/reference-clothing/\(id)/deactivate", method: "PATCH", token: token, body: Optional<String>.none)
-    }
-
-    func reassessClothingItem(token: String, id: String) async throws -> CoorditClothingFitAssessmentResponse {
-        try await send(path: "/clothing-items/\(id)/fit-reassessment", method: "POST", token: token, body: Optional<String>.none)
     }
 
     func referenceFitProfile(
@@ -291,6 +296,7 @@ struct CoorditBackendClient {
 
 private struct GoogleAuthRequest: Encodable {
     let idToken: String
+    let nonce: String
 }
 
 private struct AppleAuthRequest: Encodable {
@@ -300,6 +306,12 @@ private struct AppleAuthRequest: Encodable {
 
 private struct UpdateProfileRequest: Encodable {
     let displayName: String
+}
+
+struct CoorditThreadRewardAttempt: Decodable {
+    let attemptId: String
+    let expiresAt: String
+    let status: String
 }
 
 struct BodyMeasurementRequest: Encodable {

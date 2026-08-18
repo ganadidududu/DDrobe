@@ -115,10 +115,19 @@ final class CoorditBackendSessionStore: ObservableObject {
         }
     }
 
+    func createThreadRewardAttempt() async throws -> CoorditThreadRewardAttempt {
+        guard let token = session?.accessToken else {
+            throw CoorditBackendClientError.server(statusCode: 401, message: "로그인 후 광고 보상을 받을 수 있어요.")
+        }
+        return try await client.createThreadRewardAttempt(token: token)
+    }
     func loginWithGoogle() async {
         await authenticate {
-            let idToken = try await CoorditGoogleSignIn.signInIDToken()
-            return try await client.loginWithGoogle(idToken: idToken)
+            let credential = try await CoorditGoogleSignIn.signInCredential()
+            return try await client.loginWithGoogle(
+                idToken: credential.idToken,
+                nonce: credential.nonce
+            )
         }
     }
 
@@ -227,6 +236,21 @@ final class CoorditBackendSessionStore: ObservableObject {
         from draft: CoorditClosetDraft,
         idempotencyKey: String
     ) async -> CoorditClothingSaveResult? {
+#if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--coordit-test-closet-save-success") {
+            let clothingSizeRequest = await CoorditFitLabSizeExtractor.referenceClothingSizeRequest(from: draft)
+            try? await Task.sleep(for: .milliseconds(250))
+            statusText = "UI 테스트 보유 의류를 저장했어요."
+            isWarning = false
+            return CoorditClothingSaveResult(
+                clothingItemId: "closet-save-success-fixture",
+                sizeChart: CoorditClosetSizeChart(
+                    sizeLabel: clothingSizeRequest.sizeLabel,
+                    measurements: clothingSizeRequest.measurements
+                )
+            )
+        }
+#endif
         guard let token = session?.accessToken else {
             statusText = "보유 의류 저장은 로그인 후 백엔드에 반영돼요."
             isWarning = true
@@ -398,26 +422,6 @@ final class CoorditBackendSessionStore: ObservableObject {
                 selectedIDs: selectedIDs,
                 referenceIDsByItemID: referenceIDsByItemID
             )
-        } catch {
-            statusText = error.localizedDescription
-            isWarning = true
-            return nil
-        }
-    }
-
-    func reassessClothingItem(id: String) async -> CoorditClothingFitAssessmentResponse? {
-        guard let token = session?.accessToken else {
-            statusText = "핏 스코어 재평가는 로그인이 필요해요."
-            isWarning = true
-            return nil
-        }
-
-        do {
-            let assessment = try await client.reassessClothingItem(token: token, id: id)
-            let score = CoorditFitLabResultMeasurement.score(assessment.fitScore)
-            statusText = "선택한 의류의 핏 스코어를 \(score)점으로 다시 계산했어요."
-            isWarning = false
-            return assessment
         } catch {
             statusText = error.localizedDescription
             isWarning = true

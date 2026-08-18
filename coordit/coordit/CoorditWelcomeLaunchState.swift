@@ -18,28 +18,55 @@ enum CoorditWelcomeLaunchState {
         defaults: UserDefaults = .standard,
         arguments: [String] = ProcessInfo.processInfo.arguments
     ) -> CoorditSplashPresentation {
-        #if DEBUG
-        if arguments.contains("--coordit-ui-testing"),
-           let markerIndex = arguments.firstIndex(of: "--coordit-welcome-state"),
-           arguments.indices.contains(arguments.index(after: markerIndex)) {
-            switch arguments[arguments.index(after: markerIndex)] {
-            case "fresh":
-                return .firstInstall
-            case "returning":
-                return .returningUser
-            default:
-                break
-            }
+        if let testingPresentation = testingPresentation(arguments: arguments) {
+            return testingPresentation
         }
-        #endif
 
-        return defaults.bool(forKey: completedKey) && isAuthenticated
+        return hasCompletedWelcome(defaults: defaults) && isAuthenticated
             ? .returningUser
             : .firstInstall
     }
 
+    static func shouldAutomaticallyPresentAuthentication(
+        isAuthenticated: Bool,
+        defaults: UserDefaults = .standard,
+        arguments: [String] = ProcessInfo.processInfo.arguments
+    ) -> Bool {
+        guard !isAuthenticated else { return false }
+        if let testingPresentation = testingPresentation(arguments: arguments) {
+            return testingPresentation == .returningUser
+        }
+        return hasCompletedWelcome(defaults: defaults)
+    }
+
+    static func hasCompletedWelcome(defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: completedKey)
+    }
+
     static func markWelcomeCompleted(defaults: UserDefaults = .standard) {
         defaults.set(true, forKey: completedKey)
+    }
+
+    private static func testingPresentation(
+        arguments: [String]
+    ) -> CoorditSplashPresentation? {
+        #if DEBUG
+        guard arguments.contains("--coordit-ui-testing"),
+              let markerIndex = arguments.firstIndex(of: "--coordit-welcome-state"),
+              arguments.indices.contains(arguments.index(after: markerIndex))
+        else { return nil }
+
+        switch arguments[arguments.index(after: markerIndex)] {
+        case "fresh":
+            return .firstInstall
+        case "returning":
+            return .returningUser
+        default:
+            return nil
+        }
+        #else
+        return nil
+        #endif
     }
 }
 #endif

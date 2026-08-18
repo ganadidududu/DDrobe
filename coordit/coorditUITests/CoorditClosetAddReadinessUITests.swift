@@ -133,7 +133,7 @@ final class CoorditClosetAddReadinessUITests: XCTestCase {
         app.buttons["closet-add-submit"].tap()
         assertScreen("closet-add-loading", in: app)
         XCTAssertTrue(app.staticTexts["저장하지 못했어요"].waitForExistence(timeout: 5))
-        XCTAssertTrue(element("coordit-closet-save-retry", in: app).exists)
+        XCTAssertTrue(app.buttons["다시 시도"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["새 의류의 핏 스코어 계산 중 . . ."].exists)
         XCTAssertFalse(element("coordit-screen-closet-add-result", in: app).exists)
     }
@@ -202,6 +202,38 @@ final class CoorditClosetAddReadinessUITests: XCTestCase {
                 "A name plus \(completedCount) measurements has the wrong readiness state."
             )
         }
+    }
+
+    func testSuccessfulManualRegistrationDoesNotExposeSaveFailure() throws {
+        let app = launchApp(
+            at: "closet-add-manual",
+            additionalArguments: ["--coordit-test-closet-save-success"]
+        )
+        assertScreen("closet-add-manual", in: app)
+
+        typeText("Success Shirt", into: "closet-garment-name", in: app)
+        dismissKeyboard(in: app)
+
+        for index in 0..<4 {
+            let field = app.textFields["closet-manual-measurement-\(index)"]
+            for _ in 0..<3 where !field.isHittable { app.swipeUp() }
+            focusAndType("\(index + 40)", into: field, in: app)
+            dismissKeyboard(in: app)
+        }
+
+        app.buttons["closet-add-submit"].tap()
+        assertScreen("closet-add-result", in: app)
+
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "closet-success-no-failure"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+
+        XCTAssertFalse(
+            app.staticTexts["저장하지 못했어요"].exists,
+            "A successful registration must never expose the save-failure screen."
+        )
+        XCTAssertFalse(element("coordit-closet-save-retry", in: app).exists)
     }
 
     private func launchApp(

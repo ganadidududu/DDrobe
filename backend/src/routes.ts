@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { reassessClothingItemFit } from "./modules/clothing-items/fit-reassessment.controller";
+import { env } from "./config/env";
 import { loginWithApple, loginWithGoogle } from "./modules/auth/auth.controller";
 import { completeOnboardingController } from "./modules/auth/auth-onboarding.controller";
 import { getOnboardingStatus } from "./modules/auth/auth-onboarding-status.controller";
@@ -54,7 +54,15 @@ import {
   markRecommendationPurchased
 } from "./modules/recommendation-logs/recommendation-logs.controller";
 import { deleteMe, getMe, updateMe } from "./modules/users/users.controller";
-import { getThreadBalanceController } from "./modules/thread-wallet/thread-wallet.controller";
+import {
+  appleIapPurchaseController,
+  getThreadBalanceController
+} from "./modules/thread-wallet/thread-wallet.controller";
+import {
+  createRewardAttemptController,
+  getRewardAttemptController,
+  receiveRewardedSSVController
+} from "./modules/admob-reward/admob-reward.controller";
 import {
   generateStylingController,
   listSavedStylingController,
@@ -69,6 +77,9 @@ export const routes = Router();
 routes.post("/auth/google", loginWithGoogle);
 routes.post("/auth/apple", loginWithApple);
 
+// AdMob signs these callbacks itself, so this must stay before authMiddleware.
+routes.get("/webhooks/admob/rewarded", receiveRewardedSSVController);
+
 routes.use(authMiddleware);
 
 routes.post("/auth/onboarding", completeOnboardingController);
@@ -81,6 +92,11 @@ routes.delete("/users/me", deleteMe);
 routes.use(onboardingMiddleware);
 
 routes.get("/thread-wallet/balance", getThreadBalanceController);
+routes.post("/thread-wallet/reward-attempts", createRewardAttemptController);
+routes.get("/thread-wallet/reward-attempts/:id", getRewardAttemptController);
+if (env.appleIapEnabled) {
+  routes.post("/thread-wallet/iap/verify", appleIapPurchaseController);
+}
 routes.post("/body-measurements", createBodyMeasurement);
 routes.get("/body-measurements", listBodyMeasurements);
 
@@ -94,8 +110,6 @@ routes.post("/clothing-items/:id/sizes", createClothingSize);
 routes.get("/clothing-items/:id/sizes", listClothingSizes);
 routes.patch("/clothing-sizes/:id", updateClothingSize);
 routes.delete("/clothing-sizes/:id", deleteClothingSize);
-routes.post("/clothing-items/:id/fit-reassessment", reassessClothingItemFit);
-
 routes.post("/reference-clothing", createReferenceClothing);
 routes.get("/reference-clothing", listReferenceClothing);
 routes.get("/reference-clothing/by-category/:category", getReferenceClothingByCategory);

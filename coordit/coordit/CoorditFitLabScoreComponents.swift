@@ -94,7 +94,7 @@ struct CoorditFitLabResultMeasurement: Identifiable {
 
 struct CoorditFitLabSizeOption: Identifiable {
     let sizeLabel: String
-    let fitScore: Double
+    let fitScore: Double?
     let isRecommended: Bool
     let measurements: [CoorditFitLabResultMeasurement]
 
@@ -106,12 +106,9 @@ struct CoorditFitLabSizeOption: Identifiable {
         report: CoorditFitLabReportResponse?,
         sizeDrafts: [CoorditFitLabSizeDraft]
     ) -> [CoorditFitLabSizeOption] {
-        let scoreRows = report?.chartData.sizeScoreRanking ?? []
-        let scoreBySize = Dictionary(
-            uniqueKeysWithValues: scoreRows.map {
-                (CoorditFitLabDraftValidation.normalizedSizeLabel($0.sizeLabel), $0)
-            }
-        )
+        let reportScoreRows = report?.chartData.sizeScoreRanking ?? []
+        let reportScoresBySize = scoresBySize(reportScoreRows)
+        let recommendationScoresBySize = scoresBySize(recommendation.allSizeScores)
         let referenceComparisons = Dictionary(
             uniqueKeysWithValues: (report?.chartData.idealVsProduct ?? []).map { ($0.measurement, $0) }
         )
@@ -123,8 +120,9 @@ struct CoorditFitLabSizeOption: Identifiable {
             let normalizedLabel = CoorditFitLabDraftValidation.normalizedSizeLabel(draft.label)
             let isRecommended = normalizedLabel
                 == CoorditFitLabDraftValidation.normalizedSizeLabel(recommendation.recommendedSize)
-            let score = scoreBySize[normalizedLabel]?.fitScore
-                ?? (isRecommended ? recommendation.fitScore : 0)
+            let score = reportScoresBySize[normalizedLabel]?.fitScore
+                ?? recommendationScoresBySize[normalizedLabel]?.fitScore
+                ?? (isRecommended ? recommendation.fitScore : nil)
             let measurements = isRecommended
                 ? authoritativeMeasurements(variant: variant, comparisons: referenceComparisons)
                 : measurements(variant: variant, draft: draft, comparisons: referenceComparisons)
@@ -140,6 +138,10 @@ struct CoorditFitLabSizeOption: Identifiable {
             return draftOptions
         }
 
+        let scoreRows = mergedScoreRows(
+            reportRows: reportScoreRows,
+            recommendationRows: recommendation.allSizeScores
+        )
         if !scoreRows.isEmpty {
             return scoreRows.map { row in
                 let isRecommended = CoorditFitLabDraftValidation.normalizedSizeLabel(row.sizeLabel)
@@ -163,6 +165,28 @@ struct CoorditFitLabSizeOption: Identifiable {
                 measurements: authoritativeMeasurements(variant: variant, comparisons: referenceComparisons)
             )
         ]
+    }
+
+    private static func scoresBySize(
+        _ rows: [CoorditFitLabReportResponse.ChartData.SizeScore]
+    ) -> [String: CoorditFitLabReportResponse.ChartData.SizeScore] {
+        rows.reduce(into: [:]) { scores, row in
+            let normalizedLabel = CoorditFitLabDraftValidation.normalizedSizeLabel(row.sizeLabel)
+            guard !normalizedLabel.isEmpty else { return }
+            scores[normalizedLabel] = row
+        }
+    }
+
+    private static func mergedScoreRows(
+        reportRows: [CoorditFitLabReportResponse.ChartData.SizeScore],
+        recommendationRows: [CoorditFitLabReportResponse.ChartData.SizeScore]
+    ) -> [CoorditFitLabReportResponse.ChartData.SizeScore] {
+        let reportScoresBySize = scoresBySize(reportRows)
+        let recommendationOnlyRows = recommendationRows.filter { row in
+            let normalizedLabel = CoorditFitLabDraftValidation.normalizedSizeLabel(row.sizeLabel)
+            return reportScoresBySize[normalizedLabel] == nil
+        }
+        return reportRows + recommendationOnlyRows
     }
 
     private static func authoritativeMeasurements(
@@ -384,7 +408,10 @@ struct CoorditFitLabSizeScoreChart: View {
                         Text(option.sizeLabel)
                             .font(CoorditTypography.gmarketBold(size: metrics.value(12), relativeTo: .body))
                             .foregroundStyle(isSelected ? Color.white : CoorditFitLabPalette.ink)
-                            .frame(width: metrics.value(38), height: metrics.value(28))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.78)
+                            .allowsTightening(true)
+                            .frame(width: metrics.value(58), height: metrics.value(28), alignment: .leading)
                             .background(isSelected ? CoorditFitLabPalette.ink : CoorditFitLabPalette.field)
                             .clipShape(RoundedRectangle(cornerRadius: metrics.value(6), style: .continuous))
 
@@ -398,9 +425,9 @@ struct CoorditFitLabSizeScoreChart: View {
                         }
                         .frame(height: metrics.value(11))
 
-                        Text("\(CoorditFitLabResultMeasurement.score(option.fitScore))점")
+                        Text(scoreText(option.fitScore))
                             .font(CoorditTypography.gmarketBold(size: metrics.value(11), relativeTo: .caption))
-                            .frame(width: metrics.value(42), alignment: .trailing)
+                            .frame(width: metrics.value(48), alignment: .trailing)
 
                         if option.isRecommended {
                             Text("추천")
@@ -415,7 +442,7 @@ struct CoorditFitLabSizeScoreChart: View {
                 .frame(maxWidth: .infinity, minHeight: metrics.value(44))
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(
-                    "\(option.sizeLabel) 사이즈 \(CoorditFitLabResultMeasurement.score(option.fitScore))점\(option.isRecommended ? ", 추천" : "")"
+                    "\(option.sizeLabel) 사이즈 \(scoreText(option.fitScore))\(option.isRecommended ? ", 추천" : "")"
                 )
                 .accessibilityValue(isSelected ? "선택됨" : "선택 안 됨")
                 .accessibilityIdentifier("fitlab-size-score-\(option.sizeLabel)")
@@ -433,9 +460,14 @@ struct CoorditFitLabSizeScoreChart: View {
         .accessibilityIdentifier("fitlab-size-score-chart")
     }
 
-    private func normalized(_ score: Double) -> CGFloat {
-        guard score.isFinite else { return 0 }
+    private func normalized(_ score: Double?) -> CGFloat {
+        guard let score, score.isFinite else { return 0 }
         return CGFloat(min(max(score, 0), 100) / 100)
+    }
+
+    private func scoreText(_ score: Double?) -> String {
+        guard let score else { return "점수 없음" }
+        return "\(CoorditFitLabResultMeasurement.score(score))점"
     }
 }
 

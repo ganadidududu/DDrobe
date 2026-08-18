@@ -47,7 +47,9 @@ begin
   from public.thread_balances balance where balance.user_id = p_user_id for update;
   if exists (
     select 1 from public.thread_ledger_entries entry
-    where entry.user_id = p_user_id and entry.idempotency_key = p_idempotency_key
+    where entry.user_id = p_user_id
+      and entry.idempotency_key = p_idempotency_key
+      and entry.reason = 'fit_analysis'
   ) then
     return query select current_balance, 'already_consumed'::text;
     return;
@@ -88,7 +90,9 @@ begin
 
   select entry.fit_analysis_result_id into existing_result_id
   from public.thread_ledger_entries entry
-  where entry.user_id = p_user_id and entry.idempotency_key = p_idempotency_key;
+  where entry.user_id = p_user_id
+    and entry.idempotency_key = p_idempotency_key
+    and entry.reason = 'fit_analysis';
   if found then
     return query select existing_result_id, current_balance, 'already_consumed'::text;
     return;
