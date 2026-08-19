@@ -20,6 +20,7 @@ vi.mock("./fit.service", () => ({
 
 vi.mock("./reference-profile.service", () => ({
   CLOSET_GARMENT_KINDS: ["upper", "lower"],
+  getClosetItemFitComparison: vi.fn(),
   getClosetReferenceProfile: vi.fn()
 }));
 
@@ -48,8 +49,12 @@ const createResponse = (): ResponseDouble & Response => {
   return response as ResponseDouble & Response;
 };
 
-const requestWith = (body: Record<string, unknown>): AuthenticatedRequest => ({
+const requestWith = (
+  body: Record<string, unknown>,
+  params: Record<string, string> = {}
+): AuthenticatedRequest => ({
   body,
+  params,
   user: { id: "11111111-1111-4111-8111-111111111111", email: "fit@example.com" }
 }) as AuthenticatedRequest;
 
@@ -183,5 +188,34 @@ describe("recommendFitController", () => {
     );
 
     assert.equal(response.statusCode, 410);
+  });
+});
+
+describe("getClosetItemFitComparisonController", () => {
+  it("returns the stored garment score and its gap from Best Fit", async () => {
+    const { getClosetItemFitComparison } = await import("./reference-profile.service");
+    const { getClosetItemFitComparisonController } = await import("./fit.controller");
+    const comparison = {
+      status: "available",
+      garmentKind: "upper",
+      referenceCount: 2,
+      fitScore: 94,
+      bestFitGap: 6,
+      diff: { shoulder_width: -1.5 }
+    } as const;
+    vi.mocked(getClosetItemFitComparison).mockResolvedValue(comparison);
+    const response = createResponse();
+
+    await getClosetItemFitComparisonController(
+      requestWith({}, { id: "22222222-2222-4222-8222-222222222222" }),
+      response,
+      ((error: unknown) => { throw error; }) as NextFunction
+    );
+
+    expect(getClosetItemFitComparison).toHaveBeenCalledWith(
+      "11111111-1111-4111-8111-111111111111",
+      "22222222-2222-4222-8222-222222222222"
+    );
+    assert.equal(response.body, comparison);
   });
 });

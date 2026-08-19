@@ -11,7 +11,6 @@ const consentVersions = [
 ] as const;
 
 const createRepository = (overrides: Partial<OnboardingStatusRepository> = {}): OnboardingStatusRepository => ({
-  findUserProfile: async () => ({ display_name: "Mina" }),
   findLatestRequiredConsentVersions: async () => consentVersions,
   findUserConsents: async () => [
     { consent_key: "terms_of_service", consent_version: "2026-07-07", accepted: true, revoked_at: null },
@@ -28,10 +27,6 @@ const loadStatusCheck = async (): Promise<typeof import("./auth-onboarding-statu
 const run = async (): Promise<void> => {
   const isOnboardingComplete = await loadStatusCheck();
   assert.equal(await isOnboardingComplete(createRepository(), "user-1"), true);
-  assert.equal(
-    await isOnboardingComplete(createRepository({ findUserProfile: async () => ({ display_name: null }) }), "user-1"),
-    false
-  );
   assert.equal(
     await isOnboardingComplete(createRepository({ findUserConsents: async () => [] }), "user-1"),
     false

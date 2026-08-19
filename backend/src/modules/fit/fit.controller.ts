@@ -10,6 +10,7 @@ import {
 import { z } from "zod";
 import {
   CLOSET_GARMENT_KINDS,
+  getClosetItemFitComparison,
   getClosetReferenceProfile
 } from "./reference-profile.service";
 import {
@@ -134,6 +135,23 @@ export const getClosetReferenceProfileController = async (
       return;
     }
     res.json(await getClosetReferenceProfile(requireUser(req).id, parsed.data));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getClosetItemFitComparisonController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    res.json(
+      await getClosetItemFitComparison(
+        requireUser(req).id,
+        asRequiredString(req.params.id, "id")
+      )
+    );
   } catch (error) {
     next(error);
   }

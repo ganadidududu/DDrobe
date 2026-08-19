@@ -3,6 +3,31 @@ import type { UserRow } from "../../shared/types/database";
 import { createHttpError } from "../../shared/utils/http-error";
 import type { UpdateUserDto } from "./users.types";
 
+type UserProfileUpsertRow = {
+  readonly id: string;
+  readonly email: string;
+  readonly updated_at: string;
+  readonly display_name?: string;
+};
+
+type UserProfileIdentity = {
+  readonly id: string;
+  readonly email: string;
+  readonly displayName?: string;
+};
+
+export const toUserProfileUpsertRow = (user: UserProfileIdentity): UserProfileUpsertRow => {
+  const row: UserProfileUpsertRow = {
+    id: user.id,
+    email: user.email,
+    updated_at: new Date().toISOString()
+  };
+  if (user.displayName !== undefined) {
+    return { ...row, display_name: user.displayName };
+  }
+  return row;
+};
+
 export const findUserById = async (userId: string): Promise<UserRow> => {
   const { data, error } = await supabase
     .from("users")
@@ -14,19 +39,10 @@ export const findUserById = async (userId: string): Promise<UserRow> => {
   return data;
 };
 
-export const upsertUserProfile = async (user: {
-  id: string;
-  email: string;
-  displayName?: string | null;
-}): Promise<UserRow> => {
+export const upsertUserProfile = async (user: UserProfileIdentity): Promise<UserRow> => {
   const { data, error } = await supabase
     .from("users")
-    .upsert({
-      id: user.id,
-      email: user.email,
-      display_name: user.displayName ?? null,
-      updated_at: new Date().toISOString()
-    })
+    .upsert(toUserProfileUpsertRow(user))
     .select("*")
     .single<UserRow>();
 

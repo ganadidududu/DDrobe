@@ -2,10 +2,6 @@ import { supabase } from "../../config/supabase";
 import { createHttpError } from "../../shared/utils/http-error";
 import { REQUIRED_CONSENT_KEYS, type RequiredConsentKey } from "./auth-onboarding.types";
 
-type UserProfileStatus = {
-  readonly display_name: string | null;
-};
-
 type RequiredConsentVersion = {
   readonly key: RequiredConsentKey;
   readonly version: string;
@@ -19,7 +15,6 @@ type UserConsent = {
 };
 
 export type OnboardingStatusRepository = {
-  readonly findUserProfile: (userId: string) => Promise<UserProfileStatus | null>;
   readonly findLatestRequiredConsentVersions: (nowIso: string) => Promise<readonly RequiredConsentVersion[]>;
   readonly findUserConsents: (userId: string) => Promise<readonly UserConsent[]>;
 };
@@ -37,12 +32,7 @@ export const isOnboardingCompleteWithRepository = async (
   userId: string,
   now = new Date()
 ): Promise<boolean> => {
-  const [profile, versions] = await Promise.all([
-    repository.findUserProfile(userId),
-    repository.findLatestRequiredConsentVersions(now.toISOString())
-  ]);
-
-  if (!profile?.display_name) return false;
+  const versions = await repository.findLatestRequiredConsentVersions(now.toISOString());
 
   const latestVersions = latestVersionsByKey(versions);
   if (latestVersions.size !== REQUIRED_CONSENT_KEYS.length) {
@@ -62,16 +52,6 @@ export const isOnboardingCompleteWithRepository = async (
 };
 
 const supabaseOnboardingStatusRepository: OnboardingStatusRepository = {
-  async findUserProfile(userId: string): Promise<UserProfileStatus | null> {
-    const { data, error } = await supabase
-      .from("users")
-      .select("display_name")
-      .eq("id", userId)
-      .maybeSingle<UserProfileStatus>();
-    if (error) throw createHttpError(500, "Failed to check onboarding status");
-    return data ?? null;
-  },
-
   async findLatestRequiredConsentVersions(nowIso: string): Promise<readonly RequiredConsentVersion[]> {
     const { data, error } = await supabase
       .from("consent_versions")

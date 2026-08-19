@@ -27,7 +27,7 @@ export const listBodyMeasurementsForUser = async (userId: string) => {
     .from("body_measurements")
     .select("*")
     .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+    .order("updated_at", { ascending: false });
   if (error) throw createHttpError(500, "Failed to load body measurements");
   return data ?? [];
 };

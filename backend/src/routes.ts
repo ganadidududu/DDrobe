@@ -33,6 +33,7 @@ import {
 } from "./modules/external-product-sizes/external-product-sizes.controller";
 import { createFeedback, listFeedback } from "./modules/feedback/feedback.controller";
 import {
+  getClosetItemFitComparisonController,
   getClosetReferenceProfileController,
   getFitAnalysisResultController,
   recentFitAnalysisResultsController,
@@ -130,6 +131,7 @@ routes.delete("/external-product-sizes/:id", deleteExternalProductSize);
 
 routes.post("/fit/recommend", recommendFitController);
 routes.post("/fit/recommend/batch", recommendFitBatchController);
+routes.get("/fit/closet-items/:id/comparison", getClosetItemFitComparisonController);
 routes.get("/fit/reference-profile/:garmentKind", getClosetReferenceProfileController);
 routes.get("/fit-analysis-results/recent", recentFitAnalysisResultsController);
 routes.get("/fit-analysis-results", recentFitAnalysisResultsController);
