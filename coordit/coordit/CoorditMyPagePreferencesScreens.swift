@@ -1,9 +1,17 @@
 import SwiftUI
 
+#if canImport(UIKit)
+import UIKit
+#endif
+
+#if canImport(UserNotifications)
+import UserNotifications
+#endif
+
 #if os(iOS)
 extension CoorditMyPageFamilyView {
     func privacy(metrics: CoorditResponsiveMetrics) -> some View {
-        VStack(spacing: metrics.value(112)) {
+        VStack(spacing: metrics.value(18)) {
             CoorditSettingsCard(metrics: metrics) {
                 CoorditSettingsDetailRow(title: "개인정보 처리방침", subtitle: "서비스 데이터 처리 기준", metrics: metrics, action: {
                     onRouteChange(.myPagePrivacyPolicy)
@@ -33,38 +41,14 @@ extension CoorditMyPageFamilyView {
     }
 
     func appSettings(metrics: CoorditResponsiveMetrics) -> some View {
-        VStack(spacing: metrics.value(112)) {
+        VStack(spacing: metrics.value(18)) {
             CoorditSettingsCard(metrics: metrics) {
-                CoorditSettingsDetailRow(title: "테마", metrics: metrics) {
-                    CoorditSettingsSegmentedOptions(
-                        options: MyPageTheme.allCases,
-                        selection: $selectedTheme,
-                        width: 113,
-                        metrics: metrics
-                    )
-                }
-                CoorditSettingsDivider(metrics: metrics)
-                CoorditSettingsDetailRow(title: "언어", metrics: metrics) {
-                    CoorditSettingsSegmentedOptions(
-                        options: MyPageLanguage.allCases,
-                        selection: $selectedLanguage,
-                        width: 78,
-                        metrics: metrics
-                    )
-                }
-                CoorditSettingsDivider(metrics: metrics)
                 CoorditSettingsDetailRow(title: "앱 버전", metrics: metrics) {
-                    CoorditSettingsValuePill(text: "v1.0.0 beta", metrics: metrics)
+                    CoorditSettingsValuePill(text: CoorditAppSupport.versionText, metrics: metrics)
                 }
                 CoorditSettingsDivider(metrics: metrics)
-                CoorditSettingsDetailRow(title: "문의하기", subtitle: "support@coordit.app", metrics: metrics, action: {
-                    onRouteChange(.myPageContact)
-                }) {
-                    CoorditSettingsChevron(metrics: metrics)
-                }
-                CoorditSettingsDivider(metrics: metrics)
-                CoorditSettingsDetailRow(title: "버그 신고", subtitle: "문제 화면과 로그 첨부", metrics: metrics, action: {
-                    onRouteChange(.myPageBugReport)
+                CoorditSettingsDetailRow(title: "문의하기", subtitle: CoorditAppSupport.emailAddress, metrics: metrics, action: {
+                    openSupportEmail()
                 }) {
                     CoorditSettingsChevron(metrics: metrics)
                 }
@@ -73,63 +57,150 @@ extension CoorditMyPageFamilyView {
     }
 
     func notifications(metrics: CoorditResponsiveMetrics) -> some View {
-        VStack(spacing: metrics.value(112)) {
+        VStack(spacing: metrics.value(18)) {
             CoorditSettingsCard(metrics: metrics) {
                 CoorditSettingsDetailRow(title: "마케팅 알림", subtitle: "혜택과 이벤트", metrics: metrics) {
-                    CoorditSettingsToggle(isOn: $marketingNotifications, metrics: metrics, label: "마케팅 알림")
+                    CoorditSettingsToggle(
+                        isOn: marketingNotificationsBinding,
+                        metrics: metrics,
+                        label: "마케팅 알림"
+                    )
+                    .accessibilityIdentifier("mypage-marketing-notifications")
                 }
             }
+
+            CoorditSettingsStatusBanner(
+                text: marketingNotificationStatusText,
+                identifier: "mypage-marketing-notifications-status",
+                metrics: metrics,
+                isWarning: !marketingNotificationStatus.isAuthorized
+            )
+
+            CoorditSettingsCard(metrics: metrics) {
+                CoorditSettingsDetailRow(
+                    title: "iPhone 알림 설정",
+                    subtitle: "시스템 알림 허용 상태 변경",
+                    metrics: metrics,
+                    action: openNotificationSettings
+                ) {
+                    CoorditSettingsChevron(metrics: metrics)
+                }
+                .accessibilityIdentifier("mypage-open-notification-settings")
+            }
         }
+        .task { await refreshMarketingNotificationStatus() }
+    }
+
+    var marketingNotificationsBinding: Binding<Bool> {
+        Binding(
+            get: { marketingNotifications && marketingNotificationStatus.isAuthorized },
+            set: { requestedValue in
+                Task { await updateMarketingNotifications(requestedValue) }
+            }
+        )
+    }
+
+    var marketingNotificationStatusText: String {
+        switch marketingNotificationStatus {
+        case .notDetermined:
+            "알림을 켜면 iPhone 알림 권한을 요청해요."
+        case .authorized:
+            marketingNotifications
+                ? "마케팅 알림이 켜져 있어요."
+                : "iPhone 알림은 허용되어 있지만 마케팅 알림은 꺼져 있어요."
+        case .unavailable:
+            "iPhone 설정에서 COORDIT 알림을 허용해 주세요."
+        }
+    }
+
+    func refreshMarketingNotificationStatus() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        let status = CoorditMarketingNotificationStatus(settings.authorizationStatus)
+        marketingNotificationStatus = status
+        if !status.isAuthorized {
+            marketingNotifications = false
+        }
+    }
+
+    func updateMarketingNotifications(_ requestedValue: Bool) async {
+        guard requestedValue else {
+            marketingNotifications = false
+            return
+        }
+
+        let notificationCenter = UNUserNotificationCenter.current()
+        let settings = await notificationCenter.notificationSettings()
+        let isAuthorized: Bool
+        switch settings.authorizationStatus {
+        case .notDetermined:
+            isAuthorized = (try? await notificationCenter.requestAuthorization(options: [.alert, .badge, .sound])) ?? false
+        case .authorized, .provisional, .ephemeral:
+            isAuthorized = true
+        case .denied:
+            isAuthorized = false
+        @unknown default:
+            isAuthorized = false
+        }
+
+        marketingNotifications = isAuthorized
+        await refreshMarketingNotificationStatus()
+    }
+
+    func openNotificationSettings() {
+        let urlString: String
+        if #available(iOS 16.0, *) {
+            urlString = UIApplication.openNotificationSettingsURLString
+        } else {
+            urlString = UIApplication.openSettingsURLString
+        }
+        guard let url = URL(string: urlString) else { return }
+        openURL(url)
+    }
+
+    func openSupportEmail() {
+        guard let url = CoorditAppSupport.composeEmailURL else { return }
+        openURL(url)
     }
 }
 
-enum MyPageTheme: String, CaseIterable, Identifiable {
-    case system = "시스템"
-    case light = "라이트"
-    case dark = "다크"
+enum CoorditMarketingNotificationStatus {
+    case notDetermined
+    case authorized
+    case unavailable
 
-    var id: Self { self }
-}
-
-enum MyPageLanguage: String, CaseIterable, Identifiable {
-    case korean = "한국어"
-    case english = "ENG"
-
-    var id: Self { self }
-}
-
-private struct CoorditSettingsSegmentedOptions<Option>: View
-where Option: CaseIterable & Hashable & RawRepresentable & Identifiable,
-      Option.RawValue == String,
-      Option.AllCases: RandomAccessCollection {
-    let options: Option.AllCases
-    @Binding var selection: Option
-    let width: CGFloat
-    let metrics: CoorditResponsiveMetrics
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(options) { option in
-                Button {
-                    selection = option
-                } label: {
-                    Text(option.rawValue)
-                        .font(CoorditTypography.gmarketBold(size: metrics.value(7), relativeTo: .caption2))
-                        .foregroundStyle(selection == option ? .white : CoorditSettingsStyle.muted)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: metrics.value(23))
-                        .background(selection == option ? CoorditSettingsStyle.ink : Color.clear)
-                        .clipShape(Capsule())
-                }
-                .coorditPressFeedback()
-            }
+    init(_ authorizationStatus: UNAuthorizationStatus) {
+        switch authorizationStatus {
+        case .notDetermined:
+            self = .notDetermined
+        case .authorized, .provisional, .ephemeral:
+            self = .authorized
+        case .denied:
+            self = .unavailable
+        @unknown default:
+            self = .unavailable
         }
-        .padding(metrics.value(2))
-        .frame(width: metrics.value(width), height: metrics.value(27))
-        .background(CoorditSettingsStyle.field)
-        .clipShape(Capsule())
+    }
+
+    var isAuthorized: Bool {
+        self == .authorized
+    }
+}
+
+enum CoorditAppSupport {
+    static let emailAddress = "hyu.coordit@gmail.com"
+
+    static var versionText: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        return "v\(version ?? "1.0.0")"
+    }
+
+    static var composeEmailURL: URL? {
+        var components = URLComponents(string: "mailto:\(emailAddress)")
+        components?.queryItems = [
+            URLQueryItem(name: "subject", value: "[COORDIT] 문의"),
+            URLQueryItem(name: "body", value: "안녕하세요. COORDIT 사용 중 문의가 있어 연락드립니다.\n\n")
+        ]
+        return components?.url
     }
 }
 #endif

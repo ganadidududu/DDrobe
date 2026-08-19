@@ -18,10 +18,8 @@ extension CoorditMyPageFamilyView {
 
     func syncBackendBodyMeasurement() {
         guard let measurement = backendSession.latestBodyMeasurement else { return }
-        shoulderMeasurement = measurement.shoulderWidth.map { String(format: "%.1f", $0) } ?? shoulderMeasurement
-        chestMeasurement = measurement.chestCircumference.map { String(format: "%.1f", $0) } ?? chestMeasurement
-        waistMeasurement = measurement.waistCircumference.map { String(format: "%.1f", $0) } ?? waistMeasurement
-        hipMeasurement = measurement.hipCircumference.map { String(format: "%.1f", $0) } ?? hipMeasurement
+        heightMeasurement = measurement.heightCm.map { String(format: "%.1f", $0) } ?? ""
+        weightMeasurement = measurement.weightKg.map { String(format: "%.1f", $0) } ?? ""
     }
 
     @ViewBuilder

@@ -13,6 +13,7 @@ struct CoorditFitLabFamilyView: View {
     @Binding var threadBalance: Int
     @Binding var sharedImportURL: URL?
     let onInsufficientThread: () -> Void
+    let onOpenThreadRecharge: () -> Void
     @State private var inputDestination: CoorditFitLabInputDestination = .sources
     @State private var inputNavigationDirection: CoorditNavigationDirection = .forward
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -237,6 +238,8 @@ struct CoorditFitLabFamilyView: View {
                 sharedImportURL: sharedImportURL,
                 savedHistory: coordinator.savedHistory,
                 historyRecoveryNotice: coordinator.historyRecoveryNotice,
+                threadBalance: threadBalance,
+                onThreadRecharge: onOpenThreadRecharge,
                 onOpenHistory: { snapshot in
                     coordinator.selectHistory(snapshot)
                     onRouteChange(.fitLabHistoryDetail)
@@ -664,7 +667,8 @@ struct CoorditFitLabScreens: View {
             coordinator: coordinator,
             threadBalance: $threadBalance,
             sharedImportURL: .constant(nil),
-            onInsufficientThread: { onRouteChange(.myPageThreadCharge) }
+            onInsufficientThread: { onRouteChange(.myPageThreadCharge) },
+            onOpenThreadRecharge: { onRouteChange(.myPageThreadCharge) }
         )
     }
 }

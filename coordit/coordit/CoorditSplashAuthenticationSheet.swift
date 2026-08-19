@@ -15,17 +15,14 @@ struct CoorditAuthenticationEntryView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
-                        brandLine(metrics: metrics)
                         pageTitle(metrics: metrics)
-                            .padding(.top, metrics.value(CoorditAuthenticationEntryDesign.brandToTitleSpacing))
+                            .padding(.top, metrics.value(CoorditAuthenticationEntryDesign.titleTopInset))
                         introduction(metrics: metrics)
                             .padding(.top, metrics.value(CoorditAuthenticationEntryDesign.titleToIntroductionSpacing))
                         socialProviders(metrics: metrics)
                             .padding(.top, metrics.value(CoorditAuthenticationEntryDesign.introductionToProvidersSpacing))
-                        connectionStatus(metrics: metrics)
-                            .padding(.top, metrics.value(CoorditAuthenticationEntryDesign.providersToStatusSpacing))
                         legalNotice(metrics: metrics)
-                            .padding(.top, metrics.value(CoorditAuthenticationEntryDesign.statusToLegalSpacing))
+                            .padding(.top, metrics.value(CoorditAuthenticationEntryDesign.providersToLegalSpacing))
                     }
                     .frame(width: metrics.value(CoorditAuthenticationEntryDesign.contentWidth), alignment: .leading)
                     .padding(.top, metrics.value(CoorditAuthenticationEntryDesign.topInset))
@@ -36,23 +33,6 @@ struct CoorditAuthenticationEntryView: View {
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
         }
         .accessibilityIdentifier("coordit-screen-splash")
-    }
-
-    private func brandLine(metrics: CoorditResponsiveMetrics) -> some View {
-        HStack {
-            Text("COORDIT")
-                .font(CoorditTypography.gmarketBold(size: metrics.value(CoorditAuthenticationEntryDesign.brandFontSize), relativeTo: .caption))
-                .foregroundStyle(CoorditSettingsStyle.ink)
-                .tracking(metrics.value(CoorditAuthenticationEntryDesign.brandTracking))
-
-            Spacer(minLength: 0)
-
-            Text("SOCIAL ACCOUNT")
-                .font(CoorditTypography.gmarketMedium(size: metrics.value(CoorditAuthenticationEntryDesign.accountFontSize), relativeTo: .caption2))
-                .foregroundStyle(CoorditSettingsStyle.ink.opacity(CoorditAuthenticationEntryDesign.accountOpacity))
-                .tracking(metrics.value(CoorditAuthenticationEntryDesign.accountTracking))
-        }
-        .accessibilityHidden(true)
     }
 
     private func pageTitle(metrics: CoorditResponsiveMetrics) -> some View {
@@ -179,57 +159,25 @@ struct CoorditAuthenticationEntryView: View {
         .accessibilityIdentifier(identifier)
     }
 
-    @ViewBuilder
-    private func connectionStatus(metrics: CoorditResponsiveMetrics) -> some View {
-        HStack(spacing: metrics.value(CoorditAuthenticationEntryDesign.statusStackSpacing)) {
-            if backendSession.isWorking {
-                ProgressView()
-                    .controlSize(.small)
-                    .tint(CoorditSettingsStyle.ink)
-            } else {
-                Circle()
-                    .fill(backendSession.isWarning ? CoorditSettingsStyle.danger : CoorditDesignTokens.ColorToken.green)
-                    .frame(width: metrics.value(CoorditAuthenticationEntryDesign.statusDotSize), height: metrics.value(CoorditAuthenticationEntryDesign.statusDotSize))
-            }
-
-            Text(backendSession.statusText)
-                .font(CoorditTypography.gmarketMedium(size: metrics.value(CoorditAuthenticationEntryDesign.statusFontSize), relativeTo: .caption))
-                .foregroundStyle(backendSession.isWarning ? CoorditSettingsStyle.danger : CoorditSettingsStyle.muted)
-                .lineLimit(2)
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, metrics.value(CoorditAuthenticationEntryDesign.statusHorizontalInset))
-        .frame(minHeight: metrics.value(CoorditAuthenticationEntryDesign.statusHeight))
-        .background(CoorditSettingsStyle.field)
-        .clipShape(RoundedRectangle(cornerRadius: metrics.value(CoorditAuthenticationEntryDesign.statusCornerRadius), style: .continuous))
-        .accessibilityIdentifier("coordit-auth-backend-status")
-    }
-
     private func legalNotice(metrics: CoorditResponsiveMetrics) -> some View {
-        Text("계속하면 이용약관 및 개인정보 처리방침에 동의하게 됩니다.\n이메일과 비밀번호 로그인은 제공하지 않습니다.")
+        Text("계속하면 이용약관 및 개인정보 처리방침에 동의하게 됩니다.")
             .font(CoorditTypography.gmarketMedium(size: metrics.value(CoorditAuthenticationEntryDesign.legalFontSize), relativeTo: .caption))
             .foregroundStyle(CoorditSettingsStyle.muted)
             .lineSpacing(metrics.value(CoorditAuthenticationEntryDesign.legalLineSpacing))
             .fixedSize(horizontal: false, vertical: true)
             .multilineTextAlignment(.leading)
     }
+
 }
 
 private enum CoorditAuthenticationEntryDesign {
     static let contentWidth: CGFloat = 370
     static let topInset: CGFloat = 28
     static let bottomInset: CGFloat = 36
-    static let brandToTitleSpacing: CGFloat = 10
+    static let titleTopInset: CGFloat = 24
     static let titleToIntroductionSpacing: CGFloat = 30
     static let introductionToProvidersSpacing: CGFloat = 22
-    static let providersToStatusSpacing: CGFloat = 16
-    static let statusToLegalSpacing: CGFloat = 20
-    static let brandFontSize: CGFloat = 11
-    static let brandTracking: CGFloat = 1.4
-    static let accountFontSize: CGFloat = 9
-    static let accountOpacity: Double = 0.58
-    static let accountTracking: CGFloat = 0.8
+    static let providersToLegalSpacing: CGFloat = 20
     static let titleStackSpacing: CGFloat = 12
     static let pageTitleFontSize: CGFloat = 24
     static let titleHorizontalInset: CGFloat = 18
@@ -256,12 +204,6 @@ private enum CoorditAuthenticationEntryDesign {
     static let providerPressedScale: CGFloat = 0.98
     static let providerPressedOpacity: CGFloat = 0.9
     static let providerPressedOverlayOpacity: CGFloat = 0.1
-    static let statusStackSpacing: CGFloat = 8
-    static let statusDotSize: CGFloat = 7
-    static let statusFontSize: CGFloat = 10
-    static let statusHorizontalInset: CGFloat = 12
-    static let statusHeight: CGFloat = 40
-    static let statusCornerRadius: CGFloat = 7
     static let legalFontSize: CGFloat = 10
     static let legalLineSpacing: CGFloat = 4
 }

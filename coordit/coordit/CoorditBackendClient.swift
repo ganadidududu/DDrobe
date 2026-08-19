@@ -112,7 +112,7 @@ struct CoorditBackendClient {
     func completeOnboarding(
         token: String,
         request: CoorditOnboardingRequest
-    ) async throws -> CoorditOnboardingStatus {
+    ) async throws -> CoorditOnboardingCompletion {
         try await send(path: "/auth/onboarding", method: "POST", token: token, body: request)
     }
 
@@ -218,6 +218,18 @@ struct CoorditBackendClient {
         )
     }
 
+    func closetFitComparison(
+        token: String,
+        clothingItemId: String
+    ) async throws -> CoorditClosetFitComparisonResponse {
+        try await send(
+            path: "/fit/closet-items/\(clothingItemId)/comparison",
+            method: "GET",
+            token: token,
+            body: Optional<String>.none
+        )
+    }
+
     func createExternalProduct(
         token: String,
         request: CreateExternalProductRequest
@@ -315,15 +327,12 @@ struct CoorditThreadRewardAttempt: Decodable {
 }
 
 struct BodyMeasurementRequest: Encodable {
-    let shoulderWidth: Double?
-    let chestCircumference: Double?
-    let waistCircumference: Double?
-    let hipCircumference: Double?
+    let heightCm: Double?
+    let weightKg: Double?
     let rawData: RawData
 
     struct RawData: Encodable {
         let source: String
-        let inseamCm: Double?
     }
 }
 

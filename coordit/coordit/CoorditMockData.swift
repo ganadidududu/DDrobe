@@ -56,10 +56,6 @@ enum CoorditMockData {
             CoorditRouteContent(eyebrow: "MY", title: "Privacy Policy", detail: route.rawValue)
         case .myPageTerms:
             CoorditRouteContent(eyebrow: "MY", title: "Terms of Service", detail: route.rawValue)
-        case .myPageContact:
-            CoorditRouteContent(eyebrow: "MY", title: "Contact", detail: route.rawValue)
-        case .myPageBugReport:
-            CoorditRouteContent(eyebrow: "MY", title: "Bug Report", detail: route.rawValue)
         case .closetOverview:
             CoorditRouteContent(eyebrow: "CLOSET", title: "Closet Overview", detail: route.rawValue)
         case .closetDetailTop:

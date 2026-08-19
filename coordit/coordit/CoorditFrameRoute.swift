@@ -25,8 +25,6 @@ enum CoorditFrameRoute: String, CaseIterable, Identifiable {
     case myPageBodyMeasurements = "mypage-body-measurements"
     case myPagePrivacyPolicy = "mypage-privacy-policy"
     case myPageTerms = "mypage-terms"
-    case myPageContact = "mypage-contact"
-    case myPageBugReport = "mypage-bug-report"
     case closetOverview = "closet-overview"
     case closetDetailTop = "closet-detail-top"
     case closetDetailBottom = "closet-detail-bottom"
@@ -82,8 +80,6 @@ enum CoorditFrameRoute: String, CaseIterable, Identifiable {
              .myPageBodyMeasurements,
              .myPagePrivacyPolicy,
              .myPageTerms,
-             .myPageContact,
-             .myPageBugReport,
              .closetDetailTop,
              .closetDetailBottom,
              .closetAddMethod,
@@ -130,9 +126,7 @@ enum CoorditFrameRoute: String, CaseIterable, Identifiable {
              .myPageAccountDeletion,
              .myPageBodyMeasurements,
              .myPagePrivacyPolicy,
-             .myPageTerms,
-             .myPageContact,
-             .myPageBugReport:
+             .myPageTerms:
             nil
         }
     }
@@ -182,9 +176,7 @@ enum CoorditFrameRoute: String, CaseIterable, Identifiable {
              .myPageAccountDeletion,
              .myPageBodyMeasurements,
              .myPagePrivacyPolicy,
-             .myPageTerms,
-             .myPageContact,
-             .myPageBugReport:
+             .myPageTerms:
             3
         }
     }
@@ -217,9 +209,7 @@ enum CoorditFrameRoute: String, CaseIterable, Identifiable {
              .myPageAccountDeletion,
              .myPageBodyMeasurements,
              .myPagePrivacyPolicy,
-             .myPageTerms,
-             .myPageContact,
-             .myPageBugReport:
+             .myPageTerms:
             2
         case .closetAddLoading:
             3

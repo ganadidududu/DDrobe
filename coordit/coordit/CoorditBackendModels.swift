@@ -62,6 +62,12 @@ struct CoorditOnboardingStatus: Decodable, Equatable {
     let onboardingComplete: Bool
 }
 
+struct CoorditOnboardingCompletion: Decodable, Equatable {
+    let onboardingComplete: Bool
+    let user: CoorditUserProfile
+    let bodyMeasurementsSaved: Bool
+}
+
 struct CoorditOnboardingRequest: Encodable {
     let displayName: String
     let gender: String?
@@ -223,6 +229,16 @@ struct CoorditReferenceFitProfileResponse: Codable, Equatable {
     let measurements: CoorditMeasurementMap
     let sampleCounts: [String: Int]
     let strategy: String
+}
+
+struct CoorditClosetFitComparisonResponse: Codable, Equatable {
+    let status: String
+    let garmentKind: String
+    let referenceCount: Int
+    let fitScore: Double?
+    let bestFitGap: Double?
+    let diff: CoorditMeasurementMap?
+    let reason: String?
 }
 
 struct CoorditFitRecommendation: Codable, Equatable {

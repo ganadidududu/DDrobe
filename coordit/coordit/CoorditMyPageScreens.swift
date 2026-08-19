@@ -13,11 +13,12 @@ struct CoorditMyPageFamilyView: View {
     let onRouteChange: (CoorditFrameRoute) -> Void
 
     @EnvironmentObject var backendSession: CoorditBackendSessionStore
+    @Environment(\.openURL) var openURL
+    @Environment(\.scenePhase) var scenePhase
     @State var feedDataConsent = true
     @State var aiDataConsent = false
-    @State var marketingNotifications = false
-    @State var selectedTheme: MyPageTheme = .system
-    @State var selectedLanguage: MyPageLanguage = .korean
+    @AppStorage("coordit.marketing-notifications.enabled") var marketingNotifications = false
+    @State var marketingNotificationStatus: CoorditMarketingNotificationStatus = .notDetermined
     @State var profileName = "코딧 사용자"
     @State var profileBio = "나에게 꼭 맞는 핏을 찾고 있어요."
     @State var profileAvatarIndex = 0
@@ -26,18 +27,10 @@ struct CoorditMyPageFamilyView: View {
     @State var deletionAcknowledged = false
     @State var deletionCompleted = false
     @State var deletionLocalCleanupFailed = false
-    @State var shoulderMeasurement = "44.5"
-    @State var chestMeasurement = "103.0"
-    @State var waistMeasurement = "80.0"
-    @State var hipMeasurement = "96.0"
-    @State var inseamMeasurement = "78.0"
+    @State var heightMeasurement = ""
+    @State var weightMeasurement = ""
     @State var bodyMeasurementsSaved = false
-    @State var contactSubject = ""
-    @State var contactMessage = ""
-    @State var contactSent = false
-    @State var bugSummary = ""
-    @State var bugSteps = ""
-    @State var bugReportSent = false
+    @State var bodyMeasurementSaveError = ""
     @StateObject var rewardedAdService = CoorditRewardedAdService()
     @State var rewardBalanceBefore = 0
     var body: some View {
@@ -98,6 +91,13 @@ struct CoorditMyPageFamilyView: View {
             await backendSession.bootstrap()
             syncBackendProfile()
             syncBackendBodyMeasurement()
+        }
+        .onChange(of: backendSession.latestBodyMeasurement) { _, _ in
+            syncBackendBodyMeasurement()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard route == .myPageNotifications, phase == .active else { return }
+            Task { await refreshMarketingNotificationStatus() }
         }
         .task(id: route) {
             guard route == .myPageThreadCharge else { return }
@@ -164,10 +164,6 @@ struct CoorditMyPageFamilyView: View {
             "coordit-screen-mypage-privacy-policy"
         case .myPageTerms:
             "coordit-screen-mypage-terms"
-        case .myPageContact:
-            "coordit-screen-mypage-contact"
-        case .myPageBugReport:
-            "coordit-screen-mypage-bug-report"
         default:
             "coordit-screen-mypage"
         }
@@ -208,10 +204,6 @@ struct CoorditMyPageFamilyView: View {
             privacyPolicy(metrics: metrics)
         case .myPageTerms:
             terms(metrics: metrics)
-        case .myPageContact:
-            contact(metrics: metrics)
-        case .myPageBugReport:
-            bugReport(metrics: metrics)
         default:
             myPageLanding(metrics: metrics, contentMetrics: compactContentMetrics(for: metrics))
         }
@@ -238,11 +230,11 @@ struct CoorditMyPageFamilyView: View {
         case .myPageAccount:
             ("계정", .myPage, 18)
         case .myPagePrivacy:
-            ("개인정보/보안", .myPage, 112)
+            ("개인정보/보안", .myPage, 18)
         case .myPageAppSettings:
-            ("앱 설정", .myPage, 112)
+            ("앱 설정", .myPage, 0)
         case .myPageNotifications:
-            ("알림", .myPage, 112)
+            ("알림", .myPage, 0)
         case .myPageProfileEdit:
             ("프로필 수정", .myPageAccount, 18)
         case .myPagePasswordChange:
@@ -252,15 +244,11 @@ struct CoorditMyPageFamilyView: View {
         case .myPageAccountDeletion:
             ("회원 탈퇴", .myPageAccount, 18)
         case .myPageBodyMeasurements:
-            ("신체 치수 관리", .myPageBody, 18)
+            ("신체 정보 수정", .myPageBody, 18)
         case .myPagePrivacyPolicy:
             ("개인정보 처리방침", .myPagePrivacy, 18)
         case .myPageTerms:
             ("서비스 이용약관", .myPagePrivacy, 18)
-        case .myPageContact:
-            ("문의하기", .myPageAppSettings, 18)
-        case .myPageBugReport:
-            ("버그 신고", .myPageAppSettings, 18)
         default:
             ("MY PAGE", .main04, 10)
         }
@@ -324,7 +312,7 @@ struct CoorditMyPageFamilyView: View {
 
                 CoorditSettingsMenuRow(
                     title: "앱 설정",
-                    subtitle: "테마, 언어, 버전, 문의, 신고",
+                    subtitle: "알림, 버전, 문의",
                     assetName: CoorditAssetNames.mypageSettings,
                     metrics: contentMetrics
                 ) {
@@ -430,7 +418,7 @@ struct CoorditMyPageFamilyView: View {
                     CoorditSettingsValuePill(text: backendSession.profile?.birthDate ?? "미등록", metrics: metrics)
                 }
                 CoorditSettingsDivider(metrics: metrics)
-                CoorditSettingsDetailRow(title: "신체 치수 관리", subtitle: "추가 신체 정보 입력", metrics: metrics, action: {
+                CoorditSettingsDetailRow(title: "신체 정보 수정", subtitle: "키와 몸무게 수정", metrics: metrics, action: {
                     onRouteChange(.myPageBodyMeasurements)
                 }) {
                     CoorditSettingsChevron(metrics: metrics)

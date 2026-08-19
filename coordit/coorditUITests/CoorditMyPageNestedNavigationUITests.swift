@@ -12,11 +12,9 @@ final class CoorditMyPageNestedNavigationUITests: XCTestCase {
     private let destinations = [
         Destination(parentRoute: "mypage-account", rowLabel: "프로필 수정", route: "mypage-profile-edit"),
         Destination(parentRoute: "mypage-account", rowLabel: "회원 탈퇴", route: "mypage-account-deletion"),
-        Destination(parentRoute: "mypage-body", rowLabel: "신체 치수 관리", route: "mypage-body-measurements"),
+        Destination(parentRoute: "mypage-body", rowLabel: "신체 정보 수정", route: "mypage-body-measurements"),
         Destination(parentRoute: "mypage-privacy", rowLabel: "개인정보 처리방침", route: "mypage-privacy-policy"),
         Destination(parentRoute: "mypage-privacy", rowLabel: "서비스 이용약관", route: "mypage-terms"),
-        Destination(parentRoute: "mypage-app-settings", rowLabel: "문의하기", route: "mypage-contact"),
-        Destination(parentRoute: "mypage-app-settings", rowLabel: "버그 신고", route: "mypage-bug-report"),
     ]
 
     override func setUpWithError() throws {
@@ -57,6 +55,17 @@ final class CoorditMyPageNestedNavigationUITests: XCTestCase {
         XCTAssertTrue(element("mypage-backend-local-logout", in: app).waitForExistence(timeout: 5))
         XCTAssertFalse(element("mypage-backend-google-login", in: app).exists)
         XCTAssertFalse(element("mypage-backend-apple-login", in: app).exists)
+    }
+
+    func testPrivacyCardFollowsItsHeaderWithoutLargeGap() throws {
+        let app = launchApp(at: "mypage-privacy")
+        assertScreen("mypage-privacy", in: app)
+
+        let header = app.buttons["개인정보/보안 뒤로가기"]
+        let firstRow = app.buttons["개인정보 처리방침"]
+        XCTAssertTrue(header.waitForExistence(timeout: 5))
+        XCTAssertTrue(firstRow.waitForExistence(timeout: 5))
+        XCTAssertLessThan(firstRow.frame.minY - header.frame.maxY, 40)
     }
 
     func testSharedFitLabLaunchURLRoutesToURLInput() throws {
@@ -226,25 +235,62 @@ final class CoorditMyPageNestedNavigationUITests: XCTestCase {
         tap(acknowledgement, in: app)
         completeAction("회원 탈퇴 확인", expecting: "mypage-account-deletion-complete", in: app)
 
-        app = launchApp(at: "mypage-body-measurements")
-        completeAction("신체 치수 저장", expecting: "mypage-body-measurements-saved", in: app)
+        app = launchApp(at: "mypage-body-measurements", authenticated: true)
+        XCTAssertTrue(element("mypage-measurement-height", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(element("mypage-measurement-weight", in: app).exists)
+        XCTAssertFalse(element("mypage-measurement-shoulder", in: app).exists)
+        XCTAssertFalse(element("mypage-measurement-chest", in: app).exists)
+        XCTAssertFalse(element("mypage-measurement-waist", in: app).exists)
+        XCTAssertFalse(element("mypage-measurement-hip", in: app).exists)
+        XCTAssertFalse(element("mypage-measurement-inseam", in: app).exists)
+        typeText("171", into: "mypage-measurement-height", in: app)
+        typeText("61", into: "mypage-measurement-weight", in: app)
+        completeAction("키와 몸무게 저장", expecting: "mypage-body-measurements-saved", in: app)
 
-        app = launchApp(at: "mypage-contact")
-        typeText("사이즈 추천 문의", into: "mypage-contact-subject", in: app)
-        typeText("추천 결과를 확인하고 싶어요.", into: "mypage-contact-message", in: app)
-        completeAction("문의 보내기", expecting: "mypage-contact-sent", in: app)
-
-        app = launchApp(at: "mypage-bug-report")
-        typeText("화면이 멈춰요", into: "mypage-bug-summary", in: app)
-        typeText("앱 설정에서 저장 버튼을 눌렀어요.", into: "mypage-bug-steps", in: app)
-        completeAction("버그 신고 보내기", expecting: "mypage-bug-report-sent", in: app)
     }
 
-    func testContactFormCanSubmitAfterTypingOnCompactScreen() throws {
-        let app = launchApp(at: "mypage-contact")
-        typeText("사이즈 추천 문의", into: "mypage-contact-subject", in: app)
-        typeText("추천 결과를 확인하고 싶어요.", into: "mypage-contact-message", in: app)
-        completeAction("문의 보내기", expecting: "mypage-contact-sent", in: app)
+    func testBodyMeasurementsEditorOnlyExposesHeightAndWeight() throws {
+        let app = launchApp(at: "mypage-body-measurements", authenticated: true)
+        assertScreen("mypage-body-measurements", in: app)
+
+        XCTAssertTrue(element("mypage-measurement-height", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(element("mypage-measurement-weight", in: app).exists)
+        for legacyField in [
+            "mypage-measurement-shoulder",
+            "mypage-measurement-chest",
+            "mypage-measurement-waist",
+            "mypage-measurement-hip",
+            "mypage-measurement-inseam"
+        ] {
+            XCTAssertFalse(element(legacyField, in: app).exists, "Unexpected legacy field: \(legacyField)")
+        }
+
+        typeText("171", into: "mypage-measurement-height", in: app)
+        typeText("61", into: "mypage-measurement-weight", in: app)
+        let save = element("mypage-body-measurements-save", in: app)
+        XCTAssertTrue(save.isEnabled)
+        tap(save, in: app)
+        XCTAssertTrue(element("mypage-body-measurements-saved", in: app).waitForExistence(timeout: 5))
+    }
+
+    func testAppSettingsOnlyShowsVersionAndMailSupport() throws {
+        let app = launchApp(at: "mypage-app-settings")
+        assertScreen("mypage-app-settings", in: app)
+
+        XCTAssertTrue(app.staticTexts["hyu.coordit@gmail.com"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["문의하기"].exists)
+        XCTAssertFalse(app.staticTexts["테마"].exists)
+        XCTAssertFalse(app.staticTexts["언어"].exists)
+        XCTAssertFalse(app.buttons["버그 신고"].exists)
+    }
+
+    func testMarketingNotificationsExposeSystemControls() throws {
+        let app = launchApp(at: "mypage-notifications")
+        assertScreen("mypage-notifications", in: app)
+
+        XCTAssertTrue(element("mypage-marketing-notifications", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(element("mypage-marketing-notifications-status", in: app).exists)
+        XCTAssertTrue(element("mypage-open-notification-settings", in: app).exists)
     }
 
     func testPasswordRouteExplainsSocialOnlyAuthentication() throws {

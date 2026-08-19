@@ -89,8 +89,7 @@ struct CoorditOnboardingView: View {
 
             ZStack(alignment: .top) {
                 CoorditSharedAppBackground()
-
-                VStack(spacing: 0) {
+                VStack(spacing: metrics.value(22)) {
                     CoorditSettingsHeaderCard(title: "회원가입", metrics: metrics) {
                         returnToPreviousScreen()
                     }
@@ -106,9 +105,9 @@ struct CoorditOnboardingView: View {
                             Group {
                                 switch step {
                                 case .profile:
-                                    profileContent
+                                    profileContent(metrics: metrics)
                                 case .measurements:
-                                    measurementContent
+                                    measurementContent(metrics: metrics)
                                 case .consent:
                                     consentContent
                                 }
@@ -116,16 +115,21 @@ struct CoorditOnboardingView: View {
                             .padding(.top, metrics.value(22))
                         }
                         .padding(.horizontal, metrics.value(16))
-                        .padding(.bottom, metrics.value(116))
+                        .padding(.bottom, metrics.value(32))
                     }
                 }
-                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                footer(metrics: metrics)
+                    .frame(maxWidth: .infinity)
+                    .background {
+                        CoorditSettingsStyle.panel
+                            .opacity(0.97)
+                            .ignoresSafeArea(edges: .bottom)
+                    }
             }
             .scrollDismissesKeyboard(.interactively)
-        }
-        .safeAreaInset(edge: .bottom) {
-            footer
-                .background(CoorditSettingsStyle.panel.opacity(0.97))
         }
         .sheet(item: $legalDocument) { document in
             legalSheet(document)
@@ -158,16 +162,18 @@ struct CoorditOnboardingView: View {
     }
 
     private var stepIndicator: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             ForEach(Step.allCases, id: \.rawValue) { item in
                 VStack(alignment: .leading, spacing: 6) {
                     Text(String(format: "%02d", item.rawValue))
                         .font(CoorditTypography.gmarketMedium(size: 9, relativeTo: .caption))
                     Text(item.label)
                         .font(CoorditTypography.gmarketMedium(size: 11, relativeTo: .caption))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
                 .foregroundStyle(item.rawValue <= step.rawValue ? CoorditSettingsStyle.ink : CoorditSettingsStyle.muted)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 12)
                 .overlay(alignment: .bottom) {
                     Rectangle()
@@ -177,10 +183,10 @@ struct CoorditOnboardingView: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("초기 설정 (step.rawValue)단계, (step.label)")
+        .accessibilityLabel("초기 설정 \(step.rawValue)단계, \(step.label)")
     }
 
-    private var profileContent: some View {
+    private func profileContent(metrics: CoorditResponsiveMetrics) -> some View {
         VStack(alignment: .leading, spacing: 20) {
             onboardingField(title: "이름 또는 별명", hint: "필수") {
                 TextField("예: 민아", text: $displayName)
@@ -210,33 +216,38 @@ struct CoorditOnboardingView: View {
                 }
             }
 
-            onboardingField(title: "생일", hint: "선택") {
+            VStack(alignment: .leading, spacing: 10) {
+                fieldLabel("생일", hint: "선택")
                 HStack(spacing: 8) {
-                    birthdayTextField("1998", text: $birthYear, field: .birthYear, identifier: "year", unit: "년", width: 78)
-                    birthdayTextField("05", text: $birthMonth, field: .birthMonth, identifier: "month", unit: "월", width: 45)
-                    birthdayTextField("17", text: $birthDay, field: .birthDay, identifier: "day", unit: "일", width: 45)
+                    birthdayTextField("1998", text: $birthYear, field: .birthYear, identifier: "year", unit: "년")
+                    birthdayTextField("05", text: $birthMonth, field: .birthMonth, identifier: "month", unit: "월")
+                    birthdayTextField("17", text: $birthDay, field: .birthDay, identifier: "day", unit: "일")
                 }
+                .frame(maxWidth: .infinity)
             }
         }
-        .onboardingContentCard()
+        .onboardingContentCard(metrics: metrics)
     }
 
-    private var measurementContent: some View {
+    private func measurementContent(metrics: CoorditResponsiveMetrics) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                 measurementField("키", value: $heightCm, identifier: "height", placeholder: "170")
                 measurementField("몸무게", value: $weightKg, identifier: "weight", placeholder: "58", unit: "kg")
             }
 
-            Text("선택 입력이에요. 비워 두고 나중에 마이페이지에서 입력할 수 있어요.")
+            Text("선택 입력이에요. 나중에 마이페이지에서\n입력할 수 있어요.")
                 .font(CoorditTypography.gmarketMedium(size: 11, relativeTo: .caption))
                 .foregroundStyle(CoorditSettingsStyle.muted)
-                .padding(14)
+                .padding(metrics.value(14))
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(CoorditSettingsStyle.field, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .background(
+                    CoorditSettingsStyle.field,
+                    in: RoundedRectangle(cornerRadius: metrics.value(7), style: .continuous)
+                )
 
         }
-        .onboardingContentCard()
+        .onboardingContentCard(metrics: metrics)
     }
 
     private var consentContent: some View {
@@ -274,9 +285,14 @@ struct CoorditOnboardingView: View {
         }
     }
 
-    private var footer: some View {
+    private func footer(metrics: CoorditResponsiveMetrics) -> some View {
         VStack(spacing: 8) {
-            if !validationMessage.isEmpty {
+            if step == .consent && !hasAcceptedRequiredConsents {
+                Text("필수 약관 2개에 동의해야 설정을 저장할 수 있어요.")
+                    .font(CoorditTypography.gmarketMedium(size: 11, relativeTo: .caption))
+                    .foregroundStyle(CoorditSettingsStyle.muted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else if !validationMessage.isEmpty {
                 Text(validationMessage)
                     .font(CoorditTypography.gmarketMedium(size: 11, relativeTo: .caption))
                     .foregroundStyle(CoorditSettingsStyle.danger)
@@ -285,16 +301,17 @@ struct CoorditOnboardingView: View {
 
             HStack(spacing: step == .measurements ? 6 : 10) {
                 if step != .profile {
-                    Button("이전") { move(to: Step(rawValue: step.rawValue - 1) ?? .profile) }
+                    Button("이전") { moveBack() }
                         .font(CoorditTypography.gmarketMedium(size: 14, relativeTo: .body))
                         .foregroundStyle(CoorditSettingsStyle.ink)
                         .frame(maxWidth: step == .measurements ? nil : .infinity, minHeight: 52)
-                        .frame(width: step == .measurements ? 74 : nil)
+                        .frame(width: step == .measurements ? metrics.value(74) : nil)
                         .background(CoorditSettingsStyle.panel, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
                         .overlay {
                             RoundedRectangle(cornerRadius: 7, style: .continuous)
                                 .stroke(CoorditSettingsStyle.line, lineWidth: 1)
                         }
+                        .accessibilityIdentifier("onboarding-back")
                 }
 
                 if step == .measurements {
@@ -303,7 +320,7 @@ struct CoorditOnboardingView: View {
                         .foregroundStyle(CoorditSettingsStyle.muted)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
-                        .frame(width: 116, height: 52)
+                        .frame(width: metrics.value(116), height: metrics.value(52))
                         .background(CoorditSettingsStyle.field, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
                 }
 
@@ -317,17 +334,20 @@ struct CoorditOnboardingView: View {
                     }
                 }
                 .font(CoorditTypography.gmarketBold(size: 14, relativeTo: .body))
-                .foregroundStyle(.white)
+                .foregroundStyle(isPrimaryActionEnabled ? .white : CoorditSettingsStyle.muted)
                 .frame(maxWidth: step == .measurements ? nil : .infinity, minHeight: 52)
-                .frame(width: step == .measurements ? 112 : nil)
-                .background(CoorditSettingsStyle.ink, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-                .disabled(backendSession.isWorking)
+                .frame(width: step == .measurements ? metrics.value(112) : nil)
+                .background(
+                    isPrimaryActionEnabled ? CoorditSettingsStyle.ink : CoorditSettingsStyle.field,
+                    in: RoundedRectangle(cornerRadius: 7, style: .continuous)
+                )
+                .disabled(!isPrimaryActionEnabled)
                 .accessibilityIdentifier(step == .consent ? "onboarding-save" : "onboarding-next")
             }
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 10)
-        .padding(.bottom, 12)
+        .padding(.horizontal, metrics.value(24))
+        .padding(.top, metrics.value(10))
+        .padding(.bottom, metrics.value(12))
     }
 
     private var genderOptions: [(value: String, label: String)] {
@@ -363,19 +383,25 @@ struct CoorditOnboardingView: View {
         text: Binding<String>,
         field: Field,
         identifier: String,
-        unit: String,
-        width: CGFloat
+        unit: String
     ) -> some View {
         HStack(spacing: 3) {
             TextField(placeholder, text: text)
                 .keyboardType(.numberPad)
                 .focused($focusedField, equals: field)
                 .multilineTextAlignment(.center)
-                .frame(width: width)
+                .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("onboarding-birth-\(identifier)")
             Text(unit)
                 .font(CoorditTypography.gmarketMedium(size: 12, relativeTo: .caption))
                 .foregroundStyle(CoorditSettingsStyle.muted)
+        }
+        .padding(.horizontal, 10)
+        .frame(maxWidth: .infinity, minHeight: 52)
+        .background(CoorditSettingsStyle.field, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .stroke(CoorditSettingsStyle.line, lineWidth: 1)
         }
     }
 
@@ -402,9 +428,9 @@ struct CoorditOnboardingView: View {
             }
             .padding(.horizontal, 12)
             .frame(minHeight: 50)
-            .background(.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(CoorditSettingsStyle.field, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
                     .stroke(CoorditSettingsStyle.line, lineWidth: 1)
             }
         }
@@ -421,6 +447,7 @@ struct CoorditOnboardingView: View {
                 .labelsHidden()
                 .tint(CoorditSettingsStyle.ink)
                 .padding(.top, 2)
+                .accessibilityIdentifier(consentIdentifier(for: title))
 
             VStack(alignment: .leading, spacing: 5) {
                 Text(title)
@@ -518,6 +545,17 @@ struct CoorditOnboardingView: View {
         }
     }
 
+    private func moveBack() {
+        switch step {
+        case .consent:
+            move(to: .measurements)
+        case .measurements:
+            move(to: .profile)
+        case .profile:
+            returnToPreviousScreen()
+        }
+    }
+
     private func save() {
         guard acceptsTerms && acceptsPrivacy else {
             validationMessage = "서비스 이용약관과 개인정보 처리방침에 모두 동의해 주세요."
@@ -548,6 +586,14 @@ struct CoorditOnboardingView: View {
                 validationMessage = backendSession.statusText
             }
         }
+    }
+
+    private var hasAcceptedRequiredConsents: Bool {
+        acceptsTerms && acceptsPrivacy
+    }
+
+    private var isPrimaryActionEnabled: Bool {
+        !backendSession.isWorking && (step != .consent || hasAcceptedRequiredConsents)
     }
 
     private var validBirthDate: String? {
@@ -588,7 +634,20 @@ struct CoorditOnboardingView: View {
             backendSession.logout()
             onFinished()
         } else {
-            move(to: Step(rawValue: step.rawValue - 1) ?? .profile)
+            moveBack()
+        }
+    }
+
+    private func consentIdentifier(for title: String) -> String {
+        switch title {
+        case "[필수] 서비스 이용약관":
+            "onboarding-consent-terms"
+        case "[필수] 개인정보 처리방침":
+            "onboarding-consent-privacy"
+        case "[선택] 핏 데이터 개선":
+            "onboarding-consent-fit-data"
+        default:
+            "onboarding-consent-marketing"
         }
     }
 
@@ -599,14 +658,12 @@ struct CoorditOnboardingView: View {
 }
 
 private extension View {
-    func onboardingContentCard() -> some View {
-        self
-            .padding(16)
-            .background(CoorditSettingsStyle.panel, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .stroke(CoorditSettingsStyle.line, lineWidth: 1)
-            }
+    func onboardingContentCard(metrics: CoorditResponsiveMetrics) -> some View {
+        CoorditSettingsCard(metrics: metrics) {
+            self
+                .padding(.horizontal, metrics.value(16))
+                .padding(.vertical, metrics.value(4))
+        }
     }
 }
 #endif

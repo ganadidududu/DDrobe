@@ -16,6 +16,36 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertFalse(app.buttons["카메라에서 추가"].exists)
     }
 
+    func testSourceSelectionExplainsThreadCostAndRoutesToChargeWhenEmpty() throws {
+        let app = launchFitLab(extraArguments: [
+            "--coordit-ui-testing-authenticated",
+            "--coordit-thread-balance", "0",
+        ])
+
+        XCTAssertTrue(element("fitlab-source-thread-cost-notice", in: app).waitForExistence(timeout: 5))
+        XCTAssertEqual(element("fitlab-source-thread-cost-copy", in: app).label, "핏 분석을 시작할 때 실타래 1개가 사용돼요.")
+        XCTAssertEqual(element("fitlab-source-thread-balance", in: app).label, "현재 0개")
+
+        let charge = element("fitlab-source-thread-charge", in: app)
+        XCTAssertTrue(charge.waitForExistence(timeout: 5))
+        charge.tap()
+
+        XCTAssertTrue(element("coordit-screen-mypage-thread-charge", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(element("coordit-thread-recharge-required-popup", in: app).exists)
+    }
+
+    func testSourceSelectionShowsCurrentThreadBalance() throws {
+        let app = launchFitLab(extraArguments: [
+            "--coordit-ui-testing-authenticated",
+            "--coordit-thread-balance", "3",
+        ])
+
+        XCTAssertTrue(element("fitlab-source-thread-cost-notice", in: app).waitForExistence(timeout: 5))
+        XCTAssertEqual(element("fitlab-source-thread-cost-copy", in: app).label, "핏 분석을 시작할 때 실타래 1개가 사용돼요.")
+        XCTAssertEqual(element("fitlab-source-thread-balance", in: app).label, "현재 3개")
+        XCTAssertFalse(element("fitlab-source-thread-charge", in: app).exists)
+    }
+
     func testFinalBlockersBlankManualAndNormalizedURLDuplicateMakeZeroWrites() throws {
         var app = launchFitLab()
         XCTAssertTrue(app.buttons["직접 입력하기"].waitForExistence(timeout: 5))
@@ -185,6 +215,43 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["기준 의류"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["home-reference-item-oxford"].exists)
         XCTAssertTrue(app.buttons["home-reference-item-denim"].exists)
+    }
+
+    func testNewReferenceGarmentReturnsToFitLabAlreadySelected() throws {
+        let app = launchFitLab(
+            fixture: "submission-success",
+            extraArguments: [
+                "--coordit-test-closet-save-success",
+                "--coordit-test-fitlab-reference-registration",
+            ]
+        )
+
+        XCTAssertTrue(element("fitlab-reference-selection", in: app).waitForExistence(timeout: 5))
+        element("fitlab-manage-references", in: app).tap()
+        XCTAssertTrue(app.buttons["새 의류 등록하기"].waitForExistence(timeout: 5))
+        app.buttons["새 의류 등록하기"].tap()
+
+        XCTAssertTrue(element("coordit-screen-closet-add-method", in: app).waitForExistence(timeout: 5))
+        element("closet-add-method-manual", in: app).tap()
+        XCTAssertTrue(element("coordit-screen-closet-add-manual", in: app).waitForExistence(timeout: 5))
+
+        fill(element("closet-garment-name", in: app), with: "새 기준 후드")
+        dismissKeyboard(in: app)
+        for index in 0..<4 {
+            fill(element("closet-manual-measurement-\(index)", in: app), with: "\(index + 50)")
+            dismissKeyboard(in: app)
+        }
+
+        tapWhenReachable("closet-add-submit", in: app)
+
+        XCTAssertTrue(element("coordit-screen-fitlab-input", in: app).waitForExistence(timeout: 8))
+        XCTAssertEqual(
+            element("fitlab-reference-reference-fixture-hoodie", in: app).value as? String,
+            "선택됨"
+        )
+        XCTAssertTrue(app.buttons["fitlab-submit-analysis"].isEnabled)
+        XCTAssertFalse(element("coordit-screen-closet-add-result", in: app).exists)
+        capture("new-reference-returns-to-fitlab-selected", app: app)
     }
 
     func testFinalBlockersVisionRunsOffMainWithHeartbeatAndLateCancellationGuard() throws {

@@ -105,6 +105,9 @@ final class CoorditBackendSessionStore: ObservableObject {
     }
 
     func fetchThreadBalance() async -> Int? {
+        #if DEBUG
+        if usesAuthenticatedUITestFixture { return Self.uiTestingThreadBalance ?? 0 }
+        #endif
         guard let token = session?.accessToken else { return nil }
         do {
             return try await client.threadBalance(token: token).availableThreads
@@ -187,12 +190,31 @@ final class CoorditBackendSessionStore: ObservableObject {
         }
     }
 
-    func saveBodyMeasurement(_ request: BodyMeasurementRequest) async {
+    func saveBodyMeasurement(_ request: BodyMeasurementRequest) async -> Bool {
+#if DEBUG
+        if usesAuthenticatedUITestFixture {
+            latestBodyMeasurement = CoorditBodyMeasurement(
+                id: "coordit-ui-test-body-measurement",
+                heightCm: request.heightCm,
+                weightKg: request.weightKg,
+                shoulderWidth: nil,
+                chestCircumference: nil,
+                waistCircumference: nil,
+                hipCircumference: nil,
+                outseam: nil,
+                createdAt: "2026-01-01T00:00:00Z"
+            )
+            statusText = "키와 몸무게를 백엔드에 저장했어요."
+            isWarning = false
+            return true
+        }
+#endif
         await runAuthenticated { token in
             latestBodyMeasurement = try await client.createBodyMeasurement(token: token, request: request)
-            statusText = "신체 치수를 백엔드에 저장했어요."
+            statusText = "키와 몸무게를 백엔드에 저장했어요."
             isWarning = false
         }
+        return !isWarning
     }
 
     func completeOnboarding(_ request: CoorditOnboardingRequest) async -> Bool {
@@ -204,12 +226,13 @@ final class CoorditBackendSessionStore: ObservableObject {
 
         var completed = false
         await run {
-            let status = try await client.completeOnboarding(token: token, request: request)
-            onboardingComplete = status.onboardingComplete
-            try await refreshAccount()
+            let completion = try await client.completeOnboarding(token: token, request: request)
+            profile = completion.user
+            onboardingComplete = completion.onboardingComplete
+            latestBodyMeasurement = try await client.listBodyMeasurements(token: token).first
             statusText = "나만의 핏 프로필을 저장했어요."
             isWarning = false
-            completed = status.onboardingComplete
+            completed = completion.onboardingComplete
         }
         return completed
     }
@@ -377,7 +400,22 @@ final class CoorditBackendSessionStore: ObservableObject {
             if ProcessInfo.processInfo.arguments.contains("--coordit-ui-testing") {
                 statusText = "UI 테스트 기준 의류 선택을 저장했어요."
                 isWarning = false
-                return CoorditReferenceSyncResult(selectedIDs: selectedIDs, referenceIDsByItemID: [:])
+                let isFitLabReferenceRegistration = ProcessInfo.processInfo.arguments.contains(
+                    "--coordit-test-fitlab-reference-registration"
+                )
+                let referenceIDsByItemID: [String: String] = Dictionary(
+                    uniqueKeysWithValues: items.compactMap { item in
+                        guard isFitLabReferenceRegistration,
+                              selectedIDs.contains(item.id),
+                              item.backendClothingItemId == "closet-save-success-fixture"
+                        else { return nil }
+                        return (item.id, "reference-fixture-\(item.exactCategory.rawValue)")
+                    }
+                )
+                return CoorditReferenceSyncResult(
+                    selectedIDs: selectedIDs,
+                    referenceIDsByItemID: referenceIDsByItemID
+                )
             }
             #endif
             statusText = "기준 의류 선택은 로그인 후 서버에 반영돼요."
@@ -431,6 +469,24 @@ final class CoorditBackendSessionStore: ObservableObject {
 
     func referenceFitProfile(for category: CoorditClosetCategory) -> CoorditReferenceFitProfileResponse? {
         referenceFitProfiles[category == .top ? "upper" : "lower"]
+    }
+
+    func closetFitComparison(clothingItemID: String) async -> CoorditClosetFitComparisonResponse? {
+        guard let token = session?.accessToken else { return nil }
+        #if DEBUG
+        if usesAuthenticatedUITestFixture { return nil }
+        #endif
+
+        do {
+            return try await client.closetFitComparison(
+                token: token,
+                clothingItemId: clothingItemID
+            )
+        } catch {
+            statusText = error.localizedDescription
+            isWarning = true
+            return nil
+        }
     }
 
     func refreshReferenceFitProfiles() async {
@@ -630,6 +686,18 @@ final class CoorditBackendSessionStore: ObservableObject {
             return nil
         }
         return arguments[arguments.index(after: markerIndex)]
+    }
+
+    private static var uiTestingThreadBalance: Int? {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard
+            let markerIndex = arguments.firstIndex(of: "--coordit-thread-balance"),
+            arguments.indices.contains(arguments.index(after: markerIndex)),
+            let balance = Int(arguments[arguments.index(after: markerIndex)])
+        else {
+            return nil
+        }
+        return max(0, balance)
     }
 #endif
 }
