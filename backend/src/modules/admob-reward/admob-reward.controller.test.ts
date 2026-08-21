@@ -39,7 +39,18 @@ const runPrimaryScenario = async (
   scenario: z.infer<typeof scenarioSchema>
 ): Promise<{ readonly status: number; readonly grantCalls: number }> => {
   const factory = await loadControllerFactory();
-  const harness = await startTestHarness(factory);
+  const isValidationProbe = scenario === "validation-probe";
+  const harness = await startTestHarness(
+    factory,
+    !isValidationProbe,
+    isValidationProbe
+      ? {
+        adUnitId: "",
+        rewardItem: "unconfigured",
+        rewardAmount: 999
+      }
+      : {}
+  );
   try {
     const customData = scenario === "validation-probe"
       ? testConfiguration.validationCustomData
@@ -201,7 +212,23 @@ const runFailureMatrix = async (): Promise<number> => {
     }),
     await assertRejected({ requestContent: canonical, tailOrder: "reversed" }),
     await assertRejected({ requestContent: canonical, enabled: false }),
-    await assertRawRejected(canonical)
+    await assertRawRejected(canonical),
+    await assertRawRejected(""),
+    await assertRawRejected(
+      `custom_data=${encodeURIComponent(testConfiguration.validationCustomData)}`
+    ),
+    await assertRejected({
+      requestContent: createCanonicalSignedContent(
+        baseValues(testConfiguration.validationCustomData)
+      ),
+      contentToSign: canonical
+    }),
+    await assertRejected({
+      requestContent: createCanonicalSignedContent({
+        ...baseValues(testConfiguration.validationCustomData),
+        timestamp: String(testNowMs - 86_400_001)
+      })
+    })
   ];
 
   // Category-only diagnostics must not contain provider callback payload fragments.

@@ -208,18 +208,18 @@ export const verifyAdMobSSVCallback = async (
   await verifySignature({ signedContent, rawSignature, rawKeyId }, dependencies.getVerifierKeys);
   const callback = parseSignedContent(signedContent);
   const config = dependencies.configuration;
+  if (Math.abs(dependencies.now() - callback.timestamp) > 86_400_000) {
+    return rejectCallback("stale-timestamp");
+  }
+  if (callback.custom_data === config.validationCustomData) {
+    return { kind: "validation" };
+  }
   if (
     callback.ad_unit !== config.adUnitId
     || callback.reward_item !== config.rewardItem
     || callback.reward_amount !== config.rewardAmount
   ) {
     return rejectCallback("unexpected-reward-config");
-  }
-  if (Math.abs(dependencies.now() - callback.timestamp) > 86_400_000) {
-    return rejectCallback("stale-timestamp");
-  }
-  if (callback.custom_data === config.validationCustomData) {
-    return { kind: "validation" };
   }
   const attemptResult = attemptIdSchema.safeParse(callback.custom_data);
   if (!attemptResult.success) return rejectCallback("invalid-custom-data");

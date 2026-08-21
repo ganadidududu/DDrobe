@@ -57,6 +57,13 @@ type SignedRequestInput = {
   readonly mutateSignature?: boolean;
 };
 
+type TestConfigurationOverrides = {
+  readonly adUnitId?: string;
+  readonly rewardItem?: string;
+  readonly rewardAmount?: number;
+  readonly validationCustomData?: string;
+};
+
 export type TestHarness = {
   readonly requestSigned: (input: SignedRequestInput) => Promise<Response>;
   readonly requestRawQuery: (rawQuery: string) => Promise<Response>;
@@ -128,7 +135,8 @@ const mutatedSignature = (signature: string): string => {
 
 export const startTestHarness = async (
   factory: ControllerFactory,
-  rewardedAdsEnabled = true
+  rewardedAdsEnabled = true,
+  configurationOverrides: TestConfigurationOverrides = {}
 ): Promise<TestHarness> => {
   const { privateKey, publicKey } = generateKeyPairSync("ec", {
     namedCurve: "prime256v1"
@@ -147,7 +155,11 @@ export const startTestHarness = async (
         return { status: "granted", availableThreads: 37 };
       },
       now: () => testNowMs,
-      configuration: { ...testConfiguration, rewardedAdsEnabled },
+      configuration: {
+        ...testConfiguration,
+        ...configurationOverrides,
+        rewardedAdsEnabled
+      },
       logRejection: (category) => rejectionCategoryRecords.push(category)
     })
   );
