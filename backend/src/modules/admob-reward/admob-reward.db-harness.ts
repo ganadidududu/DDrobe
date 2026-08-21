@@ -24,6 +24,10 @@ export type DisposableAdmobDatabase = {
   readonly stop: () => Promise<void>;
 };
 
+export type DisposableAdmobDatabaseOptions = {
+  readonly migrationNames?: readonly string[];
+};
+
 const bootstrapSql = `
   create extension if not exists pgcrypto;
   create role anon nologin;
@@ -69,11 +73,14 @@ const reserveLoopbackPort = async (): Promise<number> => {
   return address.port;
 };
 
-const applyMigrations = async (client: Client): Promise<readonly string[]> => {
+const applyMigrations = async (
+  client: Client,
+  migrationNames: readonly string[]
+): Promise<readonly string[]> => {
   const migrationDirectory = resolve(process.cwd(), "..", "supabase", "migrations");
   const appliedMigrations: string[] = [];
 
-  for (const migrationName of admobDatabaseMigrations) {
+  for (const migrationName of migrationNames) {
     const sql = await readFile(join(migrationDirectory, migrationName), "utf8");
     await client.query(sql);
     appliedMigrations.push(migrationName);
@@ -99,7 +106,9 @@ export const withDatabaseRole = async <T>(
   }
 };
 
-export const startDisposableAdmobDatabase = async (): Promise<DisposableAdmobDatabase> => {
+export const startDisposableAdmobDatabase = async (
+  options: DisposableAdmobDatabaseOptions = {}
+): Promise<DisposableAdmobDatabase> => {
   const databaseDirectory = await mkdtemp(join(tmpdir(), "coordit-admob-reward-db-"));
   const port = await reserveLoopbackPort();
   const postgres = new EmbeddedPostgres({
@@ -124,7 +133,10 @@ export const startDisposableAdmobDatabase = async (): Promise<DisposableAdmobDat
     client = connectedClient;
     await connectedClient.connect();
     await connectedClient.query(bootstrapSql);
-    const appliedMigrations = await applyMigrations(connectedClient);
+    const appliedMigrations = await applyMigrations(
+      connectedClient,
+      options.migrationNames ?? admobDatabaseMigrations
+    );
     /** Additional clients exist only to exercise real concurrent transactions. */
     const additionalClients: Client[] = [];
 
