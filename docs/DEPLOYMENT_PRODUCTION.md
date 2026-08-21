@@ -9,7 +9,7 @@ This runbook covers the owner-controlled production setup for FitLab rewarded ya
 | Provider | Authenticated read-only observable | Production consequence |
 | --- | --- | --- |
 | Google Cloud | Owner approved `coordit-dev` / `coordit-backend-staging` in `asia-northeast3`; exact release revision `coordit-backend-staging-e2ffafe6` serves 100% of traffic and retained rollback revision `coordit-backend-staging-00012-rhp` is Ready | Cloud Run delivery is PASS; retain the explicit naming variance and immutable release receipt below |
-| Supabase | Owner approved `coordit-staging`; the FREE project reports no managed backup. Direct failed on its IPv6 route, so the displayed Session pooler was used after `SESSION_POOLER_TCP_OK`. The retained Cloud Shell dump and owner-controlled local copy are both 308,567 bytes and have matching SHA-256. Read-only metadata inspection found the accepted partial monetization fingerprint and no Supabase CLI ledger | backup gate is PASS; execute only the reviewed, checked-in Task 7 reconciliation runner after its immutable artifact and approval gates pass |
+| Supabase | Owner approved `coordit-staging`; the FREE project reports no managed backup. Direct failed on its IPv6 route, so the displayed Session pooler was used after `SESSION_POOLER_TCP_OK`. The retained Cloud Shell dump and owner-controlled local copy are both 308,567 bytes and have matching SHA-256. Read-only metadata inspection found the accepted partial monetization fingerprint and no Supabase CLI ledger. The public Supabase CA is checksum-pinned in a non-repository operator path, but the exact Node connection-only TLS probe has not yet passed | backup and CA-identity gates are PASS; do not apply the reconciliation until the authenticated TLS connection-only gate also passes |
 | App Store Connect | No Coordit app is present; updated agreement and legal/compliance prerequisites block the Paid Apps Agreement | Account Holder/legal handoff and correct team/app identity are required before IAP work |
 | AdMob | `Coordit iOS` is review-required; rewarded unit/reward values match, but SSV points to staging with blank validation custom data and disabled **Use verified URL** | do not Verify, Use, or Save until a healthy production callback and zero-grant sentinel are ready |
 
@@ -82,19 +82,38 @@ The only approved monetization schema operation is this single forward artifact:
 
 Execute only from a reviewed, checked-in release candidate containing those exact paths. Immediately before the change, recompute the migration checksum and stop unless it matches the table. The current Cloud Run receipt in section 4 remains exact and unchanged; it does not prove that a later database-operator candidate was reviewed or checked in.
 
+### Secure operator TLS is mandatory
+
+Use only the public server CA downloaded from the authenticated `coordit-staging` Supabase dashboard at **Database Settings → SSL Configuration → Download certificate**. This download does not change a provider setting.
+
+| Field | Required value |
+| --- | --- |
+| Provider filename | `prod-ca-2021.crt` |
+| Byte size | `1,367` |
+| SHA-256 | `700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7` |
+| Operator path | `$HOME/coordit-task7-supabase-root-ca.crt` |
+| File policy | regular file, mode `0600`, outside every repository, never committed |
+
+Recompute the size and SHA-256 and parse the file with `openssl x509 -noout` before every operator session. Set `PGSSLROOTCERT` to the exact operator path. `PGSSLMODE=require` by itself is not acceptable because it does not establish the pinned authenticated-TLS gate. `sslmode=disable`, `NODE_TLS_REJECT_UNAUTHORIZED=0`, `rejectUnauthorized: false`, or any equivalent certificate/hostname-verification bypass is forbidden. The checked-in operator client must load `PGSSLROOTCERT` and construct Node `pg` with the pinned CA and `rejectUnauthorized: true`; missing, malformed, non-CA, or unreadable input must fail before a TCP connection.
+
+Before any apply command, run the exact checked-in connection-only package command from the same reviewed checkout and with the same Session-pooler `PG*` environment. It uses the same verified operator client as the apply runner, performs only `connect()` followed by `end()`, issues no query, and must print exactly `monetization_connection_probe status=connected`. Any nonzero exit or any other output closes the database gate. Do not set the reconciliation approval token until this probe succeeds.
+
 ### Required preflight and invocation
 
 1. Reconfirm `coordit-staging` in the authenticated owner console and record the approved staging-name variance, operator, time window, reviewed Git commit, and rollback owner.
 2. Recheck both retained dump copies. The Cloud Shell and owner-controlled local copy must each remain 308,567 bytes with SHA-256 `e27ae11df6662b3786df76e575699b1b11ae28cc500258d2bc31f88eb9eb0333`. Stop on any size or digest mismatch.
-3. Run all three checked-in disposable-database suites below: the partial/exact-target reconciliation scenario, fingerprint rejection scenarios, and transaction-failure rollback scenarios. Stop unless each exits 0.
+3. Run all five checked-in suites below: the partial/exact-target reconciliation scenario, fingerprint rejection scenarios, transaction-failure rollback scenarios, operator TLS fail-closed coverage, and the exact connection-probe contract. Stop unless each exits 0.
 4. Keep `ADMOB_REWARDED_ENABLED` and `APPLE_IAP_ENABLED` absent or false. Do not add the Apple certificate mount as part of this database change.
 5. Use the IPv4-compatible **Session pooler** target shown by Supabase Connect. Do not use the failed Direct IPv6 target or the Transaction pooler. Supply its host, port, user, and database only through standard `PG*` variables and enter the password at a masked prompt; never put a connection URI or password in shell history, logs, evidence, or this runbook.
-6. Set the public, exact approval token only for this invocation: `coordit-monetization-schema-reconciliation-20260822`.
+6. Verify the public CA's exact size, SHA-256, mode, and certificate parse; export its exact non-repository path as `PGSSLROOTCERT` and run only the checked-in connection-only probe. Stop unless it exits 0 with the single allowlisted success line.
+7. Only after the probe passes, set the public, exact approval token for the apply invocation: `coordit-monetization-schema-reconciliation-20260822`.
 
 ```bash
 npm --prefix backend run test:monetization-schema-reconciliation
 npm --prefix backend run test:monetization-schema-reconciliation:fingerprint
 npm --prefix backend run test:monetization-schema-reconciliation:failures
+npm --prefix backend run test:monetization-schema-reconciliation:operator-tls
+npm --prefix backend run test:monetization-schema-reconciliation:connection-probe
 ```
 
 From the root of the exact reviewed checkout, the owner-controlled Cloud Shell invocation has this shape:
@@ -104,20 +123,22 @@ From the root of the exact reviewed checkout, the owner-controlled Cloud Shell i
   set -eu
   read -r -s -p "Supabase Session pooler password: " PGPASSWORD
   printf '\n'
-  trap 'unset PGPASSWORD COORDIT_SCHEMA_RECONCILIATION_APPROVAL' EXIT
+  trap 'unset PGPASSWORD PGSSLROOTCERT COORDIT_SCHEMA_RECONCILIATION_APPROVAL' EXIT
   export PGPASSWORD
   export PGHOST='<CONFIRMED_SESSION_POOLER_HOST>'
   export PGPORT='<CONFIRMED_SESSION_POOLER_PORT>'
   export PGUSER='<CONFIRMED_SESSION_POOLER_USER>'
   export PGDATABASE='<CONFIRMED_DATABASE_NAME>'
-  export PGSSLMODE='require'
+  export PGSSLMODE='verify-full'
+  export PGSSLROOTCERT="$HOME/coordit-task7-supabase-root-ca.crt"
   export PGCONNECT_TIMEOUT='10'
+  npm --prefix backend run --silent probe:monetization-schema-reconciliation:connection
   export COORDIT_SCHEMA_RECONCILIATION_APPROVAL='coordit-monetization-schema-reconciliation-20260822'
   npm --prefix backend run apply:monetization-schema-reconciliation
 )
 ```
 
-The CLI computes the checked-in SQL checksum itself. It opens one transaction, applies five-second lock and 30-second statement timeouts, takes a fixed advisory transaction lock, validates the catalog fingerprint, runs the single forward reconciliation, and performs its fixed metadata postflight before commit. Missing approval, checksum/version conflict, unexpected Supabase ledger, unknown catalog drift, lock/statement timeout, or postflight failure must exit nonzero and roll back the transaction.
+The probe is not a schema preflight and its success does not authorize an apply; it proves only that the exact Node operator client can complete authenticated TLS and immediately disconnect without a query. The apply CLI computes the checked-in SQL checksum itself. It opens one transaction, applies five-second lock and 30-second statement timeouts, takes a fixed advisory transaction lock, validates the catalog fingerprint, runs the single forward reconciliation, and performs its fixed metadata postflight before commit. Missing approval, operator CA, checksum/version conflict, unexpected Supabase ledger, unknown catalog drift, lock/statement timeout, or postflight failure must exit nonzero and roll back the transaction.
 
 ### Expected fingerprint and durable receipt
 
@@ -133,6 +154,15 @@ It atomically preserves wallet rows, installs the missing Apple monetary schema,
 The runner's transaction-local postflight is the authoritative schema check: it verifies both receipt tables, Apple monetary tables, the hardened AdMob function marker, the exact filename/SHA change record, and all five version markers without selecting user rows. Preserve only the redacted CLI receipt and exit status. After commit, recheck both public `/health` URLs and the authenticated monetization readiness endpoint; health must remain HTTP 200 and both readiness values must remain false. Do not enable either feature flag in this change window.
 
 On any runner failure, retain the verified dump, record the redacted error category, and investigate the fingerprint; do not retry with hand-edited SQL. The runner rolls back its transaction. After a successful commit, do not run reverse SQL or drop ledger/receipt rows. Use a separately reviewed forward reconciliation for correction; restore the verified dump only under an owner-approved database recovery incident. The Cloud Run rollback revision remains `coordit-backend-staging-00012-rhp`, but database reconciliation alone does not move application traffic.
+
+After the operator receipt and postflight evidence are captured and no retry is pending, remove only the exact task-owned public CA copy and confirm it is absent:
+
+```bash
+rm -- "$HOME/coordit-task7-supabase-root-ca.crt"
+test ! -e "$HOME/coordit-task7-supabase-root-ca.crt"
+```
+
+Also unset any remaining `PG*` operator variables. Do not leave the CA in a repository, source archive, container image, shell evidence bundle, or long-lived runtime configuration.
 
 `styling_looks` and `users.birth_date` are intentionally untouched by this monetization reconciliation and remain separate schema blockers requiring their own reviewed forward changes. App Store Connect app/product/agreement/notification/certificate work and the AdMob verified-URL/live-reward gates also remain separate blockers; this database receipt cannot turn either CTA on.
 
