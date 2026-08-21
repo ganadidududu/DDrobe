@@ -75,12 +75,24 @@ The only approved monetization schema operation is this single forward artifact:
 | Field | Required value |
 | --- | --- |
 | Migration | `supabase/migrations/20260822_reconcile_monetization_release_schema.sql` |
-| SHA-256 | `396e442db23e5d39f464bad2750f3da3556f9ada663962b2c9ab789fb05c6f8f` |
+| SHA-256 | `3cc70e8ddc56e4ca9a923bb368f144d84afe680a3bcddc7bae37e23595dc9233` |
 | Typed runner | `backend/src/modules/thread-wallet/monetization-schema-reconciliation.runner.ts` |
 | Operator CLI | `backend/src/modules/thread-wallet/monetization-schema-reconciliation.runner.cli.ts` |
 | Package command | `npm --prefix backend run apply:monetization-schema-reconciliation` |
 
-Execute only from a reviewed, checked-in release candidate containing those exact paths. Immediately before the change, recompute the migration checksum and stop unless it matches the table. The current Cloud Run receipt in section 4 remains exact and unchanged; it does not prove that a later database-operator candidate was reviewed or checked in.
+Execute only from a reviewed, checked-in release candidate containing those exact paths. Immediately before the change, recompute both the checked-out and committed migration checksums and stop unless both match the table. A working-tree-only match is not an approved release candidate. The current Cloud Run receipt in section 4 remains exact and unchanged; it does not prove that a later database-operator candidate was reviewed or checked in.
+
+```bash
+expected_reconciliation_sha='3cc70e8ddc56e4ca9a923bb368f144d84afe680a3bcddc7bae37e23595dc9233'
+migration_path='supabase/migrations/20260822_reconcile_monetization_release_schema.sql'
+reviewed_commit="$(git rev-parse --verify HEAD)"
+checked_out_sha="$(sha256sum "$migration_path" | awk '{print $1}')"
+committed_sha="$(git show "$reviewed_commit:$migration_path" | sha256sum | awk '{print $1}')"
+test "$checked_out_sha" = "$expected_reconciliation_sha"
+test "$committed_sha" = "$expected_reconciliation_sha"
+test -z "$(git status --porcelain --untracked-files=no)"
+printf 'active_reconciliation_identity=pass commit=%s\n' "$reviewed_commit"
+```
 
 ### Secure operator TLS is mandatory
 
