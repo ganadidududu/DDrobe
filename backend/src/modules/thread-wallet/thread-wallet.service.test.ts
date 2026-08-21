@@ -7,7 +7,7 @@ const verifiedTransaction = {
   productId: "com.inseong.coordit.thread.10",
   appAccountToken: "845628bf-1362-4f64-937d-e947aa1d017f",
   purchasedAt: "2026-08-09T12:00:00.000Z",
-  environment: "Sandbox"
+  environment: "Production"
 } as const;
 
 type AppleCreditInput = {
@@ -49,8 +49,7 @@ const tests: readonly { readonly name: string; readonly run: () => Promise<void>
             creditCalls += 1;
             creditedInput = input;
             return { availableThreads: 46, status: "credited" as const };
-          },
-          allowSandboxTransactions: true
+          }
         }
       );
 
@@ -80,8 +79,7 @@ const tests: readonly { readonly name: string; readonly run: () => Promise<void>
             creditAppleTransaction: async () => {
               creditCalls += 1;
               return { availableThreads: 46, status: "credited" as const };
-            },
-            allowSandboxTransactions: true
+            }
           }
         ),
         403
@@ -91,58 +89,59 @@ const tests: readonly { readonly name: string; readonly run: () => Promise<void>
     }
   },
   {
-    name: "rejects a Sandbox transaction when the release environment disallows it",
+    name: "accepts an Apple-signed Sandbox transaction for TestFlight and App Review",
     run: async () => {
+      // Given: Apple verified a Sandbox consumable for the authenticated Coordit account.
       let creditCalls = 0;
+      const sandboxTransaction = { ...verifiedTransaction, environment: "Sandbox" as const };
 
-      await expectHttpError(
-        settleAppleIapPurchase(
-          {
-            userId: verifiedTransaction.appAccountToken,
-            signedTransaction: "signed-apple-transaction"
-          },
-          {
-            verifyAppleTransaction: async () => verifiedTransaction,
-            creditAppleTransaction: async () => {
-              creditCalls += 1;
-              return { availableThreads: 46, status: "credited" as const };
-            },
-            allowSandboxTransactions: false
+      // When: the production settlement policy receives that Apple-signed transaction.
+      const result = await settleAppleIapPurchase(
+        {
+          userId: verifiedTransaction.appAccountToken,
+          signedTransaction: "signed-apple-transaction"
+        },
+        {
+          verifyAppleTransaction: async () => sandboxTransaction,
+          creditAppleTransaction: async () => {
+            creditCalls += 1;
+            return { availableThreads: 46, status: "credited" as const };
           }
-        ),
-        400
+        }
       );
 
-      assert.equal(creditCalls, 0);
+      // Then: TestFlight/App Review can settle, while trust still comes from Apple verification.
+      assert.equal(creditCalls, 1);
+      assert.deepEqual(result, { availableThreads: 46, status: "credited" });
     }
   },
   {
-    name: "rejects a verified Apple product that is not a thread package",
+    name: "maps the verified 20-thread product to its exact server amount",
     run: async () => {
-      let creditCalls = 0;
+      // Given: Apple verification yields the largest allowlisted consumable.
+      let creditedThreads = 0;
 
-      await expectHttpError(
-        settleAppleIapPurchase(
-          {
-            userId: verifiedTransaction.appAccountToken,
-            signedTransaction: "signed-apple-transaction"
-          },
-          {
-            verifyAppleTransaction: async () => ({
-              ...verifiedTransaction,
-              productId: "com.inseong.coordit.subscription.monthly"
-            }),
-            creditAppleTransaction: async () => {
-              creditCalls += 1;
-              return { availableThreads: 46, status: "credited" as const };
-            },
-            allowSandboxTransactions: true
+      // When: the settlement service maps the trusted product to its ledger amount.
+      const result = await settleAppleIapPurchase(
+        {
+          userId: verifiedTransaction.appAccountToken,
+          signedTransaction: "signed-apple-transaction"
+        },
+        {
+          verifyAppleTransaction: async () => ({
+            ...verifiedTransaction,
+            productId: "com.inseong.coordit.thread.20"
+          }),
+          creditAppleTransaction: async (input) => {
+            creditedThreads = input.threads;
+            return { availableThreads: 56, status: "credited" as const };
           }
-        ),
-        400
+        }
       );
 
-      assert.equal(creditCalls, 0);
+      // Then: the server requests exactly 20 threads and returns the authoritative balance.
+      assert.equal(creditedThreads, 20);
+      assert.deepEqual(result, { availableThreads: 56, status: "credited" });
     }
   }
 ];

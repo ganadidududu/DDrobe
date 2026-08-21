@@ -1,117 +1,195 @@
 import { readFile } from "node:fs/promises";
-import { Environment, SignedDataVerifier, Type, VerificationException } from "@apple/app-store-server-library";
-import { z } from "zod";
+import {
+  Environment,
+  SignedDataVerifier,
+  VerificationException
+} from "@apple/app-store-server-library";
 import { env } from "../../config/env";
 import { createHttpError } from "../../shared/utils/http-error";
-import type { AppleIapVerifiedTransaction } from "./thread-wallet.service";
+import {
+  parseAppleNotificationClaims,
+  parseAppleTransactionClaims,
+  type AppleIapEnvironment,
+  type AppleIapVerifiedNotification,
+  type AppleIapVerifiedTransaction,
+  type AppleVerifierConfiguration
+} from "./apple-iap-policy";
 
-type AppleIapVerifierConfiguration = {
-  readonly appAppleId: number;
-  readonly bundleId: string;
-  readonly rootCertificatePaths: readonly string[];
+export type AppleSignedDataDecoder = {
+  readonly verifyAndDecodeNotification: (signedPayload: string) => Promise<unknown>;
+  readonly verifyAndDecodeTransaction: (signedTransaction: string) => Promise<unknown>;
 };
 
-type AppleTransactionVerifier = {
-  readonly verify: (signedTransaction: string) => Promise<AppleIapVerifiedTransaction>;
+type AppleEnvironmentDecoders = {
+  readonly production: AppleSignedDataDecoder;
+  readonly sandbox: AppleSignedDataDecoder;
 };
 
-const appleTransactionSchema = z.object({
-  transactionId: z.string().min(1),
-  originalTransactionId: z.string().min(1),
-  productId: z.string().min(1),
-  appAccountToken: z.string().uuid(),
-  purchaseDate: z.number().int().positive().max(8_640_000_000_000_000),
-  environment: z.enum(["Sandbox", "Production"]),
-  quantity: z.literal(1).optional(),
-  revocationDate: z.never().optional(),
-  type: z.literal(Type.CONSUMABLE)
-});
+type AppleIapVerifierDependencies = {
+  readonly configuration: AppleVerifierConfiguration;
+  readonly decoders: AppleEnvironmentDecoders;
+};
 
-const verifierConfiguration = (): AppleIapVerifierConfiguration => {
-  if (!env.appleIapAppAppleId || env.appleIapRootCertificatePaths.length === 0) {
-    throw createHttpError(503, "Apple 인앱결제 검증 설정이 아직 완료되지 않았어요.");
+export type AppleIapVerifier = {
+  readonly verifyNotification: (signedPayload: string) => Promise<AppleIapVerifiedNotification>;
+  readonly verifyTransaction: (signedTransaction: string) => Promise<AppleIapVerifiedTransaction>;
+};
+
+type DecodedAppleData = {
+  readonly decoder: AppleSignedDataDecoder;
+  readonly environment: AppleIapEnvironment;
+  readonly payload: unknown;
+};
+
+const verificationFailure = (): never => {
+  throw createHttpError(400, "Apple 서명 데이터를 검증할 수 없어요.");
+};
+
+const decodeWithAppleSignature = async (
+  decoders: AppleEnvironmentDecoders,
+  operation: (decoder: AppleSignedDataDecoder) => Promise<unknown>
+): Promise<DecodedAppleData> => {
+  try {
+    return {
+      decoder: decoders.production,
+      environment: "Production",
+      payload: await operation(decoders.production)
+    };
+  } catch (error) {
+    if (!(error instanceof VerificationException)) throw error;
   }
-  return {
-    appAppleId: env.appleIapAppAppleId,
-    bundleId: env.appleIapBundleId,
-    rootCertificatePaths: env.appleIapRootCertificatePaths
-  };
-};
 
-const parseVerifiedTransaction = (payload: unknown): AppleIapVerifiedTransaction => {
-  const parsed = appleTransactionSchema.safeParse(payload);
-  if (!parsed.success) {
-    throw createHttpError(400, "Apple 구매 거래 정보를 확인할 수 없어요.");
+  try {
+    return {
+      decoder: decoders.sandbox,
+      environment: "Sandbox",
+      payload: await operation(decoders.sandbox)
+    };
+  } catch (error) {
+    if (error instanceof VerificationException) return verificationFailure();
+    throw error;
   }
-  return {
-    transactionId: parsed.data.transactionId,
-    originalTransactionId: parsed.data.originalTransactionId,
-    productId: parsed.data.productId,
-    appAccountToken: parsed.data.appAccountToken.toLowerCase(),
-    purchasedAt: new Date(parsed.data.purchaseDate).toISOString(),
-    environment: parsed.data.environment
-  };
 };
 
-const createAppleTransactionVerifier = async (): Promise<AppleTransactionVerifier> => {
-  const configuration = verifierConfiguration();
-  const rootCertificates = await Promise.all(
-    configuration.rootCertificatePaths.map((path) => readFile(path))
-  );
-  const productionVerifier = new SignedDataVerifier(
-    rootCertificates,
-    true,
-    Environment.PRODUCTION,
-    configuration.bundleId,
-    configuration.appAppleId
-  );
-  const sandboxVerifier = env.nodeEnv === "production"
-    ? null
-    : new SignedDataVerifier(
-      rootCertificates,
-      true,
-      Environment.SANDBOX,
-      configuration.bundleId
+const decodeNestedTransaction = async (
+  decoder: AppleSignedDataDecoder,
+  signedTransaction: string
+): Promise<unknown> => {
+  try {
+    return await decoder.verifyAndDecodeTransaction(signedTransaction);
+  } catch (error) {
+    if (error instanceof VerificationException) return verificationFailure();
+    throw error;
+  }
+};
+
+export const createAppleIapVerifier = (
+  dependencies: AppleIapVerifierDependencies
+): AppleIapVerifier => {
+  const verifyTransaction = async (
+    signedTransaction: string
+  ): Promise<AppleIapVerifiedTransaction> => {
+    const decoded = await decodeWithAppleSignature(
+      dependencies.decoders,
+      (decoder) => decoder.verifyAndDecodeTransaction(signedTransaction)
     );
+    const transaction = parseAppleTransactionClaims(
+      decoded.payload,
+      dependencies.configuration
+    );
+    if (transaction.environment !== decoded.environment) return verificationFailure();
+    return transaction;
+  };
 
   return {
-    verify: async (signedTransaction: string): Promise<AppleIapVerifiedTransaction> => {
-      try {
-        return parseVerifiedTransaction(
-          await productionVerifier.verifyAndDecodeTransaction(signedTransaction)
+    verifyTransaction,
+    verifyNotification: async (
+      signedPayload: string
+    ): Promise<AppleIapVerifiedNotification> => {
+      const decoded = await decodeWithAppleSignature(
+        dependencies.decoders,
+        (decoder) => decoder.verifyAndDecodeNotification(signedPayload)
+      );
+      const envelope = parseAppleNotificationClaims(
+        decoded.payload,
+        dependencies.configuration
+      );
+      if (envelope.environment !== decoded.environment) return verificationFailure();
+
+      if (envelope.signedTransaction !== null) {
+        const transaction = parseAppleTransactionClaims(
+          await decodeNestedTransaction(decoded.decoder, envelope.signedTransaction),
+          dependencies.configuration
         );
-      } catch (error) {
-        if (!(error instanceof VerificationException)) throw error;
+        if (transaction.environment !== envelope.environment) return verificationFailure();
+        if (envelope.reconcilesPurchase) {
+          return {
+            kind: "reconcile",
+            notificationUUID: envelope.notificationUUID,
+            notificationType: "ONE_TIME_CHARGE",
+            subtype: envelope.subtype,
+            environment: envelope.environment,
+            transaction
+          };
+        }
       }
 
-      if (!sandboxVerifier) {
-        throw createHttpError(400, "Apple 구매 거래를 검증할 수 없어요.");
-      }
-      try {
-        return parseVerifiedTransaction(
-          await sandboxVerifier.verifyAndDecodeTransaction(signedTransaction)
-        );
-      } catch (error) {
-        if (error instanceof VerificationException) {
-          throw createHttpError(400, "Apple 구매 거래를 검증할 수 없어요.");
-        }
-        throw error;
-      }
+      return {
+        kind: "record",
+        notificationUUID: envelope.notificationUUID,
+        notificationType: envelope.notificationType,
+        subtype: envelope.subtype,
+        environment: envelope.environment
+      };
     }
   };
 };
 
-let appleTransactionVerifier: Promise<AppleTransactionVerifier> | null = null;
-
-const activeAppleTransactionVerifier = (): Promise<AppleTransactionVerifier> => {
-  if (!appleTransactionVerifier) {
-    appleTransactionVerifier = createAppleTransactionVerifier();
+const createProductionAppleVerifier = async (): Promise<AppleIapVerifier> => {
+  if (!env.appleIapAppAppleId || env.appleIapRootCertificatePaths.length === 0) {
+    throw createHttpError(503, "Apple 인앱결제 검증 설정이 아직 완료되지 않았어요.");
   }
-  return appleTransactionVerifier;
+  const rootCertificates = await Promise.all(
+    env.appleIapRootCertificatePaths.map((path) => readFile(path))
+  );
+  return createAppleIapVerifier({
+    configuration: {
+      appAppleId: env.appleIapAppAppleId,
+      bundleId: env.appleIapBundleId
+    },
+    decoders: {
+      production: new SignedDataVerifier(
+        rootCertificates,
+        true,
+        Environment.PRODUCTION,
+        env.appleIapBundleId,
+        env.appleIapAppAppleId
+      ),
+      sandbox: new SignedDataVerifier(
+        rootCertificates,
+        true,
+        Environment.SANDBOX,
+        env.appleIapBundleId
+      )
+    }
+  });
+};
+
+let appleIapVerifier: Promise<AppleIapVerifier> | null = null;
+
+const activeAppleIapVerifier = (): Promise<AppleIapVerifier> => {
+  appleIapVerifier ??= createProductionAppleVerifier();
+  return appleIapVerifier;
 };
 
 export const verifyAppleTransaction = async (
   signedTransaction: string
 ): Promise<AppleIapVerifiedTransaction> => {
-  return (await activeAppleTransactionVerifier()).verify(signedTransaction);
+  return (await activeAppleIapVerifier()).verifyTransaction(signedTransaction);
+};
+
+export const verifyAppleNotification = async (
+  signedPayload: string
+): Promise<AppleIapVerifiedNotification> => {
+  return (await activeAppleIapVerifier()).verifyNotification(signedPayload);
 };

@@ -1,3 +1,5 @@
+import { readFileSync, statSync } from "node:fs";
+import { Environment, SignedDataVerifier } from "@apple/app-store-server-library";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -72,7 +74,41 @@ const commaSeparated = (key: string): readonly string[] => {
   return rawValue.split(",").map((value) => value.trim()).filter((value) => value.length > 0);
 };
 
+const featureEnabled = (key: string): boolean => process.env[key] === "true";
+
+const appleVerifierCanStart = (
+  bundleId: string,
+  appAppleId: number,
+  rootCertificatePaths: readonly string[]
+): boolean => {
+  try {
+    if (!rootCertificatePaths.every((path) => statSync(path).isFile())) return false;
+    new SignedDataVerifier(
+      rootCertificatePaths.map((path) => readFileSync(path)),
+      true,
+      Environment.PRODUCTION,
+      bundleId,
+      appAppleId
+    );
+    return true;
+  } catch (error) {
+    if (error instanceof Error) return false;
+    throw error;
+  }
+};
+
 const nodeEnv = process.env.NODE_ENV ?? "development";
+const appleIapBundleId = process.env.APPLE_IAP_BUNDLE_ID ?? "com.inseong.coordit";
+const appleIapAppAppleId = optionalPositiveInteger("APPLE_IAP_APPLE_ID");
+const appleIapRootCertificatePaths = commaSeparated("APPLE_IAP_ROOT_CERTIFICATE_PATHS");
+const appleIapEnabled = featureEnabled("APPLE_IAP_ENABLED")
+  && appleIapAppAppleId !== null
+  && appleIapRootCertificatePaths.length > 0
+  && appleVerifierCanStart(
+    appleIapBundleId,
+    appleIapAppAppleId,
+    appleIapRootCertificatePaths
+  );
 
 export const env = {
   nodeEnv,
@@ -82,10 +118,10 @@ export const env = {
   supabaseAnonKey: required("SUPABASE_ANON_KEY"),
   supabaseServiceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),
   jwtSecret: process.env.JWT_SECRET ?? "local-dev-secret",
-  appleIapBundleId: process.env.APPLE_IAP_BUNDLE_ID ?? "com.inseong.coordit",
-  appleIapAppAppleId: optionalPositiveInteger("APPLE_IAP_APPLE_ID"),
-  appleIapRootCertificatePaths: commaSeparated("APPLE_IAP_ROOT_CERTIFICATE_PATHS"),
-  appleIapEnabled: process.env.APPLE_IAP_ENABLED === "true",
+  appleIapBundleId,
+  appleIapAppAppleId,
+  appleIapRootCertificatePaths,
+  appleIapEnabled,
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? null,
   openRouterApiKey: process.env.OPENROUTER_API_KEY ?? null,
   openRouterModel: process.env.OPENROUTER_MODEL ?? "google/gemini-2.5-flash",
@@ -100,6 +136,10 @@ export const env = {
   domainRequestDelayMs: integer("DOMAIN_REQUEST_DELAY_MS", 1_500),
   userRateLimitPerMinute: integer("USER_RATE_LIMIT_PER_MINUTE", 5),
   crawlerUserAgent: process.env.USER_AGENT ?? "CoorditProductImporter/1.0",
+  admobRewardedEnabled: featureEnabled("ADMOB_REWARDED_ENABLED"),
+  admobSsvValidationCustomData:
+    process.env.ADMOB_SSV_VALIDATION_CUSTOM_DATA?.trim()
+    || "coordit-admob-ssv-validation-v1",
   admobRewardedAdUnitId: process.env.ADMOB_REWARDED_AD_UNIT_ID ?? "",
   admobRewardItem: process.env.ADMOB_REWARD_ITEM ?? "실타래",
   admobRewardAmount: integer("ADMOB_REWARD_AMOUNT", 1),

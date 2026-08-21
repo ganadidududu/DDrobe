@@ -57,8 +57,10 @@ import {
 import { deleteMe, getMe, updateMe } from "./modules/users/users.controller";
 import {
   appleIapPurchaseController,
+  getMonetizationReadinessController,
   getThreadBalanceController
 } from "./modules/thread-wallet/thread-wallet.controller";
+import { appleAppStoreNotificationController } from "./modules/thread-wallet/apple-app-store-notification.controller";
 import {
   createRewardAttemptController,
   getRewardAttemptController,
@@ -80,6 +82,8 @@ routes.post("/auth/apple", loginWithApple);
 
 // AdMob signs these callbacks itself, so this must stay before authMiddleware.
 routes.get("/webhooks/admob/rewarded", receiveRewardedSSVController);
+// Apple signs the V2 envelope and nested transaction, so this must stay before authMiddleware.
+routes.post("/webhooks/apple/app-store-notifications", appleAppStoreNotificationController);
 
 routes.use(authMiddleware);
 
@@ -93,6 +97,7 @@ routes.delete("/users/me", deleteMe);
 routes.use(onboardingMiddleware);
 
 routes.get("/thread-wallet/balance", getThreadBalanceController);
+routes.get("/thread-wallet/monetization-readiness", getMonetizationReadinessController);
 routes.post("/thread-wallet/reward-attempts", createRewardAttemptController);
 routes.get("/thread-wallet/reward-attempts/:id", getRewardAttemptController);
 if (env.appleIapEnabled) {

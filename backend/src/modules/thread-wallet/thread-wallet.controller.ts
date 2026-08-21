@@ -1,5 +1,6 @@
 import type { NextFunction, Response } from "express";
 import { z } from "zod";
+import { env } from "../../config/env";
 import type { AuthenticatedRequest } from "../../shared/types/http";
 import { createHttpError } from "../../shared/utils/http-error";
 import { requireUser } from "../../shared/utils/request";
@@ -29,7 +30,23 @@ export const getThreadBalanceController = async (
 ) => {
   try {
     res.json({ availableThreads: await getThreadBalance(requireUser(req).id) });
-  } catch (error) {
+  } catch (error) { // no-excuse-ok: catch -- Express forwards boundary errors centrally.
+    next(error);
+  }
+};
+
+export const getMonetizationReadinessController = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): void => {
+  try {
+    requireUser(req);
+    res.json({
+      rewardedAdsEnabled: env.admobRewardedEnabled,
+      iapEnabled: env.appleIapEnabled
+    });
+  } catch (error) { // no-excuse-ok: catch -- Express forwards boundary errors centrally.
     next(error);
   }
 };
@@ -46,7 +63,7 @@ export const createAppleIapPurchaseController = (
         signedTransaction: parsed.data.signedTransaction
       });
       res.status(result.status === "credited" ? 201 : 200).json(result);
-    } catch (error) {
+    } catch (error) { // no-excuse-ok: catch -- Express forwards boundary errors centrally.
       next(error);
     }
   };

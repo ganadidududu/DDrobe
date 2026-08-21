@@ -1,8 +1,12 @@
 import { supabase } from "../../config/supabase";
-import { env } from "../../config/env";
 import { createHttpError } from "../../shared/utils/http-error";
 import type { PreparedFitRecommendation } from "../fit/fit.service";
 import { verifyAppleTransaction } from "./apple-iap-verifier";
+import { threadAmountForAppleProduct } from "./apple-iap-products";
+import type {
+  AppleIapEnvironment,
+  AppleIapVerifiedTransaction
+} from "./apple-iap-policy";
 
 interface ThreadBalanceRow {
   available_threads: number;
@@ -30,22 +34,8 @@ interface AppleIapCreditRow extends ThreadBalanceRow {
   status: "credited" | "already_credited";
 }
 
-export const appleIapThreadProductIDs = {
-  pack5: "com.inseong.coordit.thread.5",
-  pack10: "com.inseong.coordit.thread.10",
-  pack20: "com.inseong.coordit.thread.20"
-} as const;
-
-export type AppleIapEnvironment = "Sandbox" | "Production";
-
-export type AppleIapVerifiedTransaction = {
-  readonly transactionId: string;
-  readonly originalTransactionId: string;
-  readonly productId: string;
-  readonly appAccountToken: string;
-  readonly purchasedAt: string;
-  readonly environment: AppleIapEnvironment;
-};
+export { appleIapThreadProductIDs } from "./apple-iap-products";
+export type { AppleIapEnvironment, AppleIapVerifiedTransaction } from "./apple-iap-policy";
 
 export type AppleIapCreditInput = AppleIapVerifiedTransaction & {
   readonly userId: string;
@@ -65,20 +55,6 @@ export type AppleIapPurchaseRequest = {
 type AppleIapPurchaseDependencies = {
   readonly verifyAppleTransaction: (signedTransaction: string) => Promise<AppleIapVerifiedTransaction>;
   readonly creditAppleTransaction: (input: AppleIapCreditInput) => Promise<AppleIapCreditResult>;
-  readonly allowSandboxTransactions: boolean;
-};
-
-const threadAmountForAppleProduct = (productId: string): number => {
-  switch (productId) {
-    case appleIapThreadProductIDs.pack5:
-      return 5;
-    case appleIapThreadProductIDs.pack10:
-      return 10;
-    case appleIapThreadProductIDs.pack20:
-      return 20;
-    default:
-      throw createHttpError(400, "실타래 상품 정보를 확인할 수 없어요.");
-  }
 };
 
 export const settleAppleIapPurchase = async (
@@ -88,9 +64,6 @@ export const settleAppleIapPurchase = async (
   const transaction = await dependencies.verifyAppleTransaction(request.signedTransaction);
   if (transaction.appAccountToken.toLowerCase() !== request.userId.toLowerCase()) {
     throw createHttpError(403, "이 계정으로 구매한 실타래만 충전할 수 있어요.");
-  }
-  if (transaction.environment === "Sandbox" && !dependencies.allowSandboxTransactions) {
-    throw createHttpError(400, "프로덕션에서는 Apple Sandbox 구매를 충전할 수 없어요.");
   }
   return dependencies.creditAppleTransaction({
     userId: request.userId,
@@ -126,8 +99,7 @@ export const submitAppleIapPurchase = async (
 ): Promise<AppleIapCreditResult> => {
   return settleAppleIapPurchase(request, {
     verifyAppleTransaction,
-    creditAppleTransaction: creditAppleIapTransaction,
-    allowSandboxTransactions: env.nodeEnv !== "production"
+    creditAppleTransaction: creditAppleIapTransaction
   });
 };
 
