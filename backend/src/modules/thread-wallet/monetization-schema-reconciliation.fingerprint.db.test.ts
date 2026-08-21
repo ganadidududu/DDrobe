@@ -10,6 +10,46 @@ import {
 } from "./monetization-schema-reconciliation.db-harness";
 import { applyMonetizationSchemaReconciliation } from "./monetization-schema-reconciliation.runner";
 
+const productionEquivalentMultilineStaleAdmobFunction = `
+  create or replace function public.grant_admob_reward(
+    p_attempt_id uuid,
+    p_transaction_id text
+  ) returns table(available_threads integer, status text)
+  language plpgsql security definer set search_path = public as $$
+  declare
+    attempt public.admob_reward_attempts;
+    balance integer;
+  begin
+    select * into attempt from public.admob_reward_attempts where id = p_attempt_id for update;
+    if not found then return query select 0, 'unknown_attempt'::text; return; end if;
+    insert into public.thread_balances(user_id) values (attempt.user_id)
+      on conflict (user_id) do nothing;
+    select available_threads into balance from public.thread_balances
+      where user_id = attempt.user_id for update;
+    if exists (
+      select 1
+      from public.admob_reward_transactions
+      where transaction_id = p_transaction_id
+    ) or attempt.status = 'granted' then
+      return query select balance, 'already_granted'::text; return;
+    end if;
+    if attempt.expires_at < now() then
+      update public.admob_reward_attempts set status = 'expired' where id = attempt.id;
+      return query select balance, 'expired'::text; return;
+    end if;
+    update public.thread_balances set available_threads = available_threads + 1, updated_at = now()
+      where user_id = attempt.user_id returning available_threads into balance;
+    insert into public.thread_ledger_entries(
+      user_id, idempotency_key, fit_analysis_result_id, amount, reason
+    ) values (attempt.user_id, attempt.id, null, 1, 'ad_reward');
+    insert into public.admob_reward_transactions(transaction_id, attempt_id)
+      values (p_transaction_id, attempt.id);
+    update public.admob_reward_attempts set status = 'granted', granted_at = now()
+      where id = attempt.id;
+    return query select balance, 'granted'::text;
+  end; $$;
+`;
+
 const expectDatabaseError = async (
   operation: () => Promise<unknown>,
   expectedMessage: string
@@ -71,9 +111,28 @@ const assertApprovalRequired = async (): Promise<void> => {
   }
 };
 
+const assertMultilineStaleAdmobAccepted = async (): Promise<void> => {
+  const database = await startDisposableReconciliationDatabase("production_partial");
+  try {
+    await database.client.query(productionEquivalentMultilineStaleAdmobFunction);
+    const result = await database.applyReconciliation();
+    assert.equal(result.disposition, "reconciled_observed_partial");
+    assert.equal((await readCapabilities(database.client)).admob_hardened, true);
+  } finally {
+    await database.stop();
+  }
+};
+
 const run = async (): Promise<void> => {
   await assertRunnerContextRequired();
   await assertApprovalRequired();
+  await assertMultilineStaleAdmobAccepted();
+  await assertDriftRejected(
+    productionEquivalentMultilineStaleAdmobFunction.replace(
+      "or attempt.status = 'granted' then",
+      "or attempt.status = 'expired' then"
+    )
+  );
   await assertDriftRejected(`
     create schema supabase_migrations;
     create table supabase_migrations.schema_migrations(version text primary key);
@@ -107,6 +166,8 @@ const run = async (): Promise<void> => {
     "supabase_ledger=unexpected-drift",
     "wallet_reason=unexpected-drift",
     "wallet_uniqueness=unexpected-drift",
+    "admob_multiline_stale=accepted",
+    "admob_required_fragment=changed-drift",
     "admob_definition=unknown-drift",
     "mutation=none-before-rejection",
     "identifiers=redacted"

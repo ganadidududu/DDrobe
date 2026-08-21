@@ -5,6 +5,11 @@ declare
   runner_filename text := current_setting('coordit.reconciliation_filename', true);
   runner_sha256 text := current_setting('coordit.reconciliation_sha256', true);
   grant_admob_definition text;
+  normalized_grant_admob_definition text;
+  stale_admob_declaration_fragment text :=
+    'declare attempt public.admob_reward_attempts; balance integer;';
+  stale_admob_replay_fragment text :=
+    'if exists (select 1 from public.admob_reward_transactions where transaction_id = p_transaction_id) or attempt.status = ''granted'' then';
   grant_apple_definition text;
   record_notification_definition text;
   reconcile_notification_definition text;
@@ -58,6 +63,8 @@ begin
 
   select pg_get_functiondef('public.grant_admob_reward(uuid,text)'::regprocedure)
   into grant_admob_definition;
+  normalized_grant_admob_definition :=
+    regexp_replace(lower(grant_admob_definition), '[[:space:]]+', '', 'g');
 
   core_catalog_valid :=
     (
@@ -124,10 +131,12 @@ begin
 
   stale_admob_valid :=
     position(
-      'declare attempt public.admob_reward_attempts; balance integer;' in lower(grant_admob_definition)
+      regexp_replace(stale_admob_declaration_fragment, '[[:space:]]+', '', 'g')
+      in normalized_grant_admob_definition
     ) > 0
     and position(
-      'if exists (select 1 from public.admob_reward_transactions where transaction_id = p_transaction_id) or attempt.status = ''granted''' in lower(grant_admob_definition)
+      regexp_replace(stale_admob_replay_fragment, '[[:space:]]+', '', 'g')
+      in normalized_grant_admob_definition
     ) > 0
     and position('admob_transaction_attempt_conflict' in grant_admob_definition) = 0;
 
