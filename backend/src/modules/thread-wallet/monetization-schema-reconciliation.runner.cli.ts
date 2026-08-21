@@ -1,17 +1,32 @@
-import { Client } from "pg";
 import { z } from "zod";
 import {
   applyMonetizationSchemaReconciliation,
   monetizationReconciliationApprovalToken
 } from "./monetization-schema-reconciliation.runner";
+import {
+  createVerifiedOperatorPgClient,
+  OperatorTlsConfigurationError
+} from "./monetization-schema-reconciliation.operator-pg-client";
 
 const operatorEnvironmentSchema = z.object({
   COORDIT_SCHEMA_RECONCILIATION_APPROVAL: z.literal(monetizationReconciliationApprovalToken)
 });
 
+class OperatorApprovalRequiredError extends Error {
+  readonly name = "OperatorApprovalRequiredError";
+
+  constructor(options?: ErrorOptions) {
+    super("operator approval is required", options);
+  }
+}
+
 const run = async (): Promise<void> => {
-  const environment = operatorEnvironmentSchema.parse(process.env);
-  const client = new Client();
+  const environmentResult = operatorEnvironmentSchema.safeParse(process.env);
+  if (!environmentResult.success) {
+    throw new OperatorApprovalRequiredError({ cause: environmentResult.error });
+  }
+  const environment = environmentResult.data;
+  const client = await createVerifiedOperatorPgClient(process.env);
   await client.connect();
   try {
     const result = await applyMonetizationSchemaReconciliation(
@@ -31,7 +46,11 @@ const run = async (): Promise<void> => {
 };
 
 void run().catch((error: unknown) => {
-  const category = error instanceof z.ZodError ? "approval_required" : "transaction_failed";
+  const category = error instanceof OperatorApprovalRequiredError
+    ? "approval_required"
+    : error instanceof OperatorTlsConfigurationError
+      ? "operator_tls_configuration"
+      : "transaction_failed";
   process.stderr.write(`monetization_reconciliation_runner status=failed category=${category}\n`);
   process.exit(1);
 });
