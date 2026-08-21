@@ -12,6 +12,45 @@ struct CoorditReferenceSyncResult {
     let referenceIDsByItemID: [String: String]
 }
 
+enum CoorditMonetizationReadinessState: Equatable {
+    case notLoaded
+    case loading
+    case available(CoorditMonetizationReadiness)
+    case unavailable
+
+    var readiness: CoorditMonetizationReadiness? {
+        guard case let .available(readiness) = self else { return nil }
+        return readiness
+    }
+
+    var rewardedAdsEnabled: Bool {
+        readiness?.rewardedAdsEnabled == true
+    }
+
+    var iapEnabled: Bool {
+        readiness?.iapEnabled == true
+    }
+
+    var message: String? {
+        switch self {
+        case .notLoaded, .loading:
+            "충전 기능을 확인하고 있어요."
+        case .unavailable:
+            "충전 기능을 확인할 수 없어요. 다시 시도해 주세요."
+        case let .available(readiness):
+            if !readiness.rewardedAdsEnabled && !readiness.iapEnabled {
+                "충전 기능은 아직 준비 중이에요."
+            } else if !readiness.rewardedAdsEnabled {
+                "광고 충전은 아직 준비 중이에요."
+            } else if !readiness.iapEnabled {
+                "패키지 구매는 아직 준비 중이에요."
+            } else {
+                nil
+            }
+        }
+    }
+}
+
 @MainActor
 final class CoorditBackendSessionStore: ObservableObject {
     @Published private(set) var session: CoorditAuthSession?
@@ -22,9 +61,11 @@ final class CoorditBackendSessionStore: ObservableObject {
     @Published private(set) var statusText = "백엔드 연결 확인 전"
     @Published private(set) var isWorking = false
     @Published private(set) var isWarning = false
+    @Published private(set) var monetizationReadinessState: CoorditMonetizationReadinessState = .notLoaded
 
     private let client: CoorditBackendClient
     private let tokenStore: CoorditBackendTokenStore
+    private var monetizationReadinessRequestID = UUID()
 
 #if DEBUG
     private let usesAuthenticatedUITestFixture: Bool
@@ -39,10 +80,10 @@ final class CoorditBackendSessionStore: ObservableObject {
             session = CoorditAuthSession(
                 accessToken: Self.uiTestingAccessToken ?? "",
                 refreshToken: "",
-                user: CoorditAuthUser(id: "coordit-ui-test-user", email: "ui-test@coordit.invalid")
+                user: CoorditAuthUser(id: Self.uiTestingUserID, email: "ui-test@coordit.invalid")
             )
             profile = CoorditUserProfile(
-                id: "coordit-ui-test-user",
+                id: Self.uiTestingUserID,
                 email: "ui-test@coordit.invalid",
                 displayName: "코딧 테스트 사용자",
                 gender: nil,
@@ -77,6 +118,14 @@ final class CoorditBackendSessionStore: ObservableObject {
 
     var canUseProduct: Bool {
         isAuthenticated && onboardingComplete
+    }
+
+    var canUseRewardedAds: Bool {
+        monetizationReadinessState.rewardedAdsEnabled
+    }
+
+    var canUseInAppPurchases: Bool {
+        monetizationReadinessState.iapEnabled
     }
 
     var emailText: String {
@@ -118,11 +167,120 @@ final class CoorditBackendSessionStore: ObservableObject {
         }
     }
 
+    @discardableResult
+    func refreshMonetizationReadiness() async -> CoorditMonetizationReadiness? {
+        let requestID = UUID()
+        monetizationReadinessRequestID = requestID
+        monetizationReadinessState = .loading
+
+#if DEBUG
+        if usesAuthenticatedUITestFixture {
+            let readiness = Self.uiTestingMonetizationReadiness
+            guard requestID == monetizationReadinessRequestID else { return nil }
+            switch readiness {
+            case .enabled:
+                let result = CoorditMonetizationReadiness(rewardedAdsEnabled: true, iapEnabled: true)
+                monetizationReadinessState = .available(result)
+                return result
+            case .disabled:
+                let result = CoorditMonetizationReadiness(rewardedAdsEnabled: false, iapEnabled: false)
+                monetizationReadinessState = .available(result)
+                return result
+            case .unavailable:
+                monetizationReadinessState = .unavailable
+                return nil
+            }
+        }
+#endif
+
+        guard let token = session?.accessToken else {
+            monetizationReadinessState = .unavailable
+            return nil
+        }
+
+        do {
+            let readiness = try await client.monetizationReadiness(token: token)
+            guard requestID == monetizationReadinessRequestID else { return nil }
+            monetizationReadinessState = .available(readiness)
+            return readiness
+        } catch {
+            guard requestID == monetizationReadinessRequestID else { return nil }
+            statusText = error.localizedDescription
+            isWarning = true
+            monetizationReadinessState = .unavailable
+            return nil
+        }
+    }
+
     func createThreadRewardAttempt() async throws -> CoorditThreadRewardAttempt {
         guard let token = session?.accessToken else {
             throw CoorditBackendClientError.server(statusCode: 401, message: "로그인 후 광고 보상을 받을 수 있어요.")
         }
         return try await client.createThreadRewardAttempt(token: token)
+    }
+
+    func settleAppleIapPurchase(
+        signedTransaction: String
+    ) async throws -> CoorditAppleIapSettlement {
+#if DEBUG
+        if usesAuthenticatedUITestFixture,
+           let scenario = CoorditThreadPurchaseFixtureScenario.launch()
+        {
+            switch scenario {
+            case .credited:
+                return CoorditAppleIapSettlement(
+                    availableThreads: (Self.uiTestingThreadBalance ?? 0) + 10,
+                    status: .credited,
+                    httpStatusCode: 201
+                )
+            case .alreadyCredited:
+                return CoorditAppleIapSettlement(
+                    availableThreads: Self.uiTestingThreadBalance ?? 0,
+                    status: .alreadyCredited,
+                    httpStatusCode: 200
+                )
+            case .cancelled, .pending, .unverified:
+                throw CoorditThreadPurchaseError.invalidTransaction
+            case .backendError:
+                throw CoorditBackendClientError.server(
+                    statusCode: 503,
+                    message: "결제 서버에 연결할 수 없어요."
+                )
+            }
+        }
+#endif
+        guard let token = session?.accessToken else {
+            throw CoorditBackendClientError.server(
+                statusCode: 401,
+                message: "로그인 후 실타래를 구매할 수 있어요."
+            )
+        }
+        return try await client.verifyAppleIapPurchase(
+            token: token,
+            signedTransaction: signedTransaction
+        )
+    }
+
+    func fetchThreadBalanceAfterPurchase() async throws -> Int {
+#if DEBUG
+        if usesAuthenticatedUITestFixture,
+           let scenario = CoorditThreadPurchaseFixtureScenario.launch()
+        {
+            switch scenario {
+            case .credited:
+                return (Self.uiTestingThreadBalance ?? 0) + 10
+            case .alreadyCredited, .cancelled, .pending, .unverified, .backendError:
+                return Self.uiTestingThreadBalance ?? 0
+            }
+        }
+#endif
+        guard let token = session?.accessToken else {
+            throw CoorditBackendClientError.server(
+                statusCode: 401,
+                message: "로그인 후 실타래 잔액을 확인할 수 있어요."
+            )
+        }
+        return try await client.threadBalance(token: token).availableThreads
     }
     func loginWithGoogle() async {
         await authenticate {
@@ -145,12 +303,14 @@ final class CoorditBackendSessionStore: ObservableObject {
     }
 
     func logout() {
+        monetizationReadinessRequestID = UUID()
         tokenStore.delete()
         session = nil
         profile = nil
         latestBodyMeasurement = nil
         onboardingComplete = false
         referenceFitProfiles = [:]
+        monetizationReadinessState = .notLoaded
         statusText = "이 기기에서 로그아웃했어요."
         isWarning = false
     }
@@ -172,6 +332,8 @@ final class CoorditBackendSessionStore: ObservableObject {
             latestBodyMeasurement = nil
             onboardingComplete = false
             referenceFitProfiles = [:]
+            monetizationReadinessRequestID = UUID()
+            monetizationReadinessState = .notLoaded
             statusText = "계정과 저장된 데이터를 삭제했어요."
             isWarning = false
             return true
@@ -671,6 +833,12 @@ final class CoorditBackendSessionStore: ObservableObject {
     }
 
 #if DEBUG
+    private enum UITestingMonetizationReadiness {
+        case enabled
+        case disabled
+        case unavailable
+    }
+
     private static var shouldUseAuthenticatedUITestFixture: Bool {
         let arguments = ProcessInfo.processInfo.arguments
         return arguments.contains("--coordit-ui-testing")
@@ -688,6 +856,17 @@ final class CoorditBackendSessionStore: ObservableObject {
         return arguments[arguments.index(after: markerIndex)]
     }
 
+    private static var uiTestingUserID: String {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard
+            let markerIndex = arguments.firstIndex(of: "--coordit-ui-testing-user-id"),
+            arguments.indices.contains(arguments.index(after: markerIndex))
+        else {
+            return "00000000-0000-4000-8000-000000000001"
+        }
+        return arguments[arguments.index(after: markerIndex)]
+    }
+
     private static var uiTestingThreadBalance: Int? {
         let arguments = ProcessInfo.processInfo.arguments
         guard
@@ -698,6 +877,25 @@ final class CoorditBackendSessionStore: ObservableObject {
             return nil
         }
         return max(0, balance)
+    }
+
+    private static var uiTestingMonetizationReadiness: UITestingMonetizationReadiness {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard
+            let markerIndex = arguments.firstIndex(of: "--coordit-monetization-readiness"),
+            arguments.indices.contains(arguments.index(after: markerIndex))
+        else {
+            return .unavailable
+        }
+
+        switch arguments[arguments.index(after: markerIndex)].lowercased() {
+        case "true", "enabled":
+            return .enabled
+        case "false", "disabled":
+            return .disabled
+        default:
+            return .unavailable
+        }
     }
 #endif
 }

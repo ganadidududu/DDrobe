@@ -75,6 +75,22 @@ enum CoorditBackendClientError: LocalizedError {
     }
 }
 
+struct CoorditMonetizationReadiness: Codable, Equatable {
+    let rewardedAdsEnabled: Bool
+    let iapEnabled: Bool
+}
+
+enum CoorditAppleIapSettlementStatus: String, Codable, Equatable {
+    case credited
+    case alreadyCredited = "already_credited"
+}
+
+struct CoorditAppleIapSettlement: Equatable {
+    let availableThreads: Int
+    let status: CoorditAppleIapSettlementStatus
+    let httpStatusCode: Int
+}
+
 struct CoorditBackendClient {
     let baseURL: URL
     var session: URLSession = .shared
@@ -134,6 +150,62 @@ struct CoorditBackendClient {
 
     func threadBalance(token: String) async throws -> CoorditThreadBalanceResponse {
         try await send(path: "/thread-wallet/balance", method: "GET", token: token, body: Optional<String>.none)
+    }
+
+    func monetizationReadiness(token: String) async throws -> CoorditMonetizationReadiness {
+        try await send(
+            path: "/thread-wallet/monetization-readiness",
+            method: "GET",
+            token: token,
+            body: Optional<String>.none
+        )
+    }
+
+    func verifyAppleIapPurchase(
+        token: String,
+        signedTransaction: String
+    ) async throws -> CoorditAppleIapSettlement {
+        let trimmedTransaction = signedTransaction.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTransaction.isEmpty else {
+            throw CoorditBackendClientError.server(
+                statusCode: 400,
+                message: "구매 정보를 확인할 수 없어요."
+            )
+        }
+
+        var request = URLRequest(url: baseURL.appending(path: "/thread-wallet/iap/verify"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONEncoder().encode(
+            CoorditAppleIapVerificationRequest(signedTransaction: trimmedTransaction)
+        )
+
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw CoorditBackendClientError.invalidResponse
+        }
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            let apiError = try? JSONDecoder().decode(CoorditBackendErrorResponse.self, from: data)
+            throw CoorditBackendClientError.server(
+                statusCode: httpResponse.statusCode,
+                message: apiError?.message ?? "백엔드 요청에 실패했어요."
+            )
+        }
+
+        let payload = try JSONDecoder().decode(CoorditAppleIapVerificationResponse.self, from: data)
+        let isExpectedSettlement =
+            (httpResponse.statusCode == 201 && payload.status == .credited)
+            || (httpResponse.statusCode == 200 && payload.status == .alreadyCredited)
+        guard isExpectedSettlement else {
+            throw CoorditBackendClientError.invalidResponse
+        }
+        return CoorditAppleIapSettlement(
+            availableThreads: payload.availableThreads,
+            status: payload.status,
+            httpStatusCode: httpResponse.statusCode
+        )
     }
 
     func createThreadRewardAttempt(token: String) async throws -> CoorditThreadRewardAttempt {
@@ -318,6 +390,15 @@ private struct AppleAuthRequest: Encodable {
 
 private struct UpdateProfileRequest: Encodable {
     let displayName: String
+}
+
+private struct CoorditAppleIapVerificationRequest: Encodable {
+    let signedTransaction: String
+}
+
+private struct CoorditAppleIapVerificationResponse: Decodable {
+    let availableThreads: Int
+    let status: CoorditAppleIapSettlementStatus
 }
 
 struct CoorditThreadRewardAttempt: Decodable {

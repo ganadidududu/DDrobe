@@ -1,0 +1,73 @@
+{
+  "identifier" : "D591A1DF-71A8-4B40-A43F-53C657797FC5",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "1500",
+      "familyShareable" : false,
+      "internalID" : "F805D66E-06BD-49F2-A499-A8AB84A7C705",
+      "localizations" : [
+        {
+          "description" : "FIT LAB에서 사용할 실타래 5개",
+          "displayName" : "실타래 5개",
+          "locale" : "ko_KR"
+        }
+      ],
+      "productID" : "com.inseong.coordit.thread.5",
+      "referenceName" : "Coordit Thread Pack 5",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "2500",
+      "familyShareable" : false,
+      "internalID" : "E51317B2-25EF-4D18-896A-AE45DFA1D06E",
+      "localizations" : [
+        {
+          "description" : "FIT LAB에서 사용할 실타래 10개",
+          "displayName" : "실타래 10개",
+          "locale" : "ko_KR"
+        }
+      ],
+      "productID" : "com.inseong.coordit.thread.10",
+      "referenceName" : "Coordit Thread Pack 10",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "4000",
+      "familyShareable" : false,
+      "internalID" : "0A35E9A5-E2D4-4C8A-9004-39135F44C653",
+      "localizations" : [
+        {
+          "description" : "FIT LAB에서 사용할 실타래 20개",
+          "displayName" : "실타래 20개",
+          "locale" : "ko_KR"
+        }
+      ],
+      "productID" : "com.inseong.coordit.thread.20",
+      "referenceName" : "Coordit Thread Pack 20",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "0000000000",
+    "_developerTeamID" : "",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 0,
+    "_locale" : "ko_KR",
+    "_renewalBillingIssuesEnabled" : false,
+    "_storefront" : "KOR",
+    "_storeKitErrors" : [
+
+    ],
+    "_timeRate" : 0
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

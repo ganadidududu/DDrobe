@@ -147,6 +147,8 @@ final class CoorditMyPageNestedNavigationUITests: XCTestCase {
         app.launchArguments = [
             "--coordit-ui-testing",
             "--coordit-ui-testing-authenticated",
+            "--coordit-thread-balance",
+            "36",
             "--coordit-start-route",
             "mypage",
         ]
@@ -178,6 +180,8 @@ final class CoorditMyPageNestedNavigationUITests: XCTestCase {
         app.launchArguments = [
             "--coordit-ui-testing",
             "--coordit-ui-testing-authenticated",
+            "--coordit-thread-balance",
+            "36",
             "--coordit-start-route",
             "mypage-thread-charge",
         ]
@@ -192,7 +196,6 @@ final class CoorditMyPageNestedNavigationUITests: XCTestCase {
         XCTAssertTrue(adCTA.waitForExistence(timeout: 5), "Missing visible ad CTA")
 
         let requiredIdentifiers = [
-            "coordit-thread-charge-title",
             "coordit-thread-charge-balance",
             "coordit-thread-charge-ad-cta",
             "coordit-thread-charge-pack-5",

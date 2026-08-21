@@ -6,6 +6,7 @@ enum CoorditDesignTokens {
         static let appBackground = rgb(247, 248, 248)
         static let ink = rgb(0, 12, 64)
         static let muted = rgb(126, 132, 146)
+        static let purchaseStatus = rgb(69, 78, 116)
         static let fitMuted = rgb(127, 133, 150)
         static let panel = rgb(252, 253, 254)
         static let field = rgb(245, 247, 252)

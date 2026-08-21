@@ -32,7 +32,7 @@ struct CoorditMyPageFamilyView: View {
     @State var bodyMeasurementsSaved = false
     @State var bodyMeasurementSaveError = ""
     @StateObject var rewardedAdService = CoorditRewardedAdService()
-    @State var rewardBalanceBefore = 0
+    @StateObject var threadPurchaseService = CoorditThreadPurchaseService()
     var body: some View {
         CoorditScreenScaffold(
             route: route,
@@ -101,37 +101,90 @@ struct CoorditMyPageFamilyView: View {
         }
         .task(id: route) {
             guard route == .myPageThreadCharge else { return }
-            await prepareRewardedAd()
+            await refreshChargeServices()
         }
-        .onChange(of: rewardedAdService.status) { _, status in
-            guard route == .myPageThreadCharge else { return }
-            switch status {
-            case .idle:
-                Task { await prepareRewardedAd() }
-            case .awaitingServerSettlement:
-                Task { await settleRewardBalance() }
-            default:
-                break
-            }
+        .onChange(of: route) { _, nextRoute in
+            guard nextRoute != .myPageThreadCharge else { return }
+            rewardedAdService.deactivate()
+            threadPurchaseService.deactivate()
         }
-    }
-
-
-    private func prepareRewardedAd() async {
-        await rewardedAdService.prepare {
-            try await backendSession.createThreadRewardAttempt()
+        .onChange(of: threadPurchaseService.settledBalance) { _, balance in
+            guard route == .myPageThreadCharge, let balance else { return }
+            threadBalance = balance
+        }
+        .onChange(of: rewardedAdService.settledBalance) { _, balance in
+            guard route == .myPageThreadCharge, let balance else { return }
+            threadBalance = balance
         }
     }
 
-    private func settleRewardBalance() async {
-        for _ in 0..<8 {
-            try? await Task.sleep(for: .seconds(2))
-            if let updatedBalance = await backendSession.fetchThreadBalance(), updatedBalance > rewardBalanceBefore {
-                threadBalance = updatedBalance
-                break
+
+    func prepareRewardedAd() async {
+        let sessionStore = backendSession
+        let walletSession = CoorditRewardedWalletSession(
+            isAuthenticated: sessionStore.isAuthenticated,
+            rewardedAdsEnabled: sessionStore.canUseRewardedAds,
+            createAttempt: {
+                try await sessionStore.createThreadRewardAttempt()
+            },
+            fetchServerBalance: {
+                guard let balance = await sessionStore.fetchThreadBalance() else {
+                    throw CoorditBackendClientError.invalidResponse
+                }
+                return balance
             }
+        )
+        await rewardedAdService.prepare(
+            walletSession: walletSession,
+            currentBalance: threadBalance
+        )
+    }
+
+    func refreshChargeServices() async {
+        let readiness = await backendSession.refreshMonetizationReadiness()
+        guard !Task.isCancelled else { return }
+
+        if readiness?.iapEnabled == true {
+            await prepareThreadPurchases()
+        } else {
+            threadPurchaseService.deactivate(clearProducts: true)
         }
-        rewardedAdService.finishServerSettlement()
+
+        guard backendSession.isAuthenticated else {
+            rewardedAdService.markSignedOut()
+            return
+        }
+        guard let readiness else {
+            rewardedAdService.markReadinessUnavailable()
+            return
+        }
+        guard readiness.rewardedAdsEnabled else {
+            rewardedAdService.markDisabled()
+            return
+        }
+        await prepareRewardedAd()
+    }
+
+    private func prepareThreadPurchases() async {
+        guard
+            let userID = backendSession.session?.user.id,
+            let accountID = UUID(uuidString: userID)
+        else {
+            threadPurchaseService.markAccountUnavailable()
+            return
+        }
+        let sessionStore = backendSession
+        await threadPurchaseService.activate(
+            accountID: accountID,
+            verifyPurchase: { signedTransaction in
+                try await sessionStore.settleAppleIapPurchase(
+                    signedTransaction: signedTransaction
+                )
+            },
+            refreshBalance: {
+                try await sessionStore.fetchThreadBalanceAfterPurchase()
+            }
+        )
     }
 
     private var routeIdentifier: String {

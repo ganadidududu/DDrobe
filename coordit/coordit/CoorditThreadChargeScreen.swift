@@ -1,18 +1,20 @@
 import SwiftUI
 
 #if os(iOS)
-private enum CoorditThreadChargeAvailability {
-    // StoreKit verification is required before enabling package purchases.
-    static let purchases = false
-}
-
 extension CoorditMyPageFamilyView {
     func threadCharge(
         metrics: CoorditResponsiveMetrics,
         contentMetrics: CoorditResponsiveMetrics,
         threadBalance: Int
     ) -> some View {
-        VStack(spacing: 0) {
+        let rewardedAdEnabled = backendSession.canUseRewardedAds
+            && rewardedAdService.isActionEnabled
+        let purchasesEnabled = backendSession.canUseInAppPurchases && threadPurchaseService.isReady
+        let purchaseMessage = backendSession.canUseInAppPurchases
+            ? threadPurchaseService.state.message
+            : "패키지 구매는 출시 준비 중이에요."
+
+        return VStack(spacing: 0) {
             HStack(spacing: contentMetrics.value(12)) {
                 Image(CoorditAssetNames.yarn)
                     .resizable()
@@ -43,9 +45,43 @@ extension CoorditMyPageFamilyView {
             .accessibilityIdentifier("coordit-thread-charge-balance")
             .padding(.bottom, contentMetrics.value(CoorditDesignTokens.ChargeMetrics.balanceToAdSpacing))
 
+            if let readinessMessage = backendSession.monetizationReadinessState.message {
+                HStack(spacing: contentMetrics.value(8)) {
+                    Text(readinessMessage)
+                        .font(CoorditTypography.gmarketMedium(size: contentMetrics.value(11), relativeTo: .caption))
+                        .foregroundStyle(CoorditSettingsStyle.ink.opacity(0.72))
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity)
+
+                    Button("다시 시도") {
+                        Task {
+                            await refreshChargeServices()
+                        }
+                    }
+                    .font(CoorditTypography.gmarketBold(size: contentMetrics.value(11), relativeTo: .caption))
+                    .foregroundStyle(CoorditSettingsStyle.ink)
+                    .frame(minWidth: 64, minHeight: 44)
+                    .contentShape(Rectangle())
+                    .accessibilityIdentifier("coordit-thread-charge-readiness-retry")
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("coordit-thread-charge-readiness-status")
+                .padding(.bottom, contentMetrics.value(4))
+            }
+
             Button {
-                rewardBalanceBefore = threadBalance
-                rewardedAdService.present()
+                guard backendSession.canUseRewardedAds,
+                      rewardedAdService.isActionEnabled
+                else {
+                    return
+                }
+                if rewardedAdService.isReady {
+                    rewardedAdService.present(currentBalance: threadBalance)
+                } else {
+                    Task {
+                        await prepareRewardedAd()
+                    }
+                }
             } label: {
                 HStack(spacing: contentMetrics.value(CoorditDesignTokens.ChargeMetrics.adContentSpacing)) {
                     ZStack {
@@ -68,7 +104,8 @@ extension CoorditMyPageFamilyView {
                     Text("광고 보고 실타래 충전하기")
                         .font(CoorditTypography.gmarketBold(size: contentMetrics.value(18), relativeTo: .headline))
                         .foregroundStyle(.white)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.7)
 
                     Spacer(minLength: 0)
                     CoorditSettingsChevron(metrics: contentMetrics, color: .white)
@@ -99,66 +136,85 @@ extension CoorditMyPageFamilyView {
                 )
             }
             .coorditPressFeedback()
-            .disabled(!rewardedAdService.isReady)
-            .opacity(rewardedAdService.isReady ? 1 : 0.48)
+            .disabled(!rewardedAdEnabled)
+            .allowsHitTesting(rewardedAdEnabled)
+            .opacity(rewardedAdEnabled ? 1 : 0.48)
             .accessibilityLabel("광고 보고 실타래 충전하기")
             .accessibilityIdentifier("coordit-thread-charge-ad-cta")
             .padding(.bottom, contentMetrics.value(CoorditDesignTokens.ChargeMetrics.adToPackagesSpacing))
 
             if let message = rewardedAdService.status.message {
                 Text(message)
-                    .font(CoorditTypography.gmarketMedium(size: contentMetrics.value(10), relativeTo: .caption))
-                    .foregroundStyle(CoorditSettingsStyle.muted)
+                    .font(CoorditTypography.gmarketMedium(size: contentMetrics.value(11), relativeTo: .caption))
+                    .foregroundStyle(CoorditSettingsStyle.ink.opacity(0.72))
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
                     .accessibilityIdentifier("coordit-thread-charge-ad-status")
                     .padding(.bottom, contentMetrics.value(10))
             }
 
-            if !CoorditThreadChargeAvailability.purchases {
-                Text("패키지 구매는 출시 준비 중이에요.")
+            if let purchaseMessage {
+                Text(purchaseMessage)
                     .font(CoorditTypography.gmarketMedium(size: contentMetrics.value(10), relativeTo: .caption))
-                    .foregroundStyle(CoorditSettingsStyle.muted)
+                    .foregroundStyle(CoorditDesignTokens.ColorToken.purchaseStatus)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
-                    .accessibilityIdentifier("coordit-thread-charge-notice")
+                    .accessibilityIdentifier("coordit-thread-charge-purchase-status")
                     .padding(.bottom, contentMetrics.value(10))
             }
 
             VStack(spacing: contentMetrics.value(CoorditDesignTokens.ChargeMetrics.packageSpacing)) {
-                yarnPurchaseRow(
-                    amount: "5 실타래",
-                    price: "1,500원",
-                    identifier: "coordit-thread-charge-pack-5",
-                    highlighted: false,
-                    metrics: contentMetrics
-                )
-                yarnPurchaseRow(
-                    amount: "10 실타래",
-                    price: "2,500원",
-                    identifier: "coordit-thread-charge-pack-10",
-                    highlighted: true,
-                    metrics: contentMetrics
-                )
-                yarnPurchaseRow(
-                    amount: "20 실타래",
-                    price: "4,000원",
-                    identifier: "coordit-thread-charge-pack-20",
-                    highlighted: false,
-                    metrics: contentMetrics
-                )
+                ForEach(threadPurchaseService.displayProducts) { product in
+                    yarnPurchaseRow(
+                        product: product,
+                        highlighted: product.threadAmount == 10,
+                        metrics: contentMetrics,
+                        isEnabled: purchasesEnabled && threadPurchaseService.canPurchase(product)
+                    )
+                }
             }
+
+#if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--coordit-rewarded-ad-fixture") {
+                Text("보상형 광고 테스트 상태")
+                    .font(.system(size: 1))
+                    .foregroundStyle(.clear)
+                    .frame(height: 1)
+                    .accessibilityLabel("보상형 광고 테스트 영수증")
+                    .accessibilityValue(rewardedAdService.fixtureReceipt)
+                    .accessibilityIdentifier("coordit-thread-reward-fixture-receipt")
+            }
+
+            if ProcessInfo.processInfo.arguments.contains("--coordit-storekit-fixture") {
+                Text("StoreKit 테스트 상태")
+                    .font(.system(size: 1))
+                    .foregroundStyle(.clear)
+                    .frame(height: 1)
+                    .accessibilityLabel("StoreKit 테스트 영수증")
+                    .accessibilityValue(threadPurchaseService.fixtureReceipt)
+                    .accessibilityIdentifier("coordit-thread-purchase-fixture-receipt")
+            }
+#endif
         }
     }
 
     private func yarnPurchaseRow(
-        amount: String,
-        price: String,
-        identifier: String,
+        product: CoorditThreadProduct,
         highlighted: Bool,
-        metrics: CoorditResponsiveMetrics
+        metrics: CoorditResponsiveMetrics,
+        isEnabled: Bool
     ) -> some View {
-        Button(action: {}) {
+        Button(action: {
+            guard
+                backendSession.canUseInAppPurchases,
+                threadPurchaseService.canPurchase(product)
+            else {
+                return
+            }
+            Task {
+                await threadPurchaseService.purchase(product)
+            }
+        }) {
             HStack(spacing: metrics.value(12)) {
                 Image(CoorditAssetNames.yarn)
                     .resizable()
@@ -166,9 +222,12 @@ extension CoorditMyPageFamilyView {
                     .frame(width: metrics.value(54), height: metrics.value(54))
 
                 VStack(alignment: .leading, spacing: metrics.value(3)) {
-                    Text(amount)
+                    Text(product.displayName)
                         .font(CoorditTypography.gmarketBold(size: metrics.value(16), relativeTo: .headline))
                         .foregroundStyle(.black)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.7)
+                        .accessibilityIdentifier("\(product.accessibilityIdentifier)-title")
                     Text("실타래 충전")
                         .font(CoorditTypography.gmarketMedium(size: metrics.value(9), relativeTo: .caption))
                         .foregroundStyle(CoorditSettingsStyle.muted)
@@ -176,13 +235,14 @@ extension CoorditMyPageFamilyView {
 
                 Spacer(minLength: 0)
 
-                Text(price)
+                Text(product.displayPrice)
                     .font(CoorditTypography.gmarketBold(size: metrics.value(13), relativeTo: .caption))
                     .foregroundStyle(.white)
                     .padding(.horizontal, metrics.value(12))
                     .frame(height: metrics.value(31))
                     .background(CoorditSettingsStyle.ink)
                     .clipShape(Capsule())
+                    .accessibilityIdentifier("\(product.accessibilityIdentifier)-price")
             }
             .padding(.horizontal, metrics.value(16))
             .frame(height: metrics.value(CoorditDesignTokens.ChargeMetrics.packageHeight))
@@ -206,10 +266,11 @@ extension CoorditMyPageFamilyView {
             .shadow(color: .black.opacity(0.035), radius: metrics.value(8), y: metrics.value(3))
         }
         .coorditPressFeedback()
-        .disabled(!CoorditThreadChargeAvailability.purchases)
-        .opacity(CoorditThreadChargeAvailability.purchases ? 1 : 0.48)
-        .accessibilityLabel(amount)
-        .accessibilityIdentifier(identifier)
+        .disabled(!isEnabled)
+        .allowsHitTesting(isEnabled)
+        .opacity(isEnabled ? 1 : 0.48)
+        .accessibilityLabel(product.displayName)
+        .accessibilityIdentifier(product.accessibilityIdentifier)
     }
 }
 
