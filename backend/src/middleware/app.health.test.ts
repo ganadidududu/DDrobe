@@ -102,4 +102,20 @@ describe("GET /health", () => {
       '{"ok":true,"service":"coordit-backend"}'
     );
   });
+
+  it("reaches the AdMob rewarded handler without a bearer token", async () => {
+    // Given: AdMob calls the server-side verification URL without application credentials.
+    runningServer = await startApp();
+
+    // When: the rewarded callback arrives with its SSV query parameters.
+    const response = await fetch(
+      `http://127.0.0.1:${runningServer.port}/webhooks/admob/rewarded?user_id=user-1&signature=admob-signature`
+    );
+
+    // Then: the public webhook reaches its signature validation instead of auth middleware returning 401.
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      message: "Missing AdMob callback parameter: key_id"
+    });
+  });
 });

@@ -290,6 +290,18 @@ final class CoorditFitLabCoordinator: ObservableObject {
         error = nil
     }
 
+    @discardableResult
+    func selectReference(id: String) -> Bool {
+        guard loadState != .loading,
+              let reference = references.first(where: { $0.id == id }),
+              reference.category.isCompatible(with: draft.category),
+              reference.isActive
+        else { return false }
+        draft.selectedReferenceIDs.insert(reference.id)
+        error = nil
+        return true
+    }
+
     func submit(
         using overrideAPI: (any CoorditFitLabAPI)? = nil,
         authenticatedUserID: String? = nil

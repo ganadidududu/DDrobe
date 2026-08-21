@@ -99,6 +99,7 @@ export const createFakeRepository = (state: FakeState = {}) => {
         email: profile.email,
         display_name: profile.displayName,
         gender: profile.gender ?? null,
+        birth_date: profile.birthDate ?? null,
         birth_year: profile.birthYear ?? null,
         created_at: fixedNow.toISOString(),
         updated_at: fixedNow.toISOString()

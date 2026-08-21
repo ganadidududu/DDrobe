@@ -48,7 +48,7 @@ struct CoorditMain04Screen: View {
                 )
 
                 if backendSession.isWarning {
-                    Text(backendSession.statusText)
+                    Text("일부 기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.")
                         .font(CoorditTypography.gmarketMedium(size: metrics.value(9.5)))
                         .foregroundStyle(CoorditDesignTokens.ColorToken.danger)
                         .frame(width: metrics.value(361), alignment: .leading)

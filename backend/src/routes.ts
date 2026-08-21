@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { env } from "./config/env";
-import { signup, login, loginWithApple, loginWithGoogle } from "./modules/auth/auth.controller";
+import { loginWithApple, loginWithGoogle } from "./modules/auth/auth.controller";
 import { completeOnboardingController } from "./modules/auth/auth-onboarding.controller";
+import { getOnboardingStatus } from "./modules/auth/auth-onboarding-status.controller";
 import { createBodyMeasurement, listBodyMeasurements } from "./modules/body-measurements/body-measurements.controller";
 import {
   createClothingItem,
@@ -32,6 +33,7 @@ import {
 } from "./modules/external-product-sizes/external-product-sizes.controller";
 import { createFeedback, listFeedback } from "./modules/feedback/feedback.controller";
 import {
+  getClosetItemFitComparisonController,
   getClosetReferenceProfileController,
   getFitAnalysisResultController,
   recentFitAnalysisResultsController,
@@ -68,12 +70,11 @@ import {
   saveStylingLookController,
 } from "./modules/styling/styling.controller";
 import { authMiddleware } from "./middleware/auth.middleware";
+import { onboardingMiddleware } from "./middleware/onboarding.middleware";
 import { previewProductImportController } from "./modules/product-import/product-import.controller";
 
 export const routes = Router();
 
-routes.post("/auth/signup", signup);
-routes.post("/auth/login", login);
 routes.post("/auth/google", loginWithGoogle);
 routes.post("/auth/apple", loginWithApple);
 
@@ -83,10 +84,14 @@ routes.get("/webhooks/admob/rewarded", receiveRewardedSSVController);
 routes.use(authMiddleware);
 
 routes.post("/auth/onboarding", completeOnboardingController);
+routes.get("/auth/onboarding/status", getOnboardingStatus);
 
 routes.get("/users/me", getMe);
 routes.patch("/users/me", updateMe);
 routes.delete("/users/me", deleteMe);
+
+routes.use(onboardingMiddleware);
+
 routes.get("/thread-wallet/balance", getThreadBalanceController);
 routes.post("/thread-wallet/reward-attempts", createRewardAttemptController);
 routes.get("/thread-wallet/reward-attempts/:id", getRewardAttemptController);
@@ -126,6 +131,7 @@ routes.delete("/external-product-sizes/:id", deleteExternalProductSize);
 
 routes.post("/fit/recommend", recommendFitController);
 routes.post("/fit/recommend/batch", recommendFitBatchController);
+routes.get("/fit/closet-items/:id/comparison", getClosetItemFitComparisonController);
 routes.get("/fit/reference-profile/:garmentKind", getClosetReferenceProfileController);
 routes.get("/fit-analysis-results/recent", recentFitAnalysisResultsController);
 routes.get("/fit-analysis-results", recentFitAnalysisResultsController);

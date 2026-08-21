@@ -11,14 +11,10 @@ final class CoorditMyPageNestedNavigationUITests: XCTestCase {
 
     private let destinations = [
         Destination(parentRoute: "mypage-account", rowLabel: "프로필 수정", route: "mypage-profile-edit"),
-        Destination(parentRoute: "mypage-account", rowLabel: "비밀번호 변경", route: "mypage-password-change"),
-        Destination(parentRoute: "mypage-account", rowLabel: "로그아웃", route: "mypage-logout"),
         Destination(parentRoute: "mypage-account", rowLabel: "회원 탈퇴", route: "mypage-account-deletion"),
-        Destination(parentRoute: "mypage-body", rowLabel: "신체 치수 관리", route: "mypage-body-measurements"),
+        Destination(parentRoute: "mypage-body", rowLabel: "신체 정보 수정", route: "mypage-body-measurements"),
         Destination(parentRoute: "mypage-privacy", rowLabel: "개인정보 처리방침", route: "mypage-privacy-policy"),
         Destination(parentRoute: "mypage-privacy", rowLabel: "서비스 이용약관", route: "mypage-terms"),
-        Destination(parentRoute: "mypage-app-settings", rowLabel: "문의하기", route: "mypage-contact"),
-        Destination(parentRoute: "mypage-app-settings", rowLabel: "버그 신고", route: "mypage-bug-report"),
     ]
 
     override func setUpWithError() throws {
@@ -52,49 +48,24 @@ final class CoorditMyPageNestedNavigationUITests: XCTestCase {
         }
     }
 
-    func testMyPageLoginEntryOpensAccountLogin() throws {
-        let app = launchApp(at: "mypage")
-        assertScreen("mypage", in: app)
-
-        let loginEntry = app.buttons["로그인 / 회원가입"]
-        XCTAssertTrue(loginEntry.waitForExistence(timeout: 5), "Missing My Page login entry")
-        tap(loginEntry, in: app)
-
+    func testSignedInAccountShowsLogoutInsteadOfSocialProviders() throws {
+        let app = launchApp(at: "mypage-account", authenticated: true)
         assertScreen("mypage-account", in: app)
-        XCTAssertTrue(element("mypage-backend-email", in: app).waitForExistence(timeout: 5))
-        XCTAssertTrue(element("mypage-backend-password", in: app).waitForExistence(timeout: 5))
-        app.terminate()
-        XCTAssertTrue(app.wait(for: .notRunning, timeout: 5))
+
+        XCTAssertTrue(element("mypage-backend-local-logout", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(element("mypage-backend-google-login", in: app).exists)
+        XCTAssertFalse(element("mypage-backend-apple-login", in: app).exists)
     }
 
-    func testDeviceSignupThroughLiveBackend() throws {
-        let baseURL = try requireLiveBackendBaseURL()
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "--coordit-ui-testing",
-            "--coordit-start-route",
-            "mypage-account",
-            "--coordit-api-base-url",
-            baseURL,
-        ]
-        app.launch()
-        assertScreen("mypage-account", in: app)
+    func testPrivacyCardFollowsItsHeaderWithoutLargeGap() throws {
+        let app = launchApp(at: "mypage-privacy")
+        assertScreen("mypage-privacy", in: app)
 
-        let email = "iphone-ui-\(Int(Date().timeIntervalSince1970))@coordit.local"
-        typeText(email, into: "mypage-backend-email", in: app)
-        typeText("password1234", into: "mypage-backend-password", in: app)
-
-        let signup = app.buttons["mypage-backend-signup"]
-        XCTAssertTrue(signup.waitForExistence(timeout: 5), "Missing signup button")
-        XCTAssertTrue(signup.isEnabled, "Signup button should be enabled after valid credentials")
-        tap(signup, in: app)
-
-        let status = element("mypage-backend-status", in: app)
-        XCTAssertTrue(status.waitForExistence(timeout: 5), "Missing backend status banner")
-        let predicate = NSPredicate(format: "label CONTAINS %@", "백엔드 로그인 완료")
-        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: status)
-        let result = XCTWaiter.wait(for: [expectation], timeout: 20)
-        XCTAssertEqual(result, .completed, "Signup failed with status: \(status.label)")
+        let header = app.buttons["개인정보/보안 뒤로가기"]
+        let firstRow = app.buttons["개인정보 처리방침"]
+        XCTAssertTrue(header.waitForExistence(timeout: 5))
+        XCTAssertTrue(firstRow.waitForExistence(timeout: 5))
+        XCTAssertLessThan(firstRow.frame.minY - header.frame.maxY, 40)
     }
 
     func testSharedFitLabLaunchURLRoutesToURLInput() throws {
@@ -255,12 +226,6 @@ final class CoorditMyPageNestedNavigationUITests: XCTestCase {
         var app = launchApp(at: "mypage-profile-edit")
         completeAction("프로필 저장", expecting: "mypage-profile-saved", in: app)
 
-        app = launchApp(at: "mypage-password-change")
-        typeText("current-password", into: "mypage-password-current", in: app)
-        typeText("new-password", into: "mypage-password-new", in: app)
-        typeText("new-password", into: "mypage-password-confirm", in: app)
-        completeAction("비밀번호 변경", expecting: "mypage-password-changed", in: app)
-
         app = launchApp(at: "mypage-logout")
         completeAction("로그아웃 확인", expecting: "mypage-logout-complete", in: app)
 
@@ -270,42 +235,81 @@ final class CoorditMyPageNestedNavigationUITests: XCTestCase {
         tap(acknowledgement, in: app)
         completeAction("회원 탈퇴 확인", expecting: "mypage-account-deletion-complete", in: app)
 
-        app = launchApp(at: "mypage-body-measurements")
-        completeAction("신체 치수 저장", expecting: "mypage-body-measurements-saved", in: app)
+        app = launchApp(at: "mypage-body-measurements", authenticated: true)
+        XCTAssertTrue(element("mypage-measurement-height", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(element("mypage-measurement-weight", in: app).exists)
+        XCTAssertFalse(element("mypage-measurement-shoulder", in: app).exists)
+        XCTAssertFalse(element("mypage-measurement-chest", in: app).exists)
+        XCTAssertFalse(element("mypage-measurement-waist", in: app).exists)
+        XCTAssertFalse(element("mypage-measurement-hip", in: app).exists)
+        XCTAssertFalse(element("mypage-measurement-inseam", in: app).exists)
+        typeText("171", into: "mypage-measurement-height", in: app)
+        typeText("61", into: "mypage-measurement-weight", in: app)
+        completeAction("키와 몸무게 저장", expecting: "mypage-body-measurements-saved", in: app)
 
-        app = launchApp(at: "mypage-contact")
-        typeText("사이즈 추천 문의", into: "mypage-contact-subject", in: app)
-        typeText("추천 결과를 확인하고 싶어요.", into: "mypage-contact-message", in: app)
-        completeAction("문의 보내기", expecting: "mypage-contact-sent", in: app)
-
-        app = launchApp(at: "mypage-bug-report")
-        typeText("화면이 멈춰요", into: "mypage-bug-summary", in: app)
-        typeText("앱 설정에서 저장 버튼을 눌렀어요.", into: "mypage-bug-steps", in: app)
-        completeAction("버그 신고 보내기", expecting: "mypage-bug-report-sent", in: app)
     }
 
-    func testContactFormCanSubmitAfterTypingOnCompactScreen() throws {
-        let app = launchApp(at: "mypage-contact")
-        typeText("사이즈 추천 문의", into: "mypage-contact-subject", in: app)
-        typeText("추천 결과를 확인하고 싶어요.", into: "mypage-contact-message", in: app)
-        completeAction("문의 보내기", expecting: "mypage-contact-sent", in: app)
+    func testBodyMeasurementsEditorOnlyExposesHeightAndWeight() throws {
+        let app = launchApp(at: "mypage-body-measurements", authenticated: true)
+        assertScreen("mypage-body-measurements", in: app)
+
+        XCTAssertTrue(element("mypage-measurement-height", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(element("mypage-measurement-weight", in: app).exists)
+        for legacyField in [
+            "mypage-measurement-shoulder",
+            "mypage-measurement-chest",
+            "mypage-measurement-waist",
+            "mypage-measurement-hip",
+            "mypage-measurement-inseam"
+        ] {
+            XCTAssertFalse(element(legacyField, in: app).exists, "Unexpected legacy field: \(legacyField)")
+        }
+
+        typeText("171", into: "mypage-measurement-height", in: app)
+        typeText("61", into: "mypage-measurement-weight", in: app)
+        let save = element("mypage-body-measurements-save", in: app)
+        XCTAssertTrue(save.isEnabled)
+        tap(save, in: app)
+        XCTAssertTrue(element("mypage-body-measurements-saved", in: app).waitForExistence(timeout: 5))
     }
 
-    func testPasswordFormCanSubmitAfterTypingOnCompactScreen() throws {
+    func testAppSettingsOnlyShowsVersionAndMailSupport() throws {
+        let app = launchApp(at: "mypage-app-settings")
+        assertScreen("mypage-app-settings", in: app)
+
+        XCTAssertTrue(app.staticTexts["hyu.coordit@gmail.com"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["문의하기"].exists)
+        XCTAssertFalse(app.staticTexts["테마"].exists)
+        XCTAssertFalse(app.staticTexts["언어"].exists)
+        XCTAssertFalse(app.buttons["버그 신고"].exists)
+    }
+
+    func testMarketingNotificationsExposeSystemControls() throws {
+        let app = launchApp(at: "mypage-notifications")
+        assertScreen("mypage-notifications", in: app)
+
+        XCTAssertTrue(element("mypage-marketing-notifications", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(element("mypage-marketing-notifications-status", in: app).exists)
+        XCTAssertTrue(element("mypage-open-notification-settings", in: app).exists)
+    }
+
+    func testPasswordRouteExplainsSocialOnlyAuthentication() throws {
         let app = launchApp(at: "mypage-password-change")
-        typeText("current-password", into: "mypage-password-current", in: app)
-        typeText("new-password", into: "mypage-password-new", in: app)
-        typeText("new-password", into: "mypage-password-confirm", in: app)
-        completeAction("비밀번호 변경", expecting: "mypage-password-changed", in: app)
+        XCTAssertTrue(app.staticTexts["비밀번호는 사용하지 않아요"].waitForExistence(timeout: 5))
+        XCTAssertFalse(element("mypage-password-current", in: app).exists)
     }
 
-    private func launchApp(at route: String) -> XCUIApplication {
+    private func launchApp(at route: String, authenticated: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = [
+        var launchArguments = [
             "--coordit-ui-testing",
             "--coordit-start-route",
             route,
         ]
+        if authenticated {
+            launchArguments.append("--coordit-ui-testing-authenticated")
+        }
+        app.launchArguments = launchArguments
         app.launch()
         return app
     }

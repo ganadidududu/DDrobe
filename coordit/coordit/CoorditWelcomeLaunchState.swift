@@ -13,18 +13,8 @@ enum CoorditSplashPresentation: Equatable {
 enum CoorditWelcomeLaunchState {
     private static let completedKey = "coordit.welcome.completed"
 
-    static func splashPresentation(
-        isAuthenticated: Bool,
-        defaults: UserDefaults = .standard,
-        arguments: [String] = ProcessInfo.processInfo.arguments
-    ) -> CoorditSplashPresentation {
-        if let testingPresentation = testingPresentation(arguments: arguments) {
-            return testingPresentation
-        }
-
-        return hasCompletedWelcome(defaults: defaults) && isAuthenticated
-            ? .returningUser
-            : .firstInstall
+    static func splashPresentation(isAuthenticated: Bool) -> CoorditSplashPresentation {
+        isAuthenticated ? .returningUser : .firstInstall
     }
 
     static func shouldAutomaticallyPresentAuthentication(

@@ -197,7 +197,7 @@ extension CoorditClosetFamilyView {
             selectedItemID = savedItem.id
             selectedCategory = savedItem.category
             resetPendingSave()
-            onRouteChange(.closetAddResult)
+            onRouteChange(await onSavedItem(savedItem) ?? .closetAddResult)
         }
     }
 

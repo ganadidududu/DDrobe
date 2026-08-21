@@ -8,12 +8,14 @@ struct CoorditRootView: View {
     @State private var selectedClosetItemID: String?
     @State private var closetDraft = CoorditClosetDraft()
     @State private var closetAddSaveState = CoorditClosetAddSaveState()
+    @State private var isRegisteringFitLabReference = false
     @State private var selectedReferenceIDs: Set<String> = []
     @State private var showsFitLabReferenceSelection = false
-    @State private var showsSplashAuthentication = false
+    @State private var showsOnboarding = false
     @State private var threadBalance: Int
     @State private var showsThreadRechargePrompt = false
     @State private var sharedFitLabImportURL: URL?
+    @State private var showsAuthenticationEntry = false
     @EnvironmentObject private var backendSession: CoorditBackendSessionStore
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -98,7 +100,8 @@ struct CoorditRootView: View {
                 coordinator: fitLabCoordinator,
                 threadBalance: $threadBalance,
                 sharedImportURL: $sharedFitLabImportURL,
-                onInsufficientThread: handleInsufficientThreadForFitLab
+                onInsufficientThread: handleInsufficientThreadForFitLab,
+                onOpenThreadRecharge: openThreadRechargeFromFitLab
             )
         case .myPage,
              .myPageThreadCharge,
@@ -113,9 +116,7 @@ struct CoorditRootView: View {
              .myPageAccountDeletion,
              .myPageBodyMeasurements,
              .myPagePrivacyPolicy,
-             .myPageTerms,
-             .myPageContact,
-             .myPageBugReport:
+             .myPageTerms:
             CoorditMyPageFamilyView(
                 route: route,
                 threadBalance: $threadBalance,
@@ -137,7 +138,8 @@ struct CoorditRootView: View {
                 selectedItemID: $selectedClosetItemID,
                 draft: $closetDraft,
                 selectedReferenceIDs: $selectedReferenceIDs,
-                addSaveState: $closetAddSaveState
+                addSaveState: $closetAddSaveState,
+                onSavedItem: routeAfterSavingClosetItem
             ) { navigate(to: $0) }
                     }
                 }
@@ -165,11 +167,9 @@ struct CoorditRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .buttonStyle(CoorditPressFeedbackButtonStyle())
         .task(id: backendSession.isAuthenticated) {
-            guard !backendSession.isAuthenticated else {
-                showsSplashAuthentication = false
-                return
-            }
+            guard !backendSession.isAuthenticated else { return }
 
+            showsAuthenticationEntry = false
             threadBalance = 0
             showsFitLabReferenceSelection = false
             showsThreadRechargePrompt = false
@@ -178,11 +178,16 @@ struct CoorditRootView: View {
             if route != .splash {
                 navigate(to: .splash)
             }
-            showsSplashAuthentication = CoorditWelcomeLaunchState.shouldAutomaticallyPresentAuthentication(
-                isAuthenticated: false
-            )
         }
         .task(id: backendSession.session?.user.id) {
+            await backendSession.bootstrap()
+            if backendSession.isAuthenticated, !backendSession.onboardingComplete {
+                return
+            }
+            guard canShowSelectedRoute else {
+                presentOnboardingIfNeeded()
+                return
+            }
             if let snapshot = await backendSession.loadClosetSnapshot(preserving: closetItems) {
                 closetItems = snapshot.items
                 selectedReferenceIDs = snapshot.selectedReferenceIDs
@@ -225,13 +230,15 @@ struct CoorditRootView: View {
                 items: closetItems,
                 initialSelection: selectedReferenceIDs,
                 onCommit: syncFitLabReferenceSelection,
-                onAddGarment: startNewClosetRegistration
+                onAddGarment: startFitLabReferenceRegistration
             )
         }
-        .sheet(isPresented: $showsSplashAuthentication) {
-            CoorditSplashAuthenticationSheet {
+        .fullScreenCover(isPresented: $showsOnboarding) {
+            CoorditOnboardingView {
+                showsOnboarding = false
+                guard backendSession.canUseProduct else { return }
                 CoorditWelcomeLaunchState.markWelcomeCompleted()
-                showsSplashAuthentication = false
+                navigate(to: .main04)
             }
         }
     }
@@ -241,6 +248,13 @@ struct CoorditRootView: View {
     }
 
     private func navigate(to nextRoute: CoorditFrameRoute) {
+        if isRegisteringFitLabReference, nextRoute == .closetOverview {
+            isRegisteringFitLabReference = false
+        }
+        guard nextRoute == .splash || canShowSelectedRoute else {
+            route = .splash
+            return
+        }
         let destination = nextRoute == .fitLabInput && fitLabCoordinator.isAnalysisRunning
             ? CoorditFrameRoute.fitLabLoading
             : nextRoute
@@ -258,7 +272,17 @@ struct CoorditRootView: View {
     }
 
     private func startNewClosetRegistration() {
+        isRegisteringFitLabReference = false
         closetDraft = CoorditClosetDraft()
+        closetAddSaveState.reset()
+        navigate(to: .closetAddMethod)
+    }
+
+    private func startFitLabReferenceRegistration() {
+        isRegisteringFitLabReference = true
+        closetDraft = CoorditClosetDraft()
+        closetDraft.category = fitLabCoordinator.draft.category.garmentKind == .upper ? .top : .bottom
+        closetDraft.exactCategory = fitLabCoordinator.draft.category
         closetAddSaveState.reset()
         navigate(to: .closetAddMethod)
     }
@@ -346,14 +370,6 @@ struct CoorditRootView: View {
         #endif
     }
 
-    private var splashScreen: some View {
-        CoorditSplashScreen(
-            presentation: splashPresentation,
-            onRouteChange: { navigate(to: $0) },
-            onAuthenticationRequested: { showsSplashAuthentication = true }
-        )
-    }
-
     private var blocksUnauthenticatedContent: Bool {
         !backendSession.isAuthenticated
             && route != .splash
@@ -383,6 +399,47 @@ struct CoorditRootView: View {
         CoorditWelcomeLaunchState.splashPresentation(isAuthenticated: backendSession.isAuthenticated)
     }
 
+    @ViewBuilder
+    private var splashScreen: some View {
+        if showsAuthenticationEntry {
+            CoorditAuthenticationEntryView {
+                showsAuthenticationEntry = false
+                if backendSession.onboardingComplete {
+                    CoorditWelcomeLaunchState.markWelcomeCompleted()
+                    navigate(to: .main04)
+                } else {
+                    showsOnboarding = true
+                }
+            }
+        } else {
+            CoorditSplashScreen(
+                presentation: splashPresentation,
+                onRouteChange: { nextRoute in
+                    guard backendSession.onboardingComplete else {
+                        presentOnboardingIfNeeded()
+                        return
+                    }
+                    navigate(to: nextRoute)
+                },
+                onAuthenticationRequested: { showsAuthenticationEntry = true }
+            )
+        }
+    }
+
+    private var canShowSelectedRoute: Bool {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--coordit-ui-testing") {
+            return true
+        }
+        #endif
+        return route == .splash || backendSession.canUseProduct
+    }
+
+    private func presentOnboardingIfNeeded() {
+        guard backendSession.isAuthenticated, !backendSession.onboardingComplete else { return }
+        showsOnboarding = true
+    }
+
     private var showsSharedAppBackground: Bool {
         !blocksUnauthenticatedContent && route != .splash && route != .main01
     }
@@ -398,41 +455,69 @@ struct CoorditRootView: View {
 
     private func syncFitLabReferenceSelection(_ selection: Set<String>) {
         Task {
-            guard let result = await backendSession.syncReferenceSelection(
-                items: closetItems,
-                selectedIDs: selection
-            ) else { return }
-            for index in closetItems.indices {
-                if let referenceID = result.referenceIDsByItemID[closetItems[index].id] {
-                    closetItems[index].backendReferenceClothingId = referenceID
-                }
-            }
-            selectedReferenceIDs = result.selectedIDs
-            await backendSession.refreshReferenceFitProfiles()
-
-            #if DEBUG
-            if fitLabCoordinator.fixtureName != nil {
-                await fitLabCoordinator.loadCompatibleReferences()
-                return
-            }
-            #endif
-            guard let session = backendSession.session else {
-                await fitLabCoordinator.loadCompatibleReferences(authenticatedUserID: nil)
-                return
-            }
-            let api = CoorditFitLabHTTPAPI(
-                baseURL: CoorditBackendConfig.baseURL(),
-                accessToken: session.accessToken
-            )
-            await fitLabCoordinator.loadCompatibleReferences(
-                using: api,
-                authenticatedUserID: session.user.id
-            )
+            _ = await persistFitLabReferenceSelection(selection)
         }
+    }
+
+    private func routeAfterSavingClosetItem(_ item: CoorditClosetItem) async -> CoorditFrameRoute? {
+        guard isRegisteringFitLabReference else { return nil }
+        defer { isRegisteringFitLabReference = false }
+
+        let selection = selectedReferenceIDs.union([item.id])
+        guard let result = await persistFitLabReferenceSelection(selection),
+              let referenceID = result.referenceIDsByItemID[item.id],
+              fitLabCoordinator.selectReference(id: referenceID)
+        else { return nil }
+
+        return .fitLabInput
+    }
+
+    private func persistFitLabReferenceSelection(
+        _ selection: Set<String>
+    ) async -> CoorditReferenceSyncResult? {
+        guard let result = await backendSession.syncReferenceSelection(
+            items: closetItems,
+            selectedIDs: selection
+        ) else { return nil }
+        for index in closetItems.indices {
+            if let referenceID = result.referenceIDsByItemID[closetItems[index].id] {
+                closetItems[index].backendReferenceClothingId = referenceID
+            }
+        }
+        selectedReferenceIDs = result.selectedIDs
+        await backendSession.refreshReferenceFitProfiles()
+        await reloadFitLabReferences()
+        return result
+    }
+
+    private func reloadFitLabReferences() async {
+        #if DEBUG
+        if fitLabCoordinator.fixtureName != nil {
+            await fitLabCoordinator.loadCompatibleReferences()
+            return
+        }
+        #endif
+        guard let session = backendSession.session else {
+            await fitLabCoordinator.loadCompatibleReferences(authenticatedUserID: nil)
+            return
+        }
+        let api = CoorditFitLabHTTPAPI(
+            baseURL: CoorditBackendConfig.baseURL(),
+            accessToken: session.accessToken
+        )
+        await fitLabCoordinator.loadCompatibleReferences(
+            using: api,
+            authenticatedUserID: session.user.id
+        )
     }
 
     private func handleInsufficientThreadForFitLab() {
         showsThreadRechargePrompt = true
+        navigate(to: .myPageThreadCharge)
+    }
+
+    private func openThreadRechargeFromFitLab() {
+        showsThreadRechargePrompt = false
         navigate(to: .myPageThreadCharge)
     }
 

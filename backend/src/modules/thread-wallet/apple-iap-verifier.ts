@@ -87,7 +87,6 @@ const createAppleTransactionVerifier = async (): Promise<AppleTransactionVerifie
       if (!sandboxVerifier) {
         throw createHttpError(400, "Apple 구매 거래를 검증할 수 없어요.");
       }
-
       try {
         return parseVerifiedTransaction(
           await sandboxVerifier.verifyAndDecodeTransaction(signedTransaction)

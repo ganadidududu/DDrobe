@@ -22,6 +22,8 @@ struct CoorditFitLabInputScreen: View {
     let sharedImportURL: URL?
     let savedHistory: [CoorditFitLabHistorySnapshot]
     let historyRecoveryNotice: String?
+    let threadBalance: Int
+    let onThreadRecharge: () -> Void
     let onOpenHistory: (CoorditFitLabHistorySnapshot) -> Void
 
     init(
@@ -41,6 +43,8 @@ struct CoorditFitLabInputScreen: View {
         sharedImportURL: URL? = nil,
         savedHistory: [CoorditFitLabHistorySnapshot] = [],
         historyRecoveryNotice: String? = nil,
+        threadBalance: Int = 0,
+        onThreadRecharge: @escaping () -> Void = {},
         onOpenHistory: @escaping (CoorditFitLabHistorySnapshot) -> Void = { _ in }
     ) {
         self.metrics = metrics
@@ -55,6 +59,8 @@ struct CoorditFitLabInputScreen: View {
         self.sharedImportURL = sharedImportURL
         self.savedHistory = savedHistory
         self.historyRecoveryNotice = historyRecoveryNotice
+        self.threadBalance = threadBalance
+        self.onThreadRecharge = onThreadRecharge
         self.onOpenHistory = onOpenHistory
     }
 
@@ -125,6 +131,8 @@ struct CoorditFitLabInputScreen: View {
                         .font(CoorditTypography.gmarketLight(size: metrics.value(12), relativeTo: .footnote))
                         .foregroundStyle(Color.black.opacity(0.64))
                 }
+
+                sourceThreadCostNotice
 
                 VStack(alignment: .leading, spacing: metrics.value(8)) {
                     sourceCard(
@@ -219,6 +227,54 @@ struct CoorditFitLabInputScreen: View {
             .padding(.bottom, metrics.value(120))
         }
         .scrollDismissesKeyboard(.interactively)
+    }
+
+    private var sourceThreadCostNotice: some View {
+        VStack(alignment: .leading, spacing: metrics.value(11)) {
+            HStack(alignment: .top, spacing: metrics.value(11)) {
+                Image(CoorditAssetNames.yarn)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: metrics.value(30), height: metrics.value(30))
+                    .accessibilityHidden(true)
+
+                Text("실타래 사용 안내")
+                    .font(CoorditTypography.gmarketBold(size: metrics.value(14), relativeTo: .headline))
+                    .foregroundStyle(.white)
+                    .accessibilityIdentifier("fitlab-source-thread-cost-notice")
+
+                Spacer(minLength: 0)
+
+                Text("현재 \(threadBalance)개")
+                    .font(CoorditTypography.gmarketBold(size: metrics.value(12), relativeTo: .caption))
+                    .foregroundStyle(CoorditFitLabPalette.noticeAccent)
+                    .lineLimit(1)
+                    .accessibilityIdentifier("fitlab-source-thread-balance")
+            }
+
+            Text("핏 분석을 시작할 때 실타래 1개가 사용돼요.")
+                .font(CoorditTypography.gmarketMedium(size: metrics.value(12), relativeTo: .caption))
+                .foregroundStyle(.white.opacity(0.86))
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("fitlab-source-thread-cost-copy")
+
+            if threadBalance == 0 {
+                Button(action: onThreadRecharge) {
+                    Text("실타래 충전하기")
+                        .font(CoorditTypography.gmarketBold(size: metrics.value(11), relativeTo: .headline))
+                        .foregroundStyle(CoorditFitLabPalette.ink)
+                        .frame(maxWidth: .infinity, minHeight: metrics.value(42))
+                        .background(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: metrics.value(7), style: .continuous))
+                }
+                .coorditPressFeedback()
+                .accessibilityIdentifier("fitlab-source-thread-charge")
+            }
+        }
+        .padding(metrics.value(15))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CoorditFitLabPalette.ink)
+        .clipShape(RoundedRectangle(cornerRadius: metrics.value(8), style: .continuous))
     }
 
     private func historyCard(_ snapshot: CoorditFitLabHistorySnapshot) -> some View {

@@ -42,7 +42,6 @@ jobs:
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
-
       - name: Typecheck
         run: npm run typecheck
 

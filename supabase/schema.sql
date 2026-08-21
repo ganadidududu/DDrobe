@@ -5,6 +5,7 @@ create table public.users (
   email text not null unique,
   display_name text,
   gender text,
+  birth_date date,
   birth_year integer,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

@@ -1,99 +1,96 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { AccountShell } from "../../components/AccountShell";
 import { useAuth } from "../../lib/auth-context";
 
-export default function LoginPage() {
+type Provider = "google" | "apple";
+
+function ProviderMark({ provider }: { readonly provider: Provider }) {
+  if (provider === "apple") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M16.7 12.8c0-2.2 1.8-3.3 1.9-3.4-1-1.5-2.6-1.7-3.2-1.8-1.4-.1-2.7.8-3.4.8-.7 0-1.8-.8-3-.8-1.5 0-3 .9-3.8 2.3-1.7 2.9-.4 7.1 1.2 9.4.8 1.1 1.7 2.4 2.9 2.4 1.2 0 1.6-.7 3-.7s1.8.7 3 .7c1.3 0 2.1-1.1 2.9-2.3.9-1.3 1.3-2.6 1.3-2.7-.1 0-2.8-1.1-2.8-3.9ZM14.5 6.2c.6-.8 1-1.9.9-3-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1 .1 2.1-.5 2.8-1.3Z" fill="currentColor" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M21.6 12.2c0-.8-.1-1.5-.2-2.2H12v4h5.4a4.6 4.6 0 0 1-2 3v2.6h3.2c1.9-1.7 3-4.3 3-7.4Z" fill="#4285F4" />
+      <path d="M12 22c2.7 0 5-.9 6.6-2.4L15.4 17c-.9.6-2 .9-3.4.9-2.6 0-4.8-1.8-5.6-4.1H3.1v2.7A10 10 0 0 0 12 22Z" fill="#34A853" />
+      <path d="M6.4 13.8a6 6 0 0 1 0-3.7V7.4H3.1a10 10 0 0 0 0 9.1l3.3-2.7Z" fill="#FBBC05" />
+      <path d="M12 6.1c1.5 0 2.9.5 3.9 1.5l2.9-2.9A10 10 0 0 0 3.1 7.4l3.3 2.7C7.2 7.9 9.4 6.1 12 6.1Z" fill="#EA4335" />
+    </svg>
+  );
+}
+
+function LoginPageContent() {
   const router = useRouter();
-  const { login, signup } = useAuth();
-  const [mode, setMode] = useState<"login" | "register">("login");
-  const [form, setForm] = useState({ email: "", password: "", name: "" });
-  const [loading, setLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const { isAuthenticated, isLoading, isSupabaseAuthConfigured, onboardingComplete, startSocialLogin } = useAuth();
+  const [pendingProvider, setPendingProvider] = useState<Provider | null>(null);
   const [error, setError] = useState("");
+  const nextPath = searchParams.get("next")?.startsWith("/") ? searchParams.get("next") ?? "/closet" : "/closet";
 
-  const set = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
+  useEffect(() => {
+    if (isLoading || !isAuthenticated) return;
+    router.replace(onboardingComplete ? nextPath : "/onboarding");
+  }, [isAuthenticated, isLoading, nextPath, onboardingComplete, router]);
 
-  const submit = async () => {
-    if (!form.email || !form.password) { setError("이메일과 비밀번호를 입력해주세요."); return; }
-    setLoading(true); setError("");
+  const handleProvider = async (provider: Provider): Promise<void> => {
+    setError("");
+    setPendingProvider(provider);
     try {
-      if (mode === "login") await login(form.email, form.password);
-      else await signup(form.email, form.password);
-      router.push("/closet");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "인증 오류가 발생했습니다.");
-    } finally {
-      setLoading(false);
+      await startSocialLogin(provider, nextPath);
+    } catch (providerError) {
+      if (providerError instanceof Error) setError(providerError.message);
+      else setError("로그인을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.");
+      setPendingProvider(null);
     }
   };
 
-  const inp = (k: keyof typeof form, placeholder: string, type = "text") => (
-    <input
-      type={type} placeholder={placeholder} value={form[k]}
-      onChange={e => set(k, e.target.value)}
-      onKeyDown={e => e.key === "Enter" && submit()}
-      style={{ width: "100%", padding: "14px 16px", border: "1px solid var(--line-strong)", borderRadius: 4, background: "transparent", outline: "none", fontSize: 14, fontFamily: "var(--font-korean)", color: "var(--obsidian)" }}
-    />
-  );
-
   return (
-    <main style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ width: "100%", maxWidth: 440 }}>
-        {/* Logo */}
-        <div style={{ textAlign: "center", marginBottom: 48 }}>
-          <img src="/logo.png" alt="Coordit" style={{ height: 52, width: "auto", display: "block", margin: "0 auto" }} />
-          <div style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", letterSpacing: "0.2em", color: "var(--text-muted)", marginTop: 8 }}>THE CURATED WARDROBE</div>
+    <AccountShell
+      eyebrow="WELCOME TO COORDIT"
+      title={<>나에게 맞는 옷을,<br /><em>정확하게.</em></>}
+      summary="이메일과 비밀번호 없이, 이미 사용하는 계정으로 안전하게 시작하세요. 첫 로그인 뒤에는 나만의 핏 프로필을 가볍게 설정합니다."
+    >
+      <div className="social-login">
+        <div className="social-login__heading">
+          <span className="account-shell__eyebrow">SIGN IN OR CREATE ACCOUNT</span>
+          <h2>계속하려면 로그인하세요</h2>
+          <p>가입과 로그인은 Google 또는 Apple 계정으로만 진행됩니다.</p>
         </div>
 
-        <div style={{ background: "var(--bg-raised)", border: "1px solid var(--line)", borderRadius: 4, padding: 40 }}>
-          <div style={{ marginBottom: 28 }}>
-            <h2 className="korean-serif" style={{ margin: 0, fontSize: 28, fontWeight: 500, fontFamily: "var(--font-korean-display)", letterSpacing: "-0.02em" }}>
-              {mode === "login" ? "다시 만나요" : "큐레이션을 시작합니다"}
-            </h2>
-            <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--text-muted)", fontFamily: "var(--font-korean)" }}>
-              {mode === "login" ? "옷장과 스타일 분석이 기다리고 있습니다." : "당신의 옷장을 AI가 큐레이션합니다."}
-            </p>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {mode === "register" && inp("name", "이름 (선택)")}
-            {inp("email", "이메일", "email")}
-            {inp("password", "비밀번호", "password")}
-          </div>
-
-          {error && (
-            <div style={{ marginTop: 12, padding: "10px 14px", background: "rgba(168,66,58,0.08)", border: "1px solid rgba(168,66,58,0.2)", borderRadius: 4, fontSize: 13, color: "var(--fit-tight)", fontFamily: "var(--font-korean)" }}>
-              {error}
-            </div>
-          )}
-
-          <button className="btn btn-primary" onClick={submit} disabled={loading} style={{ width: "100%", marginTop: 20, opacity: loading ? 0.7 : 1 }}>
-            {loading ? "처리중..." : mode === "login" ? "로그인" : "계정 만들기"}
+        <div className="social-login__providers">
+          <button className="social-login__provider" onClick={() => void handleProvider("google")} disabled={pendingProvider !== null || !isSupabaseAuthConfigured}>
+            <ProviderMark provider="google" />
+            <span>Google로 계속하기</span>
+            <span aria-hidden="true">→</span>
           </button>
-
-          <div style={{ textAlign: "center", marginTop: 20, fontSize: 13, color: "var(--text-muted)", fontFamily: "var(--font-korean)" }}>
-            {mode === "login" ? "계정이 없으신가요?" : "이미 계정이 있으신가요?"}{" "}
-            <button onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); }} style={{ background: "none", border: "none", color: "var(--walnut)", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-korean)", textDecoration: "underline", padding: 0 }}>
-              {mode === "login" ? "회원가입" : "로그인"}
-            </button>
-          </div>
-        </div>
-
-        <div style={{ textAlign: "center", marginTop: 16 }}>
-          <button onClick={async () => {
-            setLoading(true); setError("");
-            try {
-              try { await login("demo@coordit.com", "demo1234"); }
-              catch { await signup("demo@coordit.com", "demo1234"); }
-              router.push("/closet");
-            } catch (e) { setError(e instanceof Error ? e.message : "오류"); }
-            finally { setLoading(false); }
-          }} style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", letterSpacing: "0.1em", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
-            DEMO LOGIN
+          <button className="social-login__provider social-login__provider--apple" onClick={() => void handleProvider("apple")} disabled={pendingProvider !== null || !isSupabaseAuthConfigured}>
+            <ProviderMark provider="apple" />
+            <span>Apple로 계속하기</span>
+            <span aria-hidden="true">→</span>
           </button>
         </div>
+
+        {!isSupabaseAuthConfigured ? (
+          <p className="account-form__notice account-form__notice--error" role="alert">소셜 로그인 설정이 아직 완료되지 않았어요. 관리자에게 Google·Apple 로그인 설정을 요청해 주세요.</p>
+        ) : null}
+        {pendingProvider ? <p className="account-form__notice" aria-live="polite">{pendingProvider === "google" ? "Google" : "Apple"} 로그인 페이지로 이동하고 있어요.</p> : null}
+        {error ? <p className="account-form__notice account-form__notice--error" role="alert">{error}</p> : null}
+
+        <div className="social-login__divider"><span>안전한 소셜 로그인</span></div>
+        <p className="social-login__legal">계속하면 Coordit의 <Link href="/terms">이용약관</Link>과 <Link href="/privacy">개인정보 처리방침</Link>을 확인한 것으로 간주합니다. 필수 동의는 다음 단계에서 직접 선택합니다.</p>
       </div>
-    </main>
+    </AccountShell>
   );
+}
+
+export default function LoginPage() {
+  return <Suspense fallback={<main className="auth-gate">로그인 화면을 준비하고 있어요.</main>}><LoginPageContent /></Suspense>;
 }

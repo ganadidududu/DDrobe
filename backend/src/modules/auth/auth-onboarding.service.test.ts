@@ -29,7 +29,7 @@ const tests: readonly {
     }
   },
   {
-    name: "full success persists optional fields body and all consents",
+    name: "full birth date persists with only height and weight from onboarding",
     run: async (complete) => {
       const fake = createFakeRepository();
       const result = await complete(
@@ -37,8 +37,7 @@ const tests: readonly {
         { id: "user-1", email: "user@example.com" },
         payload({
           gender: "female",
-          birth_year: "1994",
-          age: "88",
+          birthDate: "1994-05-17",
           bodyMeasurements: { heightCm: 168, weightKg: 54 },
           consents: {
             terms_of_service: { accepted: true, version: "2026-07-07" },
@@ -55,8 +54,14 @@ const tests: readonly {
         ["terms_of_service", "privacy_policy", "fit_data_improvement", "marketing"]
       );
       assert.equal(fake.users[0]?.gender, "female");
+      assert.equal(fake.users[0]?.birth_date, "1994-05-17");
       assert.equal(fake.users[0]?.birth_year, 1994);
       assert.equal(fake.operations.filter((operation) => operation.kind === "body").length, 1);
+      assert.deepEqual(fake.writtenBodies[0], {
+        height_cm: 168,
+        weight_kg: 54,
+        raw_data: { source: "onboarding" }
+      });
       assert.equal(fake.writtenBodies[0]?.raw_data.source, "onboarding");
     }
   },

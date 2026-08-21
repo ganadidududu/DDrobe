@@ -16,3 +16,14 @@ coverage
 coordit.db
 uploads/
 
+# Local Codex work plans, evidence, and temporary worktrees
+.omo/
+.omo.local-*/
+.worktrees/
+
+# Generated local agent maps
+AGENTS.md
+**/AGENTS.md
+
+# Xcode user-specific UI and scheme state
+**/xcuserdata/

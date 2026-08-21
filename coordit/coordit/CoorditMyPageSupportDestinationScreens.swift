@@ -6,34 +6,43 @@ extension CoorditMyPageFamilyView {
         VStack(spacing: metrics.value(18)) {
             CoorditSettingsCard(metrics: metrics) {
                 VStack(spacing: metrics.value(13)) {
-                    measurementField("어깨", unit: "cm", text: $shoulderMeasurement, identifier: "mypage-measurement-shoulder", metrics: metrics)
-                    measurementField("가슴", unit: "cm", text: $chestMeasurement, identifier: "mypage-measurement-chest", metrics: metrics)
-                    measurementField("허리", unit: "cm", text: $waistMeasurement, identifier: "mypage-measurement-waist", metrics: metrics)
-                    measurementField("엉덩이", unit: "cm", text: $hipMeasurement, identifier: "mypage-measurement-hip", metrics: metrics)
-                    measurementField("인심", unit: "cm", text: $inseamMeasurement, identifier: "mypage-measurement-inseam", metrics: metrics)
+                    measurementField("키", unit: "cm", text: $heightMeasurement, identifier: "mypage-measurement-height", metrics: metrics)
+                    measurementField("몸무게", unit: "kg", text: $weightMeasurement, identifier: "mypage-measurement-weight", metrics: metrics)
                 }
                 .padding(.horizontal, metrics.value(13))
             }
 
             if bodyMeasurementsSaved {
                 CoorditSettingsStatusBanner(
-                    text: backendSession.isAuthenticated ? "신체 치수를 백엔드에 저장했어요." : "백엔드 저장은 로그인이 필요해요.",
+                    text: backendSession.isAuthenticated ? "키와 몸무게를 백엔드에 저장했어요." : "백엔드 저장은 로그인이 필요해요.",
                     identifier: "mypage-body-measurements-saved",
                     metrics: metrics,
                     isWarning: !backendSession.isAuthenticated
                 )
+            } else if !bodyMeasurementSaveError.isEmpty {
+                CoorditSettingsStatusBanner(
+                    text: bodyMeasurementSaveError,
+                    identifier: "mypage-body-measurements-save-error",
+                    metrics: metrics,
+                    isWarning: true
+                )
             }
 
             CoorditSettingsPrimaryButton(
-                title: "신체 치수 저장",
+                title: "키와 몸무게 저장",
                 identifier: "mypage-body-measurements-save",
                 metrics: metrics,
-                isEnabled: allMeasurementsEntered
+                isEnabled: hasBodyMeasurementInput
             ) {
                 Task {
-                    await backendSession.saveBodyMeasurement(bodyMeasurementRequest)
-                    bodyMeasurementsSaved = true
-                    syncBackendBodyMeasurement()
+                    if await backendSession.saveBodyMeasurement(bodyMeasurementRequest) {
+                        bodyMeasurementsSaved = true
+                        bodyMeasurementSaveError = ""
+                        syncBackendBodyMeasurement()
+                    } else {
+                        bodyMeasurementsSaved = false
+                        bodyMeasurementSaveError = backendSession.statusText
+                    }
                 }
             }
         }
@@ -44,7 +53,7 @@ extension CoorditMyPageFamilyView {
             CoorditSettingsInfoPanel(
                 symbol: "hand.raised.fill",
                 title: "개인정보를 투명하게 다룹니다",
-                detail: "시행일 2026.06.30 · COORDIT 서비스 기준",
+                detail: "시행일 2026.07.07 · COORDIT 서비스 기준",
                 metrics: metrics
             )
 
@@ -69,7 +78,7 @@ extension CoorditMyPageFamilyView {
                 CoorditSettingsDivider(metrics: metrics)
                 CoorditSettingsDocumentSection(
                     title: "4. 이용자의 권리",
-                    bodyText: "사용자는 자신의 정보를 열람, 수정, 삭제하거나 처리 정지를 요청할 수 있습니다. 문의하기 화면을 통해 개인정보 관련 요청을 접수할 수 있습니다.",
+                    bodyText: "사용자는 자신의 정보를 열람, 수정, 삭제하거나 처리 정지를 요청할 수 있습니다. 문의 이메일을 통해 개인정보 관련 요청을 접수할 수 있습니다.",
                     metrics: metrics
                 )
             }
@@ -81,7 +90,7 @@ extension CoorditMyPageFamilyView {
             CoorditSettingsInfoPanel(
                 symbol: "doc.text.fill",
                 title: "COORDIT 서비스 이용약관",
-                detail: "시행일 2026.06.30 · 앱 사용 전 주요 내용을 확인해 주세요.",
+                detail: "시행일 2026.07.07 · 앱 사용 전 주요 내용을 확인해 주세요.",
                 metrics: metrics
             )
 
@@ -113,104 +122,6 @@ extension CoorditMyPageFamilyView {
         }
     }
 
-    func contact(metrics: CoorditResponsiveMetrics) -> some View {
-        VStack(spacing: metrics.value(18)) {
-            CoorditSettingsInfoPanel(
-                symbol: "envelope.fill",
-                title: "무엇을 도와드릴까요?",
-                detail: "support@coordit.app · 입력한 문의는 현재 이 기기에만 기록됩니다.",
-                metrics: metrics
-            )
-
-            CoorditSettingsCard(metrics: metrics) {
-                VStack(spacing: metrics.value(13)) {
-                    CoorditSettingsTextField(
-                        title: "문의 제목",
-                        placeholder: "문의 제목을 입력하세요",
-                        text: $contactSubject,
-                        identifier: "mypage-contact-subject",
-                        metrics: metrics
-                    )
-                    CoorditSettingsTextField(
-                        title: "문의 내용",
-                        placeholder: "도움이 필요한 내용을 자세히 적어주세요",
-                        text: $contactMessage,
-                        identifier: "mypage-contact-message",
-                        metrics: metrics,
-                        multiline: true
-                    )
-                }
-                .padding(.horizontal, metrics.value(13))
-            }
-
-            if contactSent {
-                CoorditSettingsStatusBanner(
-                    text: "문의 내용을 저장했어요. 전송 API 연결 전 미리보기 상태입니다.",
-                    identifier: "mypage-contact-sent",
-                    metrics: metrics
-                )
-            }
-
-            CoorditSettingsPrimaryButton(
-                title: "문의 보내기",
-                identifier: "mypage-contact-submit",
-                metrics: metrics,
-                isEnabled: !contactSubject.isEmpty && !contactMessage.isEmpty
-            ) {
-                contactSent = true
-            }
-        }
-    }
-
-    func bugReport(metrics: CoorditResponsiveMetrics) -> some View {
-        VStack(spacing: metrics.value(18)) {
-            CoorditSettingsInfoPanel(
-                symbol: "ladybug.fill",
-                title: "문제를 알려주세요",
-                detail: "발생한 화면과 재현 과정을 적어주면 더 빠르게 확인할 수 있어요.",
-                metrics: metrics
-            )
-
-            CoorditSettingsCard(metrics: metrics) {
-                VStack(spacing: metrics.value(13)) {
-                    CoorditSettingsTextField(
-                        title: "문제 요약",
-                        placeholder: "어떤 문제가 있었나요?",
-                        text: $bugSummary,
-                        identifier: "mypage-bug-summary",
-                        metrics: metrics
-                    )
-                    CoorditSettingsTextField(
-                        title: "재현 방법",
-                        placeholder: "문제가 나타나기까지의 순서를 적어주세요",
-                        text: $bugSteps,
-                        identifier: "mypage-bug-steps",
-                        metrics: metrics,
-                        multiline: true
-                    )
-                }
-                .padding(.horizontal, metrics.value(13))
-            }
-
-            if bugReportSent {
-                CoorditSettingsStatusBanner(
-                    text: "버그 신고 내용을 저장했어요. 전송 API 연결 전 미리보기 상태입니다.",
-                    identifier: "mypage-bug-report-sent",
-                    metrics: metrics
-                )
-            }
-
-            CoorditSettingsPrimaryButton(
-                title: "버그 신고 보내기",
-                identifier: "mypage-bug-submit",
-                metrics: metrics,
-                isEnabled: !bugSummary.isEmpty && !bugSteps.isEmpty
-            ) {
-                bugReportSent = true
-            }
-        }
-    }
-
     private func measurementField(
         _ title: String,
         unit: String,
@@ -233,18 +144,15 @@ extension CoorditMyPageFamilyView {
         }
     }
 
-    private var allMeasurementsEntered: Bool {
-        [shoulderMeasurement, chestMeasurement, waistMeasurement, hipMeasurement, inseamMeasurement]
-            .allSatisfy { Double($0) != nil }
+    private var hasBodyMeasurementInput: Bool {
+        Double(heightMeasurement) != nil || Double(weightMeasurement) != nil
     }
 
     private var bodyMeasurementRequest: BodyMeasurementRequest {
         BodyMeasurementRequest(
-            shoulderWidth: Double(shoulderMeasurement),
-            chestCircumference: Double(chestMeasurement),
-            waistCircumference: Double(waistMeasurement),
-            hipCircumference: Double(hipMeasurement),
-            rawData: .init(source: "ios-mypage", inseamCm: Double(inseamMeasurement))
+            heightCm: Double(heightMeasurement),
+            weightKg: Double(weightMeasurement),
+            rawData: .init(source: "ios-mypage")
         )
     }
 }

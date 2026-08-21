@@ -505,6 +505,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = coordit/coordit.entitlements;
 				CODE_SIGN_STYLE = Automatic;
+				COORDIT_API_BASE_URL = "https://coordit-backend-staging-gei6wjuuiq-du.a.run.app";
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 87V7WR9QND;
 				ENABLE_PREVIEWS = YES;
@@ -539,6 +540,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = coordit/coordit.entitlements;
 				CODE_SIGN_STYLE = Automatic;
+				COORDIT_API_BASE_URL = "https://coordit-backend-staging-gei6wjuuiq-du.a.run.app";
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 87V7WR9QND;
 				ENABLE_PREVIEWS = YES;

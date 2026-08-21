@@ -13,40 +13,26 @@ struct CoorditMyPageFamilyView: View {
     let onRouteChange: (CoorditFrameRoute) -> Void
 
     @EnvironmentObject var backendSession: CoorditBackendSessionStore
+    @Environment(\.openURL) var openURL
+    @Environment(\.scenePhase) var scenePhase
     @State var feedDataConsent = true
     @State var aiDataConsent = false
-    @State var marketingNotifications = false
-    @State var selectedTheme: MyPageTheme = .system
-    @State var selectedLanguage: MyPageLanguage = .korean
+    @AppStorage("coordit.marketing-notifications.enabled") var marketingNotifications = false
+    @State var marketingNotificationStatus: CoorditMarketingNotificationStatus = .notDetermined
     @State var profileName = "코딧 사용자"
     @State var profileBio = "나에게 꼭 맞는 핏을 찾고 있어요."
     @State var profileAvatarIndex = 0
     @State var profileSaved = false
-    @State var currentPassword = ""
-    @State var newPassword = ""
-    @State var confirmedPassword = ""
-    @State var passwordChanged = false
     @State var logoutCompleted = false
     @State var deletionAcknowledged = false
     @State var deletionCompleted = false
     @State var deletionLocalCleanupFailed = false
-    @State var shoulderMeasurement = "44.5"
-    @State var chestMeasurement = "103.0"
-    @State var waistMeasurement = "80.0"
-    @State var hipMeasurement = "96.0"
-    @State var inseamMeasurement = "78.0"
+    @State var heightMeasurement = ""
+    @State var weightMeasurement = ""
     @State var bodyMeasurementsSaved = false
-    @State var contactSubject = ""
-    @State var contactMessage = ""
-    @State var contactSent = false
-    @State var bugSummary = ""
-    @State var bugSteps = ""
-    @State var bugReportSent = false
-    @State var backendEmail = ""
-    @State var backendPassword = ""
+    @State var bodyMeasurementSaveError = ""
     @StateObject var rewardedAdService = CoorditRewardedAdService()
     @State var rewardBalanceBefore = 0
-
     var body: some View {
         CoorditScreenScaffold(
             route: route,
@@ -105,6 +91,13 @@ struct CoorditMyPageFamilyView: View {
             await backendSession.bootstrap()
             syncBackendProfile()
             syncBackendBodyMeasurement()
+        }
+        .onChange(of: backendSession.latestBodyMeasurement) { _, _ in
+            syncBackendBodyMeasurement()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard route == .myPageNotifications, phase == .active else { return }
+            Task { await refreshMarketingNotificationStatus() }
         }
         .task(id: route) {
             guard route == .myPageThreadCharge else { return }
@@ -171,10 +164,6 @@ struct CoorditMyPageFamilyView: View {
             "coordit-screen-mypage-privacy-policy"
         case .myPageTerms:
             "coordit-screen-mypage-terms"
-        case .myPageContact:
-            "coordit-screen-mypage-contact"
-        case .myPageBugReport:
-            "coordit-screen-mypage-bug-report"
         default:
             "coordit-screen-mypage"
         }
@@ -215,10 +204,6 @@ struct CoorditMyPageFamilyView: View {
             privacyPolicy(metrics: metrics)
         case .myPageTerms:
             terms(metrics: metrics)
-        case .myPageContact:
-            contact(metrics: metrics)
-        case .myPageBugReport:
-            bugReport(metrics: metrics)
         default:
             myPageLanding(metrics: metrics, contentMetrics: compactContentMetrics(for: metrics))
         }
@@ -245,11 +230,11 @@ struct CoorditMyPageFamilyView: View {
         case .myPageAccount:
             ("계정", .myPage, 18)
         case .myPagePrivacy:
-            ("개인정보/보안", .myPage, 112)
+            ("개인정보/보안", .myPage, 18)
         case .myPageAppSettings:
-            ("앱 설정", .myPage, 112)
+            ("앱 설정", .myPage, 0)
         case .myPageNotifications:
-            ("알림", .myPage, 112)
+            ("알림", .myPage, 0)
         case .myPageProfileEdit:
             ("프로필 수정", .myPageAccount, 18)
         case .myPagePasswordChange:
@@ -259,15 +244,11 @@ struct CoorditMyPageFamilyView: View {
         case .myPageAccountDeletion:
             ("회원 탈퇴", .myPageAccount, 18)
         case .myPageBodyMeasurements:
-            ("신체 치수 관리", .myPageBody, 18)
+            ("신체 정보 수정", .myPageBody, 18)
         case .myPagePrivacyPolicy:
             ("개인정보 처리방침", .myPagePrivacy, 18)
         case .myPageTerms:
             ("서비스 이용약관", .myPagePrivacy, 18)
-        case .myPageContact:
-            ("문의하기", .myPageAppSettings, 18)
-        case .myPageBugReport:
-            ("버그 신고", .myPageAppSettings, 18)
         default:
             ("MY PAGE", .main04, 10)
         }
@@ -290,16 +271,12 @@ struct CoorditMyPageFamilyView: View {
         contentMetrics: CoorditResponsiveMetrics
     ) -> some View {
         VStack(spacing: contentMetrics.value(10)) {
-            if backendSession.isAuthenticated {
-                myPageYarnBalanceCard(metrics: contentMetrics)
-            } else {
-                myPageLoginEntry(metrics: contentMetrics)
-            }
+            myPageYarnBalanceCard(metrics: contentMetrics)
 
             VStack(spacing: contentMetrics.value(10)) {
                 CoorditSettingsMenuRow(
                     title: "계정",
-                    subtitle: "프로필, 이메일, 비밀번호, 로그아웃",
+                    subtitle: "프로필, 연결 계정, 로그아웃",
                     assetName: CoorditAssetNames.mypageAccount,
                     metrics: contentMetrics
                 ) {
@@ -308,7 +285,7 @@ struct CoorditMyPageFamilyView: View {
 
                 CoorditSettingsMenuRow(
                     title: "내 신체 정보",
-                    subtitle: "키, 몸무게, 성별, 체수, 단위",
+                    subtitle: "키, 몸무게, 성별, 생일",
                     assetName: CoorditAssetNames.mypageBody,
                     metrics: contentMetrics
                 ) {
@@ -335,7 +312,7 @@ struct CoorditMyPageFamilyView: View {
 
                 CoorditSettingsMenuRow(
                     title: "앱 설정",
-                    subtitle: "테마, 언어, 버전, 문의, 신고",
+                    subtitle: "알림, 버전, 문의",
                     assetName: CoorditAssetNames.mypageSettings,
                     metrics: contentMetrics
                 ) {
@@ -390,45 +367,8 @@ struct CoorditMyPageFamilyView: View {
         .accessibilityIdentifier("mypage-yarn-balance-card")
     }
 
-    private func myPageLoginEntry(metrics: CoorditResponsiveMetrics) -> some View {
-        CoorditSettingsCard(metrics: metrics) {
-            VStack(alignment: .leading, spacing: metrics.value(13)) {
-                HStack(spacing: metrics.value(10)) {
-                    Image(systemName: backendSession.isAuthenticated ? "checkmark.seal.fill" : "person.crop.circle.badge.plus")
-                        .font(.system(size: metrics.value(21), weight: .semibold))
-                        .foregroundStyle(CoorditSettingsStyle.ink)
-                        .frame(width: metrics.value(32), height: metrics.value(32))
-
-                    VStack(alignment: .leading, spacing: metrics.value(4)) {
-                        Text(backendSession.isAuthenticated ? backendSession.displayNameText : "로그인하고 내 핏 기록을 이어가세요")
-                            .font(CoorditTypography.gmarketBold(size: metrics.value(13), relativeTo: .subheadline))
-                            .foregroundStyle(.black)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                        Text(backendSession.isAuthenticated ? backendSession.emailText : "계정으로 신체 정보와 추천 기록을 저장해요")
-                            .font(CoorditTypography.gmarketMedium(size: metrics.value(9), relativeTo: .caption))
-                            .foregroundStyle(CoorditSettingsStyle.muted)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.78)
-                    }
-                }
-
-                CoorditSettingsPrimaryButton(
-                    title: backendSession.isAuthenticated ? "계정 관리" : "로그인 / 회원가입",
-                    identifier: "mypage-login-entry",
-                    metrics: metrics
-                ) {
-                    onRouteChange(.myPageAccount)
-                }
-            }
-            .padding(.horizontal, metrics.value(13))
-        }
-        .padding(.top, metrics.value(18))
-    }
-
     private func account(metrics: CoorditResponsiveMetrics) -> some View {
         VStack(spacing: metrics.value(18)) {
-            backendConnectionStatus(metrics: metrics)
             backendAuthControls(metrics: metrics)
 
             CoorditSettingsCard(metrics: metrics) {
@@ -437,21 +377,11 @@ struct CoorditMyPageFamilyView: View {
                 }) {
                     CoorditSettingsChevron(metrics: metrics)
                 }
-                CoorditSettingsDivider(metrics: metrics)
-                CoorditSettingsDetailRow(title: "이메일 확인", metrics: metrics) {
-                    CoorditSettingsValuePill(text: backendSession.emailText, metrics: metrics)
-                }
-                CoorditSettingsDivider(metrics: metrics)
-                CoorditSettingsDetailRow(title: "비밀번호 변경", subtitle: "마지막 변경 32일 전", metrics: metrics, action: {
-                    onRouteChange(.myPagePasswordChange)
-                }) {
-                    CoorditSettingsChevron(metrics: metrics)
-                }
-                CoorditSettingsDivider(metrics: metrics)
-                CoorditSettingsDetailRow(title: "로그아웃", subtitle: "현재 기기에서 로그아웃", metrics: metrics, action: {
-                    onRouteChange(.myPageLogout)
-                }) {
-                    CoorditSettingsChevron(metrics: metrics)
+                if backendSession.isAuthenticated {
+                    CoorditSettingsDivider(metrics: metrics)
+                    CoorditSettingsDetailRow(title: "연결 계정", metrics: metrics) {
+                        CoorditSettingsValuePill(text: backendSession.emailText, metrics: metrics)
+                    }
                 }
                 CoorditSettingsDivider(metrics: metrics)
                 CoorditSettingsDetailRow(title: "회원 탈퇴", subtitle: "계정 및 데이터 삭제", metrics: metrics, titleColor: CoorditSettingsStyle.danger, action: {
@@ -465,31 +395,44 @@ struct CoorditMyPageFamilyView: View {
 
     private func bodyInfo(metrics: CoorditResponsiveMetrics) -> some View {
         VStack(spacing: metrics.value(27)) {
-            backendConnectionStatus(metrics: metrics)
-
             CoorditSettingsCard(metrics: metrics) {
                 CoorditSettingsDetailRow(title: "키", metrics: metrics) {
-                    CoorditSettingsValuePill(text: "미등록", metrics: metrics)
+                    CoorditSettingsValuePill(
+                        text: backendSession.latestBodyMeasurement?.heightCm.map { "\(Int($0)) cm" } ?? "미등록",
+                        metrics: metrics
+                    )
                 }
                 CoorditSettingsDivider(metrics: metrics)
                 CoorditSettingsDetailRow(title: "몸무게", metrics: metrics) {
-                    CoorditSettingsValuePill(text: "미등록", metrics: metrics)
+                    CoorditSettingsValuePill(
+                        text: backendSession.latestBodyMeasurement?.weightKg.map { "\(Int($0)) kg" } ?? "미등록",
+                        metrics: metrics
+                    )
                 }
                 CoorditSettingsDivider(metrics: metrics)
                 CoorditSettingsDetailRow(title: "성별", metrics: metrics) {
-                    CoorditSettingsValuePill(text: "남성", metrics: metrics)
+                    CoorditSettingsValuePill(text: genderLabel, metrics: metrics)
                 }
                 CoorditSettingsDivider(metrics: metrics)
-                CoorditSettingsDetailRow(title: "출생연도", metrics: metrics) {
-                    CoorditSettingsValuePill(text: "1996", metrics: metrics)
+                CoorditSettingsDetailRow(title: "생일", metrics: metrics) {
+                    CoorditSettingsValuePill(text: backendSession.profile?.birthDate ?? "미등록", metrics: metrics)
                 }
                 CoorditSettingsDivider(metrics: metrics)
-                CoorditSettingsDetailRow(title: "신체 치수 관리", subtitle: "어깨, 가슴, 허리 등", metrics: metrics, action: {
+                CoorditSettingsDetailRow(title: "신체 정보 수정", subtitle: "키와 몸무게 수정", metrics: metrics, action: {
                     onRouteChange(.myPageBodyMeasurements)
                 }) {
                     CoorditSettingsChevron(metrics: metrics)
                 }
             }
+        }
+    }
+
+    private var genderLabel: String {
+        switch backendSession.profile?.gender {
+        case "female": "여성"
+        case "male": "남성"
+        case "prefer_not_to_say": "응답하지 않음"
+        default: "미등록"
         }
     }
 

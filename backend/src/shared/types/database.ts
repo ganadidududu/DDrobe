@@ -32,6 +32,7 @@ export interface UserRow {
   email: string;
   display_name: string | null;
   gender: string | null;
+  birth_date: string | null;
   birth_year: number | null;
   created_at: string;
   updated_at: string;

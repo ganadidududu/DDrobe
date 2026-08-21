@@ -26,8 +26,6 @@ final class CoorditFinalRouteCoverageUITests: XCTestCase {
         "mypage-body-measurements",
         "mypage-privacy-policy",
         "mypage-terms",
-        "mypage-contact",
-        "mypage-bug-report",
         "closet-overview",
         "closet-detail-top",
         "closet-detail-bottom",

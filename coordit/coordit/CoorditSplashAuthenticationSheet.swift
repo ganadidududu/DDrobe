@@ -1,83 +1,115 @@
 import SwiftUI
 
 #if os(iOS)
-struct CoorditSplashAuthenticationSheet: View {
+struct CoorditAuthenticationEntryView: View {
     let onAuthenticated: () -> Void
 
-    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var backendSession: CoorditBackendSessionStore
 
     var body: some View {
-        VStack(spacing: 0) {
-            Text("coordit에 로그인")
-                .font(CoorditTypography.gmarketMedium(size: CoorditSplashAuthenticationDesign.titleSize, relativeTo: .title2))
-                .foregroundStyle(Main01DesignTokens.Colors.chrome)
+        GeometryReader { geometry in
+            let metrics = CoorditResponsiveMetrics(size: geometry.size)
+
+            ZStack(alignment: .top) {
+                CoorditSharedAppBackground()
+
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        pageTitle(metrics: metrics)
+                            .padding(.top, metrics.value(CoorditAuthenticationEntryDesign.titleTopInset))
+                        introduction(metrics: metrics)
+                            .padding(.top, metrics.value(CoorditAuthenticationEntryDesign.titleToIntroductionSpacing))
+                        socialProviders(metrics: metrics)
+                            .padding(.top, metrics.value(CoorditAuthenticationEntryDesign.introductionToProvidersSpacing))
+                        legalNotice(metrics: metrics)
+                            .padding(.top, metrics.value(CoorditAuthenticationEntryDesign.providersToLegalSpacing))
+                    }
+                    .frame(width: metrics.value(CoorditAuthenticationEntryDesign.contentWidth), alignment: .leading)
+                    .padding(.top, metrics.value(CoorditAuthenticationEntryDesign.topInset))
+                    .padding(.bottom, metrics.value(CoorditAuthenticationEntryDesign.bottomInset))
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
+        }
+        .accessibilityIdentifier("coordit-screen-splash")
+    }
+
+    private func pageTitle(metrics: CoorditResponsiveMetrics) -> some View {
+        HStack(spacing: metrics.value(CoorditAuthenticationEntryDesign.titleStackSpacing)) {
+            Text("로그인 / 회원가입")
+                .font(CoorditTypography.gmarketBold(size: metrics.value(CoorditAuthenticationEntryDesign.pageTitleFontSize), relativeTo: .title))
+                .foregroundStyle(.black)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, metrics.value(CoorditAuthenticationEntryDesign.titleHorizontalInset))
+        .frame(height: metrics.value(CoorditAuthenticationEntryDesign.titleHeight))
+        .background(CoorditSettingsStyle.panel)
+        .clipShape(RoundedRectangle(cornerRadius: metrics.value(CoorditAuthenticationEntryDesign.titleCornerRadius), style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: metrics.value(CoorditAuthenticationEntryDesign.titleCornerRadius), style: .continuous)
+                .stroke(CoorditSettingsStyle.line.opacity(CoorditAuthenticationEntryDesign.titleBorderOpacity), lineWidth: CoorditAuthenticationEntryDesign.titleBorderWidth)
+        }
+        .shadow(color: .black.opacity(CoorditAuthenticationEntryDesign.titleShadowOpacity), radius: metrics.value(CoorditAuthenticationEntryDesign.titleShadowRadius), y: metrics.value(CoorditAuthenticationEntryDesign.titleShadowYOffset))
+    }
+
+    private func introduction(metrics: CoorditResponsiveMetrics) -> some View {
+        VStack(alignment: .leading, spacing: metrics.value(CoorditAuthenticationEntryDesign.introductionStackSpacing)) {
+            Text("계속하려면\n로그인하세요")
+                .font(CoorditTypography.gmarketBold(size: metrics.value(CoorditAuthenticationEntryDesign.introductionTitleFontSize), relativeTo: .title2))
+                .foregroundStyle(CoorditSettingsStyle.ink)
+                .lineSpacing(metrics.value(CoorditAuthenticationEntryDesign.introductionTitleLineSpacing))
+                .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
-                .accessibilityIdentifier("coordit-splash-auth-sheet")
 
-            Text("나만의 디지털 옷장을 이어서 만나보세요.")
-                .font(CoorditTypography.gmarketMedium(size: CoorditSplashAuthenticationDesign.subtitleSize, relativeTo: .subheadline))
-                .foregroundStyle(Main01DesignTokens.Colors.chrome.opacity(0.6))
-                .padding(.top, CoorditSplashAuthenticationDesign.titleToSubtitleSpacing)
+            Text("Google 또는 Apple 계정으로\n내 핏 기록을 이어갈 수 있어요.")
+                .font(CoorditTypography.gmarketMedium(size: metrics.value(CoorditAuthenticationEntryDesign.introductionBodyFontSize), relativeTo: .subheadline))
+                .foregroundStyle(CoorditSettingsStyle.muted)
+                .lineSpacing(metrics.value(CoorditAuthenticationEntryDesign.introductionBodyLineSpacing))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
 
-            VStack(spacing: CoorditSplashAuthenticationDesign.providerStackSpacing) {
+    private func socialProviders(metrics: CoorditResponsiveMetrics) -> some View {
+        CoorditSettingsCard(metrics: metrics) {
+            VStack(spacing: 0) {
                 socialButton(
                     title: "Google로 계속하기",
-                    icon: "G",
-                    iconBackground: CoorditSplashAuthenticationDesign.googleMarkSurface,
-                    iconForeground: CoorditSplashAuthenticationDesign.googleMarkForeground,
+                    mark: "G",
+                    markBackground: CoorditSettingsStyle.field,
+                    markForeground: CoorditDesignTokens.ColorToken.blue,
+                    identifier: "splash-auth-google",
+                    metrics: metrics,
                     action: { await backendSession.loginWithGoogle() }
                 )
+
+                CoorditSettingsDivider(metrics: metrics)
 
                 socialButton(
                     title: "Apple로 계속하기",
                     systemImage: "apple.logo",
-                    iconBackground: CoorditSplashAuthenticationDesign.appleMarkSurface,
-                    iconForeground: CoorditSplashAuthenticationDesign.appleMarkForeground,
+                    markBackground: CoorditSettingsStyle.ink,
+                    markForeground: .white,
+                    identifier: "splash-auth-apple",
+                    metrics: metrics,
                     action: { await backendSession.loginWithApple() }
                 )
             }
-            .padding(.top, CoorditSplashAuthenticationDesign.subtitleToProviderSpacing)
-
-            if backendSession.isWorking {
-                ProgressView()
-                    .tint(Main01DesignTokens.Colors.chrome)
-                    .padding(.top, CoorditSplashAuthenticationDesign.statusTopSpacing)
-                    .accessibilityLabel("로그인 진행 중")
-            } else if backendSession.isWarning {
-                Text(backendSession.statusText)
-                    .font(CoorditTypography.gmarketMedium(size: CoorditSplashAuthenticationDesign.statusSize, relativeTo: .caption))
-                    .foregroundStyle(.red.opacity(0.85))
-                    .multilineTextAlignment(.center)
-                    .padding(.top, CoorditSplashAuthenticationDesign.statusTopSpacing)
-                    .accessibilityIdentifier("splash-auth-error")
-            }
-
-            Spacer(minLength: CoorditSplashAuthenticationDesign.footerMinimumSpacing)
-
-            Text("계속하면 coordit의 이용약관과 개인정보 처리방침에 동의하게 됩니다.")
-                .font(CoorditTypography.gmarketMedium(size: CoorditSplashAuthenticationDesign.legalSize, relativeTo: .caption2))
-                .foregroundStyle(Main01DesignTokens.Colors.chrome.opacity(0.46))
-                .multilineTextAlignment(.center)
         }
-        .padding(.horizontal, CoorditSplashAuthenticationDesign.horizontalInset)
-        .padding(.top, CoorditSplashAuthenticationDesign.topInset)
-        .padding(.bottom, CoorditSplashAuthenticationDesign.bottomInset)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(.white)
-        .presentationDetents([.height(CoorditSplashAuthenticationDesign.sheetHeight)])
-        .presentationDragIndicator(.visible)
-        .presentationCornerRadius(CoorditSplashAuthenticationDesign.sheetCornerRadius)
-        .interactiveDismissDisabled(backendSession.isWorking)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("coordit-splash-auth-sheet")
     }
 
     @ViewBuilder
     private func socialButton(
         title: String,
-        icon: String? = nil,
+        mark: String? = nil,
         systemImage: String? = nil,
-        iconBackground: Color,
-        iconForeground: Color,
+        markBackground: Color,
+        markForeground: Color,
+        identifier: String,
+        metrics: CoorditResponsiveMetrics,
         action: @escaping () async -> Void
     ) -> some View {
         Button {
@@ -85,71 +117,94 @@ struct CoorditSplashAuthenticationSheet: View {
                 await action()
                 guard backendSession.isAuthenticated else { return }
                 onAuthenticated()
-                dismiss()
             }
         } label: {
-            HStack(spacing: 12) {
+            HStack(spacing: metrics.value(CoorditAuthenticationEntryDesign.providerStackSpacing)) {
                 Group {
-                    if let icon {
-                        Text(icon)
-                            .font(.system(size: CoorditSplashAuthenticationDesign.googleMarkSize, weight: .bold, design: .rounded))
+                    if let mark {
+                        Text(mark)
+                            .font(.system(size: metrics.value(CoorditAuthenticationEntryDesign.providerMarkFontSize), weight: .bold, design: .rounded))
                     } else if let systemImage {
                         Image(systemName: systemImage)
-                            .font(.system(size: CoorditSplashAuthenticationDesign.appleMarkSize, weight: .semibold))
+                            .font(.system(size: metrics.value(CoorditAuthenticationEntryDesign.providerMarkFontSize), weight: .semibold))
                     }
                 }
-                .foregroundStyle(iconForeground)
-                .frame(width: CoorditSplashAuthenticationDesign.providerMarkFrame, height: CoorditSplashAuthenticationDesign.providerMarkFrame)
-                .background(iconBackground, in: Circle())
+                .foregroundStyle(markForeground)
+                .frame(width: metrics.value(CoorditAuthenticationEntryDesign.providerMarkSize), height: metrics.value(CoorditAuthenticationEntryDesign.providerMarkSize))
+                .background(markBackground, in: Circle())
 
                 Text(title)
-                    .font(CoorditTypography.gmarketMedium(size: CoorditSplashAuthenticationDesign.providerTitleSize, relativeTo: .body))
-                    .foregroundStyle(Main01DesignTokens.Colors.chrome)
+                    .font(CoorditTypography.gmarketBold(size: metrics.value(CoorditAuthenticationEntryDesign.providerTitleFontSize), relativeTo: .body))
+                    .foregroundStyle(CoorditSettingsStyle.ink)
 
                 Spacer(minLength: 0)
+
+                Image(systemName: "arrow.right")
+                    .font(.system(size: metrics.value(CoorditAuthenticationEntryDesign.providerArrowFontSize), weight: .semibold))
+                    .foregroundStyle(CoorditSettingsStyle.muted)
             }
-            .padding(.horizontal, CoorditSplashAuthenticationDesign.providerHorizontalInset)
-            .frame(maxWidth: .infinity, minHeight: CoorditSplashAuthenticationDesign.providerHeight)
-            .background(CoorditSplashAuthenticationDesign.providerSurface, in: RoundedRectangle(cornerRadius: CoorditSplashAuthenticationDesign.providerCornerRadius, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: CoorditSplashAuthenticationDesign.providerCornerRadius, style: .continuous)
-                    .stroke(Main01DesignTokens.Colors.chrome.opacity(CoorditSplashAuthenticationDesign.providerBorderOpacity), lineWidth: CoorditSplashAuthenticationDesign.providerBorderWidth)
-            }
+            .padding(.horizontal, metrics.value(CoorditAuthenticationEntryDesign.providerHorizontalInset))
+            .frame(minHeight: metrics.value(CoorditAuthenticationEntryDesign.providerHeight))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .coorditPressFeedback(
+            cornerRadius: metrics.value(CoorditAuthenticationEntryDesign.providerCornerRadius),
+            pressedScale: CoorditAuthenticationEntryDesign.providerPressedScale,
+            pressedOpacity: CoorditAuthenticationEntryDesign.providerPressedOpacity,
+            overlayOpacity: CoorditAuthenticationEntryDesign.providerPressedOverlayOpacity
+        )
         .disabled(backendSession.isWorking)
-        .accessibilityIdentifier(title.hasPrefix("Google") ? "splash-auth-google" : "splash-auth-apple")
+        .accessibilityLabel(title)
+        .accessibilityIdentifier(identifier)
     }
+
+    private func legalNotice(metrics: CoorditResponsiveMetrics) -> some View {
+        Text("계속하면 이용약관 및 개인정보 처리방침에 동의하게 됩니다.")
+            .font(CoorditTypography.gmarketMedium(size: metrics.value(CoorditAuthenticationEntryDesign.legalFontSize), relativeTo: .caption))
+            .foregroundStyle(CoorditSettingsStyle.muted)
+            .lineSpacing(metrics.value(CoorditAuthenticationEntryDesign.legalLineSpacing))
+            .fixedSize(horizontal: false, vertical: true)
+            .multilineTextAlignment(.leading)
+    }
+
 }
 
-private enum CoorditSplashAuthenticationDesign {
-    static let sheetHeight: CGFloat = 340
-    static let sheetCornerRadius: CGFloat = 28
-    static let horizontalInset: CGFloat = 24
-    static let topInset: CGFloat = 22
-    static let bottomInset: CGFloat = 18
-    static let titleSize: CGFloat = 22
-    static let subtitleSize: CGFloat = 13
-    static let titleToSubtitleSpacing: CGFloat = 10
-    static let subtitleToProviderSpacing: CGFloat = 28
+private enum CoorditAuthenticationEntryDesign {
+    static let contentWidth: CGFloat = 370
+    static let topInset: CGFloat = 28
+    static let bottomInset: CGFloat = 36
+    static let titleTopInset: CGFloat = 24
+    static let titleToIntroductionSpacing: CGFloat = 30
+    static let introductionToProvidersSpacing: CGFloat = 22
+    static let providersToLegalSpacing: CGFloat = 20
+    static let titleStackSpacing: CGFloat = 12
+    static let pageTitleFontSize: CGFloat = 24
+    static let titleHorizontalInset: CGFloat = 18
+    static let titleHeight: CGFloat = 72
+    static let titleCornerRadius: CGFloat = 11
+    static let titleBorderOpacity: Double = 0.72
+    static let titleBorderWidth: CGFloat = 1
+    static let titleShadowOpacity: Double = 0.045
+    static let titleShadowRadius: CGFloat = 10
+    static let titleShadowYOffset: CGFloat = 4
+    static let introductionStackSpacing: CGFloat = 8
+    static let introductionTitleFontSize: CGFloat = 26
+    static let introductionTitleLineSpacing: CGFloat = 4
+    static let introductionBodyFontSize: CGFloat = 12
+    static let introductionBodyLineSpacing: CGFloat = 3
     static let providerStackSpacing: CGFloat = 12
-    static let providerHeight: CGFloat = 56
-    static let providerHorizontalInset: CGFloat = 16
-    static let providerCornerRadius: CGFloat = 16
-    static let providerBorderWidth: CGFloat = 1
-    static let providerBorderOpacity: CGFloat = 0.09
-    static let providerSurface = Color(red: 0.965, green: 0.968, blue: 0.98)
-    static let providerMarkFrame: CGFloat = 28
-    static let googleMarkSurface = Color.white
-    static let googleMarkForeground = Color(red: 0.26, green: 0.45, blue: 0.83)
-    static let appleMarkSurface = Main01DesignTokens.Colors.chrome
-    static let appleMarkForeground = Color.white
-    static let googleMarkSize: CGFloat = 16
-    static let appleMarkSize: CGFloat = 17
-    static let providerTitleSize: CGFloat = 14
-    static let statusTopSpacing: CGFloat = 18
-    static let statusSize: CGFloat = 11.5
-    static let footerMinimumSpacing: CGFloat = 16
-    static let legalSize: CGFloat = 10.5
+    static let providerMarkFontSize: CGFloat = 16
+    static let providerMarkSize: CGFloat = 28
+    static let providerTitleFontSize: CGFloat = 14
+    static let providerArrowFontSize: CGFloat = 13
+    static let providerHorizontalInset: CGFloat = 15
+    static let providerHeight: CGFloat = 58
+    static let providerCornerRadius: CGFloat = 7
+    static let providerPressedScale: CGFloat = 0.98
+    static let providerPressedOpacity: CGFloat = 0.9
+    static let providerPressedOverlayOpacity: CGFloat = 0.1
+    static let legalFontSize: CGFloat = 10
+    static let legalLineSpacing: CGFloat = 4
 }
 #endif

@@ -6,7 +6,7 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    func testFreshInstallSplashPresentsSocialAuthenticationSheet() throws {
+    func testFreshInstallShowsSplashThenSocialAuthenticationEntry() throws {
         let app = launchApp(
             at: "splash",
             extraArguments: ["--coordit-welcome-state", "fresh"]
@@ -14,28 +14,38 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         assertScreen("splash", in: app)
 
         let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "fresh-install-welcome"
+        screenshot.name = "fresh-install-splash"
         screenshot.lifetime = .keepAlways
         add(screenshot)
 
-        let signupEntry = app.buttons["splash-signup-entry"]
-        XCTAssertTrue(signupEntry.waitForExistence(timeout: 5), "Missing splash signup entry")
-        XCTAssertEqual(signupEntry.label, "로그인/회원가입")
-        XCTAssertFalse(element("coordit-splash-tap-hint", in: app).exists)
-        signupEntry.tap()
+        let loginEntry = app.buttons["splash-signup-entry"]
+        XCTAssertTrue(loginEntry.waitForExistence(timeout: 3))
+        XCTAssertTrue(loginEntry.isHittable)
+        XCTAssertFalse(element("coordit-splash-auth-sheet", in: app).exists)
+        XCTAssertFalse(element("coordit-screen-main04", in: app).exists)
 
+        loginEntry.tap()
         XCTAssertTrue(element("coordit-splash-auth-sheet", in: app).waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["splash-auth-google"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["splash-auth-apple"].waitForExistence(timeout: 3))
-        XCTAssertFalse(element("coordit-screen-mypage-account", in: app).exists)
+        let googleLogin = element("splash-auth-google", in: app)
+        let appleLogin = element("splash-auth-apple", in: app)
+        XCTAssertTrue(googleLogin.waitForExistence(timeout: 3))
+        XCTAssertTrue(googleLogin.isHittable)
+        XCTAssertTrue(appleLogin.waitForExistence(timeout: 3))
+        XCTAssertTrue(appleLogin.isHittable)
+        XCTAssertFalse(element("coordit-auth-backend-status", in: app).exists)
+        let emailPasswordNotice = app.staticTexts
+            .matching(NSPredicate(format: "label CONTAINS %@", "이메일과 비밀번호"))
+            .firstMatch
+        XCTAssertFalse(emailPasswordNotice.exists)
     }
 
-    func testReturningAuthenticatedSplashRestoresTapHint() throws {
+    func testReturningAuthenticatedSplashEntersMainWithoutFixtureAuthenticationError() throws {
         let app = launchApp(
             at: "splash",
             extraArguments: [
-                "--coordit-welcome-state", "returning",
+                "--coordit-welcome-state", "fresh",
                 "--coordit-ui-testing-authenticated",
+                "--coordit-api-base-url", "http://127.0.0.1:45678",
             ]
         )
 
@@ -44,15 +54,21 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         XCTAssertFalse(app.buttons["splash-signup-entry"].exists)
         element("coordit-screen-splash", in: app).tap()
         assertScreen("main04", in: app)
+        XCTAssertFalse(element("home-reference-sync-status", in: app).waitForExistence(timeout: 10))
     }
 
-    func testReturningLoggedOutUserIsPromptedToAuthenticateBeforeContentLoads() throws {
+    func testReturningLoggedOutUserSeesSplashBeforeAuthenticationEntry() throws {
         let app = launchApp(
             at: "splash",
             extraArguments: ["--coordit-welcome-state", "returning"]
         )
 
         assertScreen("splash", in: app)
+        let loginEntry = app.buttons["splash-signup-entry"]
+        XCTAssertTrue(loginEntry.waitForExistence(timeout: 3))
+        XCTAssertTrue(loginEntry.isHittable)
+        XCTAssertFalse(element("coordit-splash-auth-sheet", in: app).exists)
+        loginEntry.tap()
         XCTAssertTrue(element("coordit-splash-auth-sheet", in: app).waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["splash-auth-google"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["splash-auth-apple"].waitForExistence(timeout: 3))
@@ -70,7 +86,8 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         )
 
         assertScreen("splash", in: app)
-        XCTAssertTrue(element("coordit-splash-auth-sheet", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["splash-signup-entry"].waitForExistence(timeout: 5))
+        XCTAssertFalse(element("coordit-splash-auth-sheet", in: app).exists)
         XCTAssertFalse(element("coordit-thread-charge-balance", in: app).exists)
         XCTAssertFalse(app.staticTexts["36 실타래"].exists)
     }
@@ -86,11 +103,77 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         XCTAssertEqual(logoCenter, screenCenter, accuracy: 6)
     }
 
-    func testMyPageAccountShowsGoogleLoginButton() throws {
+    func testSignedInMyPageAccountShowsLogoutWithoutSocialProviders() throws {
+        let app = launchApp(
+            at: "mypage-account",
+            extraArguments: ["--coordit-ui-testing-authenticated"]
+        )
+        assertScreen("mypage-account", in: app)
+
+        XCTAssertTrue(element("mypage-backend-local-logout", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(element("mypage-backend-google-login", in: app).exists)
+        XCTAssertFalse(element("mypage-backend-apple-login", in: app).exists)
+    }
+
+    func testSignedOutMyPageAccountDoesNotOfferSocialProviders() throws {
         let app = launchApp(at: "mypage-account")
         assertScreen("mypage-account", in: app)
 
-        XCTAssertTrue(app.buttons["mypage-backend-google-login"].waitForExistence(timeout: 5))
+        XCTAssertFalse(element("mypage-backend-google-login", in: app).exists)
+        XCTAssertFalse(element("mypage-backend-apple-login", in: app).exists)
+    }
+
+    func testIncompleteSocialAccountMustFinishOnboardingBeforeUsingTheApp() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--coordit-ui-testing",
+            "--coordit-ui-testing-authenticated",
+            "--coordit-ui-testing-onboarding-incomplete",
+        ]
+        app.launch()
+
+        XCTAssertTrue(element("coordit-splash-tap-hint", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(element("coordit-onboarding-title", in: app).exists)
+        element("coordit-screen-splash", in: app).tap()
+        XCTAssertTrue(element("coordit-onboarding-title", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(element("onboarding-display-name", in: app).exists)
+        XCTAssertTrue(app.textFields["onboarding-birth-year"].exists)
+        XCTAssertTrue(app.textFields["onboarding-birth-month"].exists)
+        XCTAssertTrue(app.textFields["onboarding-birth-day"].exists)
+        XCTAssertFalse(element("onboarding-gender-non_binary", in: app).exists)
+        app.buttons["onboarding-next"].tap()
+        XCTAssertTrue(app.buttons["나중에 입력하기"].waitForExistence(timeout: 5))
+        XCTAssertTrue(element("onboarding-measurement-height", in: app).exists)
+        XCTAssertTrue(element("onboarding-measurement-weight", in: app).exists)
+        XCTAssertFalse(element("onboarding-measurement-outseam", in: app).exists)
+        app.buttons["나중에 입력하기"].tap()
+        XCTAssertTrue(app.staticTexts["[필수] 서비스 이용약관"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["[필수] 개인정보 처리방침"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["onboarding-save"].isEnabled)
+        app.buttons["onboarding-back"].tap()
+        XCTAssertEqual(element("coordit-onboarding-title", in: app).label, "핏 정보")
+    }
+
+    func testOnboardingBirthDateUsesSeparateYearMonthDayFields() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--coordit-ui-testing",
+            "--coordit-ui-testing-authenticated",
+            "--coordit-ui-testing-onboarding-incomplete",
+        ]
+        app.launch()
+
+        XCTAssertTrue(element("coordit-splash-tap-hint", in: app).waitForExistence(timeout: 5))
+        element("coordit-screen-splash", in: app).tap()
+        let year = app.textFields["onboarding-birth-year"]
+        let month = app.textFields["onboarding-birth-month"]
+        let day = app.textFields["onboarding-birth-day"]
+        XCTAssertTrue(year.waitForExistence(timeout: 5))
+        XCTAssertTrue(month.exists)
+        XCTAssertTrue(day.exists)
+        XCTAssertEqual(year.placeholderValue, "1998")
+        XCTAssertEqual(month.placeholderValue, "05")
+        XCTAssertEqual(day.placeholderValue, "17")
     }
 
     func testFitLabInputSourcesAndHistoryFlow() throws {
@@ -409,10 +492,20 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         add(screenshot)
     }
 
-    func testClosetDetailShowsItsSavedScoreWithoutReassessment() throws {
-        for (route, expectedScore) in [
-            ("closet-detail-top", "총점 | 94.0"),
-            ("closet-detail-bottom", "총점 | 91.0"),
+    func testClosetDetailShowsItsSavedScoreAndGapToBestFit() throws {
+        for (route, expectedScore, expectedGap, expectedDifferences) in [
+            (
+                "closet-detail-top",
+                "총점 | 94.0",
+                "BEST FIT과 6.0점 차이",
+                ["어깨, -1 cm", "가슴, +2 cm", "총장, +1.5 cm", "소매, -0.5 cm"]
+            ),
+            (
+                "closet-detail-bottom",
+                "총점 | 91.0",
+                "BEST FIT과 9.0점 차이",
+                ["허리, -3 cm", "엉덩이, +1 cm", "밑위, -0.5 cm", "총장, +2 cm"]
+            ),
         ] {
             let app = launchApp(at: route)
             assertScreen(route, in: app)
@@ -420,6 +513,22 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
             let totalScore = element("closet-detail-total-score", in: app)
             XCTAssertTrue(totalScore.waitForExistence(timeout: 5))
             XCTAssertEqual(totalScore.label, expectedScore)
+            let bestFitGap = element("closet-detail-best-fit-gap", in: app)
+            XCTAssertTrue(bestFitGap.waitForExistence(timeout: 5))
+            XCTAssertEqual(bestFitGap.label, expectedGap)
+            for _ in 0..<5 where !totalScore.isHittable { app.swipeUp() }
+            XCTAssertTrue(totalScore.isHittable)
+            for (index, expectedDifference) in expectedDifferences.enumerated() {
+                let difference = element("closet-detail-fit-difference-\(index)", in: app)
+                XCTAssertTrue(difference.waitForExistence(timeout: 5))
+                XCTAssertTrue(difference.isHittable)
+                XCTAssertEqual(difference.label, expectedDifference)
+            }
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "\(route)-fit-score-differences"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            XCTAssertFalse(element("closet-detail-score-description", in: app).exists)
             XCTAssertFalse(app.buttons["closet-reevaluate"].exists)
             app.terminate()
         }

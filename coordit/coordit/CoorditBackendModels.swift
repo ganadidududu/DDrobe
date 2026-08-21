@@ -17,6 +17,7 @@ struct CoorditUserProfile: Codable, Equatable {
     let email: String
     let displayName: String?
     let gender: String?
+    let birthDate: String?
     let birthYear: Int?
     let createdAt: String
     let updatedAt: String
@@ -26,6 +27,7 @@ struct CoorditUserProfile: Codable, Equatable {
         case email
         case displayName = "display_name"
         case gender
+        case birthDate = "birth_date"
         case birthYear = "birth_year"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
@@ -34,6 +36,8 @@ struct CoorditUserProfile: Codable, Equatable {
 
 struct CoorditBodyMeasurement: Codable, Equatable {
     let id: String?
+    let heightCm: Double?
+    let weightKg: Double?
     let shoulderWidth: Double?
     let chestCircumference: Double?
     let waistCircumference: Double?
@@ -43,12 +47,42 @@ struct CoorditBodyMeasurement: Codable, Equatable {
 
     enum CodingKeys: String, CodingKey {
         case id
+        case heightCm = "height_cm"
+        case weightKg = "weight_kg"
         case shoulderWidth = "shoulder_width"
         case chestCircumference = "chest_circumference"
         case waistCircumference = "waist_circumference"
         case hipCircumference = "hip_circumference"
         case outseam
         case createdAt = "created_at"
+    }
+}
+
+struct CoorditOnboardingStatus: Decodable, Equatable {
+    let onboardingComplete: Bool
+}
+
+struct CoorditOnboardingCompletion: Decodable, Equatable {
+    let onboardingComplete: Bool
+    let user: CoorditUserProfile
+    let bodyMeasurementsSaved: Bool
+}
+
+struct CoorditOnboardingRequest: Encodable {
+    let displayName: String
+    let gender: String?
+    let birthDate: String?
+    let bodyMeasurements: Measurements
+    let consents: [String: Consent]
+
+    struct Measurements: Encodable {
+        let heightCm: Double?
+        let weightKg: Double?
+    }
+
+    struct Consent: Encodable {
+        let accepted: Bool
+        let version: String
     }
 }
 
@@ -195,6 +229,16 @@ struct CoorditReferenceFitProfileResponse: Codable, Equatable {
     let measurements: CoorditMeasurementMap
     let sampleCounts: [String: Int]
     let strategy: String
+}
+
+struct CoorditClosetFitComparisonResponse: Codable, Equatable {
+    let status: String
+    let garmentKind: String
+    let referenceCount: Int
+    let fitScore: Double?
+    let bestFitGap: Double?
+    let diff: CoorditMeasurementMap?
+    let reason: String?
 }
 
 struct CoorditFitRecommendation: Codable, Equatable {
