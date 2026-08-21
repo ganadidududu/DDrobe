@@ -2,14 +2,14 @@
 
 This runbook covers the owner-controlled production setup for FitLab rewarded yarn and Apple consumable purchases. It never contains credentials, signing material, Supabase keys, Apple JWS payloads, account identifiers, or transaction identifiers.
 
-> **Current gate (2026-08-21): CLOSED.** The owner explicitly approved GCP project `coordit-dev`, Cloud Run service `coordit-backend-staging`, and Supabase project `coordit-staging` as the production targets despite their names. Target identity is resolved. A non-empty logical dump now exists in the authorized Cloud Shell, but its secure local copy is not yet downloaded and checksum-verified. Immutable local release-candidate commits now exist, but they have not been pushed or deployed. No deployment or migration may begin until the local backup checksum is verified and the exact candidate commit/image is entered in the change record. No Coordit app exists in the visible App Store Connect team, and AdMob SSV is still unverified. Keep `ADMOB_REWARDED_ENABLED=false` and `APPLE_IAP_ENABLED=false` until every corresponding gate below has external evidence.
+> **Current gate (2026-08-21): CLOSED for monetization release.** The owner explicitly approved GCP project `coordit-dev`, Cloud Run service `coordit-backend-staging`, and Supabase project `coordit-staging` as the production targets despite their names. Target identity is resolved. The database dump has been copied to an owner-controlled local path and its byte size and SHA-256 match the retained Cloud Shell copy. Exact commit `e2ffafe6a43b442620b06c5659877e0d1321628f` is now serving on Cloud Run revision `coordit-backend-staging-e2ffafe6`; the Cloud Run delivery sub-gate is PASS. The Task 7 Supabase reconciliation has not been executed. `styling_looks` and `users.birth_date` remain separate schema blockers, no Coordit app exists in the visible App Store Connect team, and AdMob SSV remains unverified. Keep `ADMOB_REWARDED_ENABLED=false` and `APPLE_IAP_ENABLED=false` until every corresponding gate below has external evidence.
 
 ### Current production-target inventory — mutation remains gated
 
 | Provider | Authenticated read-only observable | Production consequence |
 | --- | --- | --- |
-| Google Cloud | Owner approved `coordit-dev` / `coordit-backend-staging` in `asia-northeast3`; current revision `coordit-backend-staging-00012-rhp`, rollback candidate `coordit-backend-staging-00011-h7k` | retain the explicit naming variance in the change record; deploy only an immutable reviewed source |
-| Supabase | Owner approved `coordit-staging`; the FREE project reports no managed backup. Direct failed on its IPv6 route, so the displayed Session pooler was used after `SESSION_POOLER_TCP_OK`. The resulting Cloud Shell dump is 2,085,267 bytes with recorded SHA-256 | download it to a secure owner-controlled local path and prove the checksum matches before migration |
+| Google Cloud | Owner approved `coordit-dev` / `coordit-backend-staging` in `asia-northeast3`; exact release revision `coordit-backend-staging-e2ffafe6` serves 100% of traffic and retained rollback revision `coordit-backend-staging-00012-rhp` is Ready | Cloud Run delivery is PASS; retain the explicit naming variance and immutable release receipt below |
+| Supabase | Owner approved `coordit-staging`; the FREE project reports no managed backup. Direct failed on its IPv6 route, so the displayed Session pooler was used after `SESSION_POOLER_TCP_OK`. The retained Cloud Shell dump and owner-controlled local copy are both 308,567 bytes and have matching SHA-256. Read-only metadata inspection found the accepted partial monetization fingerprint and no Supabase CLI ledger | backup gate is PASS; execute only the reviewed, checked-in Task 7 reconciliation runner after its immutable artifact and approval gates pass |
 | App Store Connect | No Coordit app is present; updated agreement and legal/compliance prerequisites block the Paid Apps Agreement | Account Holder/legal handoff and correct team/app identity are required before IAP work |
 | AdMob | `Coordit iOS` is review-required; rewarded unit/reward values match, but SSV points to staging with blank validation custom data and disabled **Use verified URL** | do not Verify, Use, or Save until a healthy production callback and zero-grant sentinel are ready |
 
@@ -56,46 +56,107 @@ The normal policy is to keep production targets distinct from staging. For this 
 
 Fresh `curl --fail` checks returned HTTP 200 and `{"ok":true,"service":"coordit-backend"}` from both `/health` URLs. Use the Cloud Run console host for provider callbacks and retain the Release alias only while its health result and owner variance remain recorded.
 
-## 3. Supabase production migration gate
+## 3. Supabase production reconciliation gate
 
-1. Confirm the project in the dashboard and in the selected migration runner. Compare its project name/reference with the change record before every database command.
-2. Create and record a recoverable backup or PITR checkpoint. Stop if recovery is unavailable or untested.
-3. Dry-run the complete migration sequence against an empty disposable database and then a production-like staging copy.
-4. Apply the version-controlled migrations through the owner-approved production pipeline, not by pasting ad hoc SQL into the production dashboard.
-5. Capture the runner's full-filename ledger and schema verification output without row data or credentials.
+The production database is not an empty database and must not be treated as one. Read-only Task 7 inspection found this accepted partial fingerprint:
 
-Required ordered files are:
+- `supabase_migrations.schema_migrations` is absent;
+- the wallet and AdMob monetary tables already exist with RLS, the wallet reason constraint already includes `fit_report` and `ad_reward`, and the three-column wallet idempotency rule is present;
+- the deployed `grant_admob_reward` function is the older, non-hardened form;
+- the Apple transaction and notification tables/functions are absent;
+- `styling_looks` and `users.birth_date` are absent.
 
-1. `20260511_add_styling_looks.sql`
-2. `20260522_rename_inseam_to_outseam.sql`
-3. `20260629_add_part_feedback_to_user_feedback.sql`
-4. `20260707_add_consent_schema.sql`
-5. `20260722_add_clothing_fit_assessments.sql`
-6. `20260726_add_product_url_import.sql`
-7. `20260730_add_atomic_closet_save.sql`
-8. `20260730_add_thread_wallet.sql`
-9. `20260806_add_fit_report_thread_charge.sql`
-10. `20260809_add_apple_iap_thread_credit.sql`
-11. `20260811_add_admob_rewarded_ssv.sql`
-12. `20260813_add_user_birth_date.sql`
-13. `20260814_harden_admob_reward_atomicity.sql`
-14. `20260821_add_apple_iap_notification_receipts.sql`
+Do **not** replay the historical migration directory, run `supabase db push`, feed the reconciliation SQL directly to `psql`, or paste it into the Supabase SQL dashboard. The history has no durable CLI ledger and includes a duplicated timestamp prefix; replaying it would be an unverified rewrite of a partially reconciled database. Direct execution is also intentionally rejected when the typed runner context is absent.
 
-The repository currently has no `supabase/config.toml`, and two files share the `20260730` prefix. Do not assume a vanilla `supabase db push` will create an unambiguous ledger. The owner-approved runner must preserve the listed full-file ordering and record every full filename. At minimum, the production evidence must prove the Apple ledger migration, AdMob base migration, AdMob hardening migration, and Apple notification migration are present.
+### Immutable reconciliation artifact
 
-After migration, verify without exposing user rows:
+The only approved monetization schema operation is this single forward artifact:
 
-- `thread_balances` and `thread_ledger_entries` exist with RLS enabled;
-- `apple_iap_transactions`, `admob_reward_attempts`, `admob_reward_transactions`, and `apple_iap_notification_receipts` exist with RLS enabled;
-- service-role-only RPC permissions match the checked-in migrations;
-- the migration ledger contains every filename above exactly once;
-- Security Advisor, SSL enforcement, backups/PITR, network restrictions, and production Auth settings have owner-reviewed results.
+| Field | Required value |
+| --- | --- |
+| Migration | `supabase/migrations/20260822_reconcile_monetization_release_schema.sql` |
+| SHA-256 | `396e442db23e5d39f464bad2750f3da3556f9ada663962b2c9ab789fb05c6f8f` |
+| Typed runner | `backend/src/modules/thread-wallet/monetization-schema-reconciliation.runner.ts` |
+| Operator CLI | `backend/src/modules/thread-wallet/monetization-schema-reconciliation.runner.cli.ts` |
+| Package command | `npm --prefix backend run apply:monetization-schema-reconciliation` |
+
+Execute only from a reviewed, checked-in release candidate containing those exact paths. Immediately before the change, recompute the migration checksum and stop unless it matches the table. The current Cloud Run receipt in section 4 remains exact and unchanged; it does not prove that a later database-operator candidate was reviewed or checked in.
+
+### Required preflight and invocation
+
+1. Reconfirm `coordit-staging` in the authenticated owner console and record the approved staging-name variance, operator, time window, reviewed Git commit, and rollback owner.
+2. Recheck both retained dump copies. The Cloud Shell and owner-controlled local copy must each remain 308,567 bytes with SHA-256 `e27ae11df6662b3786df76e575699b1b11ae28cc500258d2bc31f88eb9eb0333`. Stop on any size or digest mismatch.
+3. Run all three checked-in disposable-database suites below: the partial/exact-target reconciliation scenario, fingerprint rejection scenarios, and transaction-failure rollback scenarios. Stop unless each exits 0.
+4. Keep `ADMOB_REWARDED_ENABLED` and `APPLE_IAP_ENABLED` absent or false. Do not add the Apple certificate mount as part of this database change.
+5. Use the IPv4-compatible **Session pooler** target shown by Supabase Connect. Do not use the failed Direct IPv6 target or the Transaction pooler. Supply its host, port, user, and database only through standard `PG*` variables and enter the password at a masked prompt; never put a connection URI or password in shell history, logs, evidence, or this runbook.
+6. Set the public, exact approval token only for this invocation: `coordit-monetization-schema-reconciliation-20260822`.
+
+```bash
+npm --prefix backend run test:monetization-schema-reconciliation
+npm --prefix backend run test:monetization-schema-reconciliation:fingerprint
+npm --prefix backend run test:monetization-schema-reconciliation:failures
+```
+
+From the root of the exact reviewed checkout, the owner-controlled Cloud Shell invocation has this shape:
+
+```bash
+(
+  set -eu
+  read -r -s -p "Supabase Session pooler password: " PGPASSWORD
+  printf '\n'
+  trap 'unset PGPASSWORD COORDIT_SCHEMA_RECONCILIATION_APPROVAL' EXIT
+  export PGPASSWORD
+  export PGHOST='<CONFIRMED_SESSION_POOLER_HOST>'
+  export PGPORT='<CONFIRMED_SESSION_POOLER_PORT>'
+  export PGUSER='<CONFIRMED_SESSION_POOLER_USER>'
+  export PGDATABASE='<CONFIRMED_DATABASE_NAME>'
+  export PGSSLMODE='require'
+  export PGCONNECT_TIMEOUT='10'
+  export COORDIT_SCHEMA_RECONCILIATION_APPROVAL='coordit-monetization-schema-reconciliation-20260822'
+  npm --prefix backend run apply:monetization-schema-reconciliation
+)
+```
+
+The CLI computes the checked-in SQL checksum itself. It opens one transaction, applies five-second lock and 30-second statement timeouts, takes a fixed advisory transaction lock, validates the catalog fingerprint, runs the single forward reconciliation, and performs its fixed metadata postflight before commit. Missing approval, checksum/version conflict, unexpected Supabase ledger, unknown catalog drift, lock/statement timeout, or postflight failure must exit nonzero and roll back the transaction.
+
+### Expected fingerprint and durable receipt
+
+For the observed production partial fingerprint, a successful first run must return:
+
+- `status=committed`;
+- the exact filename and SHA-256 above;
+- `disposition=reconciled_observed_partial`;
+- `connection=redacted`.
+
+It atomically preserves wallet rows, installs the missing Apple monetary schema, hardens AdMob reward atomicity, creates the RLS-protected `coordit_schema_change_records` and `coordit_monetization_schema_versions` tables, and writes one durable change record for version `20260822`. The marker table must contain exactly the five expected component/version pairs for wallet, AdMob reward, Apple IAP, Apple notifications, and release reconciliation. A replay against that reconciled fingerprint is idempotent and preserves the original filename, SHA, disposition, markers, and wallet state. A database already at the exact target without a conflicting record may report `verified_exact_target`; any unrecognized partial state or same-version/different-SHA record is a hard failure before commit.
+
+The runner's transaction-local postflight is the authoritative schema check: it verifies both receipt tables, Apple monetary tables, the hardened AdMob function marker, the exact filename/SHA change record, and all five version markers without selecting user rows. Preserve only the redacted CLI receipt and exit status. After commit, recheck both public `/health` URLs and the authenticated monetization readiness endpoint; health must remain HTTP 200 and both readiness values must remain false. Do not enable either feature flag in this change window.
+
+On any runner failure, retain the verified dump, record the redacted error category, and investigate the fingerprint; do not retry with hand-edited SQL. The runner rolls back its transaction. After a successful commit, do not run reverse SQL or drop ledger/receipt rows. Use a separately reviewed forward reconciliation for correction; restore the verified dump only under an owner-approved database recovery incident. The Cloud Run rollback revision remains `coordit-backend-staging-00012-rhp`, but database reconciliation alone does not move application traffic.
+
+`styling_looks` and `users.birth_date` are intentionally untouched by this monetization reconciliation and remain separate schema blockers requiring their own reviewed forward changes. App Store Connect app/product/agreement/notification/certificate work and the AdMob verified-URL/live-reward gates also remain separate blockers; this database receipt cannot turn either CTA on.
 
 Supabase's current production guidance recommends distinct environments, version-controlled migrations, RLS review, backups/PITR, and restricted production access: <https://supabase.com/docs/guides/deployment/going-into-prod>.
 
 ## 4. Cloud Run production service
 
 Deploy only to the existing owner-approved `coordit-backend-staging` service in `coordit-dev`; its staging-style name is an explicit release variance, not permission to create or substitute another service. Build from the exact approved release-candidate commit and use an immutable image digest or commit-derived immutable tag; do not deploy `latest`. Start with both monetization flags false.
+
+### Current immutable release receipt — Cloud Run sub-gate PASS
+
+| Field | Verified value |
+| --- | --- |
+| Exact source commit | `e2ffafe6a43b442620b06c5659877e0d1321628f` |
+| Source archive | 190,235 bytes; SHA-256 `306a8d4f25d585a0b5d34bd52efb4f160af5901b5f10c91f8f74d6aabd740d13` |
+| Cloud Build | `7a722a5b-4f3b-4fc3-ab65-6f5b50c72392`, `SUCCESS` |
+| Immutable image digest | `sha256:0fc8211f4e7cc503880ddd5665d2380a9a4c20bc4a85c8b9ee531f015dad8e01` |
+| Serving revision | `coordit-backend-staging-e2ffafe6`, 100% traffic |
+| Validation tag | `rc-e2ffafe6` |
+| Retained rollback | `coordit-backend-staging-00012-rhp`, Ready |
+
+The local and Cloud Shell source archives matched by byte size and SHA-256 before extraction. The no-traffic revision was Ready on the exact digest, its complete runtime spec matched the previous revision after removing only the image field, and the tagged `/health` endpoint returned HTTP 200 with TLS verification result 0 before traffic moved. After cutover, both the provider callback host and Release alias returned HTTP 200 with `{"ok":true,"service":"coordit-backend"}`; the release revision had zero severity-`ERROR` log entries in the checked window. `ADMOB_REWARDED_ENABLED` and `APPLE_IAP_ENABLED` remain absent, and no Apple certificate volume is mounted. The full no-secret receipt is `.omo/evidence/coordit-release-monetization/task-7/red/cloud-run-release-deployment.md`.
+
+This receipt proves only the Cloud Run delivery sub-gate. It does not authorize Supabase migration, AdMob SSV activation, Apple product creation, certificate mounting, or either monetization feature flag.
 
 ### Non-secret runtime configuration
 
@@ -209,7 +270,7 @@ Every row must be PASS before release. A failed row keeps only its associated CT
 | --- | --- | --- |
 | Production identity | exact GCP service and Supabase project confirmed in authenticated owner consoles and owner variance recorded | stop; do not deploy or migrate |
 | Database recovery | backup/PITR checkpoint and rollback owner recorded | stop migration |
-| Migration ledger | all 14 full filenames recorded exactly once; four monetary migrations verified | keep both flags false |
+| Monetization reconciliation | exact `20260822_reconcile_monetization_release_schema.sql` SHA recorded once, five component/version markers present, and fixed runner postflight committed | keep both flags false; do not paste or replay SQL |
 | Cloud Run health | confirmed production `/health` is HTTP 200 | roll back traffic; keep flags false |
 | Secret mounts | each Apple path is a readable regular file; no secret literal in config | keep IAP false |
 | Initial readiness | authenticated response is ads false / IAP false | reject revision |
