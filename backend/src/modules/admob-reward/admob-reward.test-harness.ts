@@ -180,7 +180,7 @@ export const startTestHarness = async (
   return {
     requestSigned: async (input) => {
       const keyId = input.keyId ?? testKeyId;
-      const contentToSign = input.contentToSign ?? input.requestContent;
+      const contentToSign = input.contentToSign ?? decodeURIComponent(input.requestContent);
       const originalSignature = sign(privateKey, contentToSign);
       const signature = input.mutateSignature === true
         ? mutatedSignature(originalSignature)

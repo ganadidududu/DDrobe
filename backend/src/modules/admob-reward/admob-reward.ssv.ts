@@ -106,7 +106,19 @@ const rejectCallback = (
 
 const decodeValue = (rawValue: string): string => {
   try {
-    return decodeURIComponent(rawValue.replace(/\+/gu, " "));
+    return decodeURIComponent(rawValue);
+  } catch (error) {
+    if (error instanceof URIError) {
+      return rejectCallback("malformed-callback", 400, error);
+    }
+    throw error;
+  }
+};
+
+const decodeSignedContentForVerification = (rawSignedContent: string): string => {
+  try {
+    // AdMob signs Java URI.getQuery() bytes: percent escapes decode, literal '+' does not.
+    return decodeURIComponent(rawSignedContent);
   } catch (error) {
     if (error instanceof URIError) {
       return rejectCallback("malformed-callback", 400, error);
@@ -205,7 +217,11 @@ export const verifyAdMobSSVCallback = async (
     return rejectCallback("malformed-callback");
   }
 
-  await verifySignature({ signedContent, rawSignature, rawKeyId }, dependencies.getVerifierKeys);
+  await verifySignature({
+    signedContent: decodeSignedContentForVerification(signedContent),
+    rawSignature,
+    rawKeyId
+  }, dependencies.getVerifierKeys);
   const callback = parseSignedContent(signedContent);
   const config = dependencies.configuration;
   if (Math.abs(dependencies.now() - callback.timestamp) > 86_400_000) {

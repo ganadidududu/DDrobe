@@ -161,6 +161,71 @@ const verifyKeyCacheBoundary = async (): Promise<void> => {
   assert.equal(downloadCalls, 2);
 };
 
+const verifyGoogleQueryDecodingCompatibility = async (): Promise<void> => {
+  const factory = await loadControllerFactory();
+  const harness = await startTestHarness(factory);
+  try {
+    const canonical = createCanonicalSignedContent(baseValues());
+    const userIdPair = "user_id=test-user";
+    assert.ok(canonical.includes(userIdPair));
+    const encodedAmpersand = canonical.replace(userIdPair, "user_id=test%26user");
+    const literalPlus = canonical.replace(userIdPair, "user_id=test+user");
+
+    for (const requestContent of [encodedAmpersand, literalPlus]) {
+      const response = await harness.requestSigned({ requestContent });
+      assert.equal(response.status, 200);
+      settlementSchema.parse(await response.json());
+    }
+    assert.equal(harness.grantCalls().length, 2);
+  } finally {
+    await harness.close();
+  }
+};
+
+const verifyLiteralPlusRewardItemBoundary = async (): Promise<void> => {
+  const factory = await loadControllerFactory();
+  const encodedPlusContent = createCanonicalSignedContent({
+    ...baseValues(),
+    rewardItem: "coin+bonus"
+  });
+  const literalPlusContent = encodedPlusContent.replace(
+    "reward_item=coin%2Bbonus",
+    "reward_item=coin+bonus"
+  );
+  assert.notEqual(literalPlusContent, encodedPlusContent);
+
+  const spaceConfiguredHarness = await startTestHarness(
+    factory,
+    true,
+    { rewardItem: "coin bonus" }
+  );
+  try {
+    const response = await spaceConfiguredHarness.requestSigned({
+      requestContent: literalPlusContent
+    });
+    assert.equal(response.status, 400);
+    assert.equal(spaceConfiguredHarness.grantCalls().length, 0);
+  } finally {
+    await spaceConfiguredHarness.close();
+  }
+
+  const plusConfiguredHarness = await startTestHarness(
+    factory,
+    true,
+    { rewardItem: "coin+bonus" }
+  );
+  try {
+    const response = await plusConfiguredHarness.requestSigned({
+      requestContent: literalPlusContent
+    });
+    assert.equal(response.status, 200);
+    settlementSchema.parse(await response.json());
+    assert.equal(plusConfiguredHarness.grantCalls().length, 1);
+  } finally {
+    await plusConfiguredHarness.close();
+  }
+};
+
 const runFailureMatrix = async (): Promise<number> => {
   const canonical = createCanonicalSignedContent(baseValues());
   const segments = canonical.split("&");
@@ -176,9 +241,9 @@ const runFailureMatrix = async (): Promise<number> => {
     await assertRejected({ requestContent: reordered }),
     await assertRejected({
       requestContent: canonical,
-      contentToSign: decodeURIComponent(canonical)
+      contentToSign: canonical
     }),
-    await assertRejected({ requestContent: malformedEncoding }),
+    await assertRejected({ requestContent: malformedEncoding, contentToSign: canonical }),
     await assertRejected({
       requestContent: createCanonicalSignedContent({
         ...baseValues(),
@@ -239,6 +304,8 @@ const runFailureMatrix = async (): Promise<number> => {
   assert.ok(categories.includes("missing-custom-data"));
   assert.ok(categories.includes("malformed-callback"));
   await verifyKeyCacheBoundary();
+  await verifyGoogleQueryDecodingCompatibility();
+  await verifyLiteralPlusRewardItemBoundary();
   return categories.length;
 };
 
