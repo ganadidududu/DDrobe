@@ -135,6 +135,50 @@ const run = async (): Promise<void> => {
       legacy_payload jsonb
     )
   `);
+  {
+    // Given: every compared target field matches, but name is generated instead of ordinary.
+    const database = await startDisposableProfileStylingDatabase();
+    try {
+      await database.applyProfileStylingReconciliation();
+      await database.client.query(`
+        delete from public.coordit_schema_change_records
+        where migration_version = '20260824';
+        alter table public.styling_looks drop column name;
+        alter table public.styling_looks add column name text
+          generated always as ('generated'::text) stored not null;
+      `);
+      const generatedColumnResult = await database.client.query(`
+        select data_type, is_nullable, column_default, is_generated
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'styling_looks'
+          and column_name = 'name'
+      `);
+      assert.deepEqual(z.object({
+        data_type: z.literal("text"),
+        is_nullable: z.literal("NO"),
+        column_default: z.null(),
+        is_generated: z.literal("ALWAYS")
+      }).parse(generatedColumnResult.rows[0]), {
+        data_type: "text",
+        is_nullable: "NO",
+        column_default: null,
+        is_generated: "ALWAYS"
+      });
+      const before = await readProfileMutationSnapshot(database.client);
+
+      // When: the runner fingerprints the generated-column target.
+      await expectDatabaseError(
+        () => database.applyProfileStylingReconciliation(),
+        "profile_styling_catalog_drift"
+      );
+
+      // Then: it rejects before recreating a verified-exact-target receipt.
+      assert.deepEqual(await readProfileMutationSnapshot(database.client), before);
+    } finally {
+      await database.stop();
+    }
+  }
   await assertDriftRejected(
     "delete from public.coordit_schema_change_records where migration_version = '20260822'"
   );
@@ -147,6 +191,7 @@ const run = async (): Promise<void> => {
     "paired_state=one-sided-rejected",
     "birth_date=wrong-type-rejected",
     "styling_looks=old-shape/wrong-column-rejected",
+    "styling_looks=generated-name-rejected",
     "monetization_receipt=exact-required",
     "change_record=same-version-different-sha-rejected",
     "mutation=none-before-rejection",

@@ -312,18 +312,24 @@ begin
       and not exists (
         select 1
         from (values
-          ('id', 'uuid', 'NO', 'gen_random_uuid()'),
-          ('user_id', 'uuid', 'NO', null),
-          ('name', 'text', 'NO', null),
-          ('name_ko', 'text', 'NO', null),
-          ('mood', 'text', 'NO', '''''::text'),
-          ('palette', 'jsonb', 'NO', '''[]''::jsonb'),
-          ('ai_reasoning', 'text', 'NO', '''''::text'),
-          ('fit_score', 'numeric', 'YES', null),
-          ('item_ids', 'jsonb', 'NO', '''[]''::jsonb'),
-          ('prompt', 'text', 'NO', '''''::text'),
-          ('created_at', 'timestamp with time zone', 'NO', 'now()')
-        ) expected(column_name, data_type, is_nullable, column_default)
+          ('id', 'uuid', 'NO', 'gen_random_uuid()', 'NEVER'),
+          ('user_id', 'uuid', 'NO', null, 'NEVER'),
+          ('name', 'text', 'NO', null, 'NEVER'),
+          ('name_ko', 'text', 'NO', null, 'NEVER'),
+          ('mood', 'text', 'NO', '''''::text', 'NEVER'),
+          ('palette', 'jsonb', 'NO', '''[]''::jsonb', 'NEVER'),
+          ('ai_reasoning', 'text', 'NO', '''''::text', 'NEVER'),
+          ('fit_score', 'numeric', 'YES', null, 'NEVER'),
+          ('item_ids', 'jsonb', 'NO', '''[]''::jsonb', 'NEVER'),
+          ('prompt', 'text', 'NO', '''''::text', 'NEVER'),
+          ('created_at', 'timestamp with time zone', 'NO', 'now()', 'NEVER')
+        ) expected(
+          column_name,
+          data_type,
+          is_nullable,
+          column_default,
+          is_generated
+        )
         left join information_schema.columns actual
           on actual.table_schema = 'public'
           and actual.table_name = 'styling_looks'
@@ -332,6 +338,7 @@ begin
           or actual.data_type is distinct from expected.data_type
           or actual.is_nullable is distinct from expected.is_nullable
           or actual.column_default is distinct from expected.column_default
+          or actual.is_generated is distinct from expected.is_generated
       )
       and exists (
         select 1

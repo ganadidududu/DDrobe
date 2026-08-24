@@ -185,7 +185,7 @@ Do not replay `20260511_add_styling_looks.sql`, `20260813_add_user_birth_date.sq
 | Field | Required value |
 | --- | --- |
 | Migration | `supabase/migrations/20260824_reconcile_profile_styling_schema.sql` |
-| SHA-256 | `6b2c432704c5f20050a83e2e26d27ff0ea7d24f0978a708238f6004036d89deb` |
+| SHA-256 | `3d2bd3c10d6688d5f5fa6d1ccc010aa3a932478b16536bc68a41d4c50b116c17` |
 | Typed runner | `backend/src/modules/styling/profile-styling-schema-reconciliation.runner.ts` |
 | Operator CLI | `backend/src/modules/styling/profile-styling-schema-reconciliation.runner.cli.ts` |
 | Approval token | `coordit-profile-styling-schema-reconciliation-20260824` |
