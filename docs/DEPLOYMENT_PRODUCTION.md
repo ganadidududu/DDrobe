@@ -49,12 +49,9 @@ Do not run any mutating command until one change record contains all of the foll
 
 Record names, public hosts, booleans, timestamps, and revision IDs only. Never paste account emails, access tokens, service-role keys, database passwords, Apple signed payloads, certificates, or Secret Manager values into the record.
 
-The normal policy is to keep production targets distinct from staging. For this release, the owner explicitly approved the existing staging-named resources as production; that variance must remain in the change record. Two public hosts resolve successfully for the approved Cloud Run service:
+The normal policy is to keep production targets distinct from staging. For this release, the owner explicitly approved the existing staging-named resources as production; that variance must remain in the change record. The active Release project, Cloud Run service, and AdMob callbacks use `https://coordit-backend-staging-789827940031.asia-northeast3.run.app`.
 
-- the Release project embeds `https://coordit-backend-staging-gei6wjuuiq-du.a.run.app`;
-- Cloud Run and AdMob expose `https://coordit-backend-staging-789827940031.asia-northeast3.run.app`.
-
-Fresh `curl --fail` checks returned HTTP 200 and `{"ok":true,"service":"coordit-backend"}` from both `/health` URLs. Use the Cloud Run console host for provider callbacks and retain the Release alias only while its health result and owner variance remain recorded.
+The earlier `curl --fail` receipt for the former Release alias and the Cloud Run console host remains historical evidence only. Use the active public host above for provider callbacks; do not treat the former alias as an active release target.
 
 ## 3. Supabase production reconciliation gate
 
@@ -177,6 +174,41 @@ test ! -e "$HOME/coordit-task7-supabase-root-ca.crt"
 Also unset any remaining `PG*` operator variables. Do not leave the CA in a repository, source archive, container image, shell evidence bundle, or long-lived runtime configuration.
 
 `styling_looks` and `users.birth_date` are intentionally untouched by this monetization reconciliation and remain separate schema blockers requiring their own reviewed forward changes. App Store Connect app/product/agreement/notification/certificate work and the AdMob verified-URL/live-reward gates also remain separate blockers; this database receipt cannot turn either CTA on.
+
+### Separate profile/styling forward repair
+
+Do not replay `20260511_add_styling_looks.sql`, `20260813_add_user_birth_date.sql`, the historical migration directory, or `supabase db push`. After independently confirming the exact committed `20260822` monetary receipt above, the only reviewed profile/styling repair artifact is:
+
+| Field | Required value |
+| --- | --- |
+| Migration | `supabase/migrations/20260824_reconcile_profile_styling_schema.sql` |
+| SHA-256 | `3d2bd3c10d6688d5f5fa6d1ccc010aa3a932478b16536bc68a41d4c50b116c17` |
+| Typed runner | `backend/src/modules/styling/profile-styling-schema-reconciliation.runner.ts` |
+| Operator CLI | `backend/src/modules/styling/profile-styling-schema-reconciliation.runner.cli.ts` |
+| Approval token | `coordit-profile-styling-schema-reconciliation-20260824` |
+
+Use a separate reviewed change window and the same backup, Session-pooler, verified-CA, clean-commit, and secret-handling gates described above. Run all checked-in local gates before the connection probe:
+
+```bash
+npm --prefix backend run typecheck
+npm --prefix backend run test:profile-styling-schema-reconciliation
+npm --prefix backend run test:profile-styling-schema-reconciliation:fingerprint
+npm --prefix backend run test:profile-styling-schema-reconciliation:failures
+npm --prefix backend run test:profile-styling-schema-reconciliation:operator
+npm --prefix backend run test:profile-styling-schema-reconciliation:connection-probe
+```
+
+With the same standard `PG*` variables and `PGSSLROOTCERT` set for the approved Session pooler, run the scope-specific connection-only probe first. It performs `connect()` and `end()` only and must print exactly `profile_styling_connection_probe status=connected`. Set the distinct approval variable only after that succeeds:
+
+```bash
+npm --prefix backend run --silent probe:profile-styling-schema-reconciliation:connection
+export COORDIT_PROFILE_STYLING_SCHEMA_RECONCILIATION_APPROVAL='coordit-profile-styling-schema-reconciliation-20260824'
+npm --prefix backend run apply:profile-styling-schema-reconciliation
+```
+
+The runner accepts only the paired-absent observed state or the fully exact paired target. It rejects a Supabase migration ledger, a missing or mismatched `20260822` monetary receipt, one-sided state, wrong columns/defaults/FK/index/security, or a conflicting `20260824` record before commit. One transaction sets five-second lock and 30-second statement timeouts, takes a fixed advisory transaction lock, records the migration filename/SHA, runs a fixed read-only postflight, and rolls back on any failure.
+
+The observed partial success receipt must report `status=committed`, the filename and SHA above, `disposition=reconciled_observed_partial`, and `connection=redacted`. The only schema additions are nullable `public.users.birth_date date`, the exact `public.styling_looks` table plus owner index, and one `20260824` row in the existing change-record table. `styling_looks` has RLS enabled with no policies, no `anon`/`authenticated` privileges, and service-role CRUD only because current backend persistence uses the service client. Replay preserves the original receipt. Never reverse a committed repair; use another reviewed forward migration. Remove the task-owned CA copy and unset operator variables after the redacted receipt is retained.
 
 Supabase's current production guidance recommends distinct environments, version-controlled migrations, RLS review, backups/PITR, and restricted production access: <https://supabase.com/docs/guides/deployment/going-into-prod>.
 
