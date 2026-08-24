@@ -178,6 +178,41 @@ Also unset any remaining `PG*` operator variables. Do not leave the CA in a repo
 
 `styling_looks` and `users.birth_date` are intentionally untouched by this monetization reconciliation and remain separate schema blockers requiring their own reviewed forward changes. App Store Connect app/product/agreement/notification/certificate work and the AdMob verified-URL/live-reward gates also remain separate blockers; this database receipt cannot turn either CTA on.
 
+### Separate profile/styling forward repair
+
+Do not replay `20260511_add_styling_looks.sql`, `20260813_add_user_birth_date.sql`, the historical migration directory, or `supabase db push`. After independently confirming the exact committed `20260822` monetary receipt above, the only reviewed profile/styling repair artifact is:
+
+| Field | Required value |
+| --- | --- |
+| Migration | `supabase/migrations/20260824_reconcile_profile_styling_schema.sql` |
+| SHA-256 | `6b2c432704c5f20050a83e2e26d27ff0ea7d24f0978a708238f6004036d89deb` |
+| Typed runner | `backend/src/modules/styling/profile-styling-schema-reconciliation.runner.ts` |
+| Operator CLI | `backend/src/modules/styling/profile-styling-schema-reconciliation.runner.cli.ts` |
+| Approval token | `coordit-profile-styling-schema-reconciliation-20260824` |
+
+Use a separate reviewed change window and the same backup, Session-pooler, verified-CA, clean-commit, and secret-handling gates described above. Run all checked-in local gates before the connection probe:
+
+```bash
+npm --prefix backend run typecheck
+npm --prefix backend run test:profile-styling-schema-reconciliation
+npm --prefix backend run test:profile-styling-schema-reconciliation:fingerprint
+npm --prefix backend run test:profile-styling-schema-reconciliation:failures
+npm --prefix backend run test:profile-styling-schema-reconciliation:operator
+npm --prefix backend run test:profile-styling-schema-reconciliation:connection-probe
+```
+
+With the same standard `PG*` variables and `PGSSLROOTCERT` set for the approved Session pooler, run the scope-specific connection-only probe first. It performs `connect()` and `end()` only and must print exactly `profile_styling_connection_probe status=connected`. Set the distinct approval variable only after that succeeds:
+
+```bash
+npm --prefix backend run --silent probe:profile-styling-schema-reconciliation:connection
+export COORDIT_PROFILE_STYLING_SCHEMA_RECONCILIATION_APPROVAL='coordit-profile-styling-schema-reconciliation-20260824'
+npm --prefix backend run apply:profile-styling-schema-reconciliation
+```
+
+The runner accepts only the paired-absent observed state or the fully exact paired target. It rejects a Supabase migration ledger, a missing or mismatched `20260822` monetary receipt, one-sided state, wrong columns/defaults/FK/index/security, or a conflicting `20260824` record before commit. One transaction sets five-second lock and 30-second statement timeouts, takes a fixed advisory transaction lock, records the migration filename/SHA, runs a fixed read-only postflight, and rolls back on any failure.
+
+The observed partial success receipt must report `status=committed`, the filename and SHA above, `disposition=reconciled_observed_partial`, and `connection=redacted`. The only schema additions are nullable `public.users.birth_date date`, the exact `public.styling_looks` table plus owner index, and one `20260824` row in the existing change-record table. `styling_looks` has RLS enabled with no policies, no `anon`/`authenticated` privileges, and service-role CRUD only because current backend persistence uses the service client. Replay preserves the original receipt. Never reverse a committed repair; use another reviewed forward migration. Remove the task-owned CA copy and unset operator variables after the redacted receipt is retained.
+
 Supabase's current production guidance recommends distinct environments, version-controlled migrations, RLS review, backups/PITR, and restricted production access: <https://supabase.com/docs/guides/deployment/going-into-prod>.
 
 ## 4. Cloud Run production service
