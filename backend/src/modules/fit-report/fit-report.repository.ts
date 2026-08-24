@@ -10,7 +10,8 @@ import type {
 } from "../../shared/types/database";
 import { createHttpError } from "../../shared/utils/http-error";
 import { rowToMeasurements } from "../../shared/utils/measurements";
-import type { ReferenceClothingReportSummary } from "./fit-report.types";
+import { readStoredFitReport, storeFitReport } from "./fit-report.artifact";
+import type { GenerateFitReportResult, ReferenceClothingReportSummary } from "./fit-report.types";
 
 interface ClothingItemForReport {
   readonly id: string;
@@ -37,6 +38,39 @@ export const loadFitResult = async (
 
   if (error || !data) throw createHttpError(404, "Fit analysis result was not found");
   return data;
+};
+
+export const loadPersistedFitReport = async (
+  userId: string,
+  fitAnalysisResultId: string
+): Promise<GenerateFitReportResult | null> => {
+  const fitResult = await loadFitResult(userId, fitAnalysisResultId);
+  const stored = readStoredFitReport(fitResult.result_details);
+  if (!stored) return null;
+  return {
+    fitAnalysisResultId,
+    source: stored.source,
+    modelName: stored.modelName,
+    promptVersion: stored.promptVersion,
+    report: stored.report,
+    chartData: stored.chartData
+  };
+};
+
+export const persistFitReport = async (
+  userId: string,
+  fitResult: FitAnalysisResultRow,
+  report: GenerateFitReportResult
+): Promise<void> => {
+  const { error } = await supabase
+    .from("fit_analysis_results")
+    .update({ result_details: storeFitReport(fitResult.result_details, report) })
+    .eq("user_id", userId)
+    .eq("id", fitResult.id)
+    .select("id")
+    .single<{ id: string }>();
+
+  if (error) throw createHttpError(500, "Failed to save fit report");
 };
 
 export const loadExternalProduct = async (

@@ -167,6 +167,7 @@ const cloneResult = <T>(value: unknown): T => JSON.parse(JSON.stringify(value));
 
 export class FakeSupabaseQuery {
   private readonly filters = new Map<string, string | readonly string[]>();
+  private updatePayload: { readonly result_details: JsonObject } | null = null;
 
   constructor(private readonly table: string) {}
 
@@ -184,7 +185,13 @@ export class FakeSupabaseQuery {
     return this;
   }
 
+  update(payload: { readonly result_details: JsonObject }): this {
+    this.updatePayload = payload;
+    return this;
+  }
+
   async single<T>(): Promise<QueryResponse<T | null>> {
+    this.applyUpdate();
     return { data: cloneResult<T | null>(this.resolveSingleRow()), error: null };
   }
 
@@ -196,6 +203,15 @@ export class FakeSupabaseQuery {
     if (this.table === "fit_analysis_results") return activeFitResult;
     if (this.table === "external_products") return externalProduct;
     return null;
+  }
+
+  private applyUpdate(): void {
+    if (this.table !== "fit_analysis_results" || this.updatePayload === null) return;
+    activeFitResult = {
+      ...activeFitResult,
+      result_details: cloneResult<JsonObject>(this.updatePayload.result_details)
+    };
+    this.updatePayload = null;
   }
 
   private resolveRows():

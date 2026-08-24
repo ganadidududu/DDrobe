@@ -3,6 +3,7 @@ import { env } from "../../config/env";
 import { buildFitReportInput } from "./fit-report.builder";
 import { buildFallbackFitReport } from "./fit-report.fallback";
 import { buildFitReportPrompt, FIT_REPORT_PROMPT_VERSION } from "./fit-report.prompt";
+import { loadFitResult, loadPersistedFitReport, persistFitReport } from "./fit-report.repository";
 import {
   hasAcceptedCoreNarrative,
   sanitizeGeneratedReport
@@ -130,10 +131,16 @@ export const generateFitReport = async (
   fitAnalysisResultId: string,
   options: GenerateFitReportOptions = {}
 ): Promise<GenerateFitReportResult> => {
+  if (!options.includeDebug) {
+    const persisted = await loadPersistedFitReport(userId, fitAnalysisResultId);
+    if (persisted) return persisted;
+  }
+
   const reportInput = await buildFitReportInput(userId, fitAnalysisResultId, options);
   const prompt = buildFitReportPrompt(reportInput);
   const modelName = env.openRouterModel;
 
+  let generated: GenerateFitReportResult;
   try {
     const generatedReport = await callOpenRouter(prompt, modelName);
     const fallbackReport = buildFallbackFitReport(reportInput);
@@ -143,7 +150,7 @@ export const generateFitReport = async (
       fallbackReport
     );
     const coreNarrativeAccepted = hasAcceptedCoreNarrative(generatedReport, reportInput);
-    return {
+    generated = {
       fitAnalysisResultId,
       source: coreNarrativeAccepted ? "openrouter" : "fallback",
       modelName,
@@ -153,7 +160,7 @@ export const generateFitReport = async (
       ...(options.includeDebug ? { reportInput, prompt } : {})
     };
   } catch {
-    return {
+    generated = {
       fitAnalysisResultId,
       source: "fallback",
       modelName,
@@ -163,4 +170,10 @@ export const generateFitReport = async (
       ...(options.includeDebug ? { reportInput, prompt } : {})
     };
   }
+
+  if (!options.includeDebug) {
+    const fitResult = await loadFitResult(userId, fitAnalysisResultId);
+    await persistFitReport(userId, fitResult, generated);
+  }
+  return generated;
 };

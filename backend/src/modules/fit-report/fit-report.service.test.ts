@@ -283,6 +283,27 @@ const main = async (): Promise<void> => {
     /저신뢰도|신뢰도|피드백|한\s*벌뿐|판단\s*근거[^.!?\n]{0,20}제한/
   );
 
+  useEnrichedFitResult();
+  let durableReportModelCalls = 0;
+  globalThis.fetch = async (): Promise<Response> => {
+    durableReportModelCalls += 1;
+    return new Response(JSON.stringify({
+      choices: [{ message: { content: JSON.stringify(fallback) } }]
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  };
+
+  const firstDurableReport = await reportService.generateFitReport(userId, fitResultId);
+  const restoredDurableReport = await reportService.generateFitReport(userId, fitResultId);
+  assert.equal(
+    durableReportModelCalls,
+    1,
+    "A completed fit report must be reused instead of requesting the model a second time."
+  );
+  assert.deepEqual(restoredDurableReport.chartData, firstDurableReport.chartData);
+
   console.log("fit-report tests passed");
 };
 
