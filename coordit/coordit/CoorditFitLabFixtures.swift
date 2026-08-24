@@ -328,6 +328,12 @@ final class CoorditFitLabFixtureAPI: CoorditFitLabAPI {
         if fixtureName == "submission-report-without-chart-scores" {
             return CoorditFitLabFixtures.reportWithoutSizeScoreRanking
         }
+        if fixtureName == "submission-report-insufficient-thread" {
+            await withCheckedContinuation { continuation in
+                reportContinuation = continuation
+            }
+            throw CoorditFitLabError.server(statusCode: 402, message: "실타래가 부족해요.")
+        }
         if fixtureName == "submission-report-failure", reportAttempts == 1 {
             throw CoorditFitLabError.server(statusCode: 503, message: "리포트 생성 지연")
         }

@@ -326,7 +326,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = CoorditShareExtension/CoorditShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 87V7WR9QND;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = CoorditShareExtension/Info.plist;
@@ -356,7 +356,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = CoorditShareExtension/CoorditShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 87V7WR9QND;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = CoorditShareExtension/Info.plist;
@@ -505,8 +505,8 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = coordit/coordit.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				COORDIT_API_BASE_URL = "https://coordit-backend-staging-gei6wjuuiq-du.a.run.app";
-				CURRENT_PROJECT_VERSION = 1;
+				COORDIT_API_BASE_URL = "https://coordit-backend-staging-789827940031.asia-northeast3.run.app";
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 87V7WR9QND;
 				ENABLE_PREVIEWS = YES;
 				EXCLUDED_SOURCE_FILE_NAMES = Info.plist;
@@ -540,8 +540,8 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = coordit/coordit.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				COORDIT_API_BASE_URL = "https://coordit-backend-staging-gei6wjuuiq-du.a.run.app";
-				CURRENT_PROJECT_VERSION = 1;
+				COORDIT_API_BASE_URL = "https://coordit-backend-staging-789827940031.asia-northeast3.run.app";
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 87V7WR9QND;
 				ENABLE_PREVIEWS = YES;
 				EXCLUDED_SOURCE_FILE_NAMES = Info.plist;
@@ -572,7 +572,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -594,7 +594,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
 				LD_RUNPATH_SEARCH_PATHS = (

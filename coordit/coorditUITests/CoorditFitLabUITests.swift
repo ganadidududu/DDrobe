@@ -204,6 +204,32 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertFalse(element("coordit-screen-fitlab-result-top", in: app).exists)
     }
 
+    func testReportInsufficientThreadRoutesToChargeWithoutSavingPartialReport() throws {
+        let app = launchFitLab(
+            fixture: "submission-report-insufficient-thread",
+            extraArguments: ["--coordit-thread-balance", "2"]
+        )
+        XCTAssertTrue(element("fitlab-reference-selection", in: app).waitForExistence(timeout: 5))
+        XCTAssertEqual(element("coordit-thread-balance-probe", in: app).label, "2")
+
+        element("fitlab-reference-reference-fixture-hoodie", in: app).tap()
+        element("fitlab-submit-analysis", in: app).tap()
+
+        XCTAssertTrue(
+            waitForLabel(
+                "references=1|product=1|M-attempts=1|M-success=1|L-attempts=1|L-success=1|recommend=1|report=1",
+                element: element("fitlab-submission-ledger", in: app)
+            )
+        )
+        element("fitlab-test-release-report", in: app).tap()
+
+        XCTAssertTrue(element("coordit-screen-mypage-thread-charge", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(element("coordit-thread-recharge-required-popup", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(element("coordit-screen-fitlab-result-top", in: app).exists)
+        XCTAssertFalse(element("fitlab-add-history", in: app).exists)
+        capture("report-insufficient-thread-charge", app: app)
+    }
+
     func testMissingReferenceSelectionCanOpenClosetReferenceSelector() throws {
         let app = launchFitLab(fixture: "submission-success")
 
@@ -272,16 +298,23 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertEqual(element("fitlab-ocr-api-request-ledger", in: app).label, "[]")
     }
 
-    func testReportFailureStaysOnLoadingUntilARealReportIsReady() throws {
+    func testReportFailureShowsScoreAndRetryWithoutSavingPartialHistory() throws {
         let app = launchFitLab(fixture: "submission-report-failure")
         XCTAssertTrue(element("fitlab-reference-selection", in: app).waitForExistence(timeout: 5))
+        XCTAssertEqual(element("coordit-thread-balance-probe", in: app).label, "36")
         element("fitlab-reference-reference-fixture-hoodie", in: app).tap()
         element("fitlab-submit-analysis", in: app).tap()
 
-        XCTAssertTrue(element("coordit-screen-fitlab-loading", in: app).waitForExistence(timeout: 8))
-        XCTAssertTrue(element("fitlab-loading-error", in: app).waitForExistence(timeout: 8))
-        XCTAssertTrue(app.buttons["fitlab-loading-retry"].isHittable)
-        XCTAssertFalse(element("coordit-screen-fitlab-result-top", in: app).exists)
+        XCTAssertTrue(element("coordit-screen-fitlab-result-top", in: app).waitForExistence(timeout: 8))
+        XCTAssertTrue(element("fitlab-report-fallback", in: app).waitForExistence(timeout: 8))
+        XCTAssertTrue(element("fitlab-overlay-shoulder_width", in: app).exists)
+        XCTAssertTrue(element("fitlab-overlay-chest_width", in: app).exists)
+        XCTAssertFalse(element("global-fit-analysis-completed", in: app).exists)
+        let retryReport = element("fitlab-retry-report", in: app)
+        for _ in 0..<16 where !retryReport.isHittable { app.swipeUp() }
+        XCTAssertTrue(retryReport.isHittable)
+        XCTAssertFalse(element("fitlab-add-history", in: app).exists)
+        capture("report-failure-partial-score", app: app)
     }
 
     func testReportComparesAllFitScoresWhenItsChartRankingIsUnavailable() throws {
@@ -676,7 +709,7 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertEqual(element("fitlab-size-score-L", in: upper).value as? String, "선택됨")
         XCTAssertEqual(element("fitlab-size-score-M", in: upper).value as? String, "선택 안 됨")
         XCTAssertEqual(element("fitlab-recommended-size", in: upper).label, "L")
-        XCTAssertEqual(element("fitlab-total-score", in: upper).label, "81")
+        XCTAssertEqual(element("fitlab-total-score", in: upper).label, "81.0")
         XCTAssertTrue(element("fitlab-overlay-shoulder_width", in: upper).label.contains("여유"))
         for key in ["shoulder_width", "chest_width", "total_length", "sleeve_length"] {
             XCTAssertEqual(
@@ -883,10 +916,12 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertTrue(reportReference.waitForExistence(timeout: 5))
         reportReference.tap()
         element("fitlab-submit-analysis", in: reportApp).tap()
-        XCTAssertTrue(element("fitlab-loading-error", in: reportApp).waitForExistence(timeout: 8))
-        XCTAssertFalse(element("fitlab-fixture-result-upper", in: reportApp).exists)
+        XCTAssertTrue(element("fitlab-fixture-result-upper", in: reportApp).waitForExistence(timeout: 8))
+        XCTAssertTrue(element("fitlab-report-fallback", in: reportApp).waitForExistence(timeout: 8))
         XCTAssertEqual(element("fitlab-submission-ledger", in: reportApp).label, "references=1|product=1|M-attempts=1|M-success=1|L-attempts=1|L-success=1|recommend=1|report=1")
-        element("fitlab-loading-retry", in: reportApp).tap()
+        let retryReport = element("fitlab-retry-report", in: reportApp)
+        for _ in 0..<16 where !retryReport.isHittable { reportApp.swipeUp() }
+        retryReport.tap()
         XCTAssertTrue(element("fitlab-fixture-result-upper", in: reportApp).waitForExistence(timeout: 8))
         XCTAssertEqual(element("fitlab-submission-ledger", in: reportApp).label, "references=1|product=1|M-attempts=1|M-success=1|L-attempts=1|L-success=1|recommend=1|report=2")
         XCTAssertFalse(element("fitlab-report-fallback", in: reportApp).exists)
@@ -949,8 +984,10 @@ final class CoorditFitLabUITests: XCTestCase {
         XCTAssertTrue(element("fitlab-reference-selection", in: reportRaceApp).waitForExistence(timeout: 5))
         element("fitlab-reference-reference-fixture-hoodie", in: reportRaceApp).tap()
         element("fitlab-submit-analysis", in: reportRaceApp).tap()
-        XCTAssertTrue(element("fitlab-loading-error", in: reportRaceApp).waitForExistence(timeout: 8))
-        element("fitlab-loading-retry", in: reportRaceApp).tap()
+        XCTAssertTrue(element("fitlab-report-fallback", in: reportRaceApp).waitForExistence(timeout: 8))
+        let reportRaceRetry = element("fitlab-retry-report", in: reportRaceApp)
+        for _ in 0..<16 where !reportRaceRetry.isHittable { reportRaceApp.swipeUp() }
+        reportRaceRetry.tap()
         XCTAssertTrue(
             waitForLabel("references=1|product=1|M-attempts=1|M-success=1|L-attempts=1|L-success=1|recommend=1|report=2", element: element("fitlab-submission-ledger", in: reportRaceApp))
         )
@@ -1459,15 +1496,22 @@ final class CoorditFitLabUITests: XCTestCase {
         extraArguments: [String] = []
     ) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = [
+        var launchArguments = [
             "--coordit-ui-testing",
             "--coordit-start-route",
             route,
         ]
-        if let fixture {
-            app.launchArguments += ["--coordit-fitlab-fixture", fixture]
+        if let fixture, fixture != "unauthenticated" {
+            launchArguments.append("--coordit-ui-testing-authenticated")
+            if !extraArguments.contains("--coordit-thread-balance") {
+                launchArguments += ["--coordit-thread-balance", "36"]
+            }
         }
-        app.launchArguments += extraArguments
+        if let fixture {
+            launchArguments += ["--coordit-fitlab-fixture", fixture]
+        }
+        launchArguments += extraArguments
+        app.launchArguments = launchArguments
         return app
     }
 

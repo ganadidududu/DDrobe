@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { env } from "../../config/env";
-import { consumeFitReportThread } from "../thread-wallet/thread-wallet.service";
+import { consumeFitReportThread, getThreadBalance } from "../thread-wallet/thread-wallet.service";
 import { buildFitReportInput } from "./fit-report.builder";
 import { buildFallbackFitReport } from "./fit-report.fallback";
 import { buildFitReportPrompt, FIT_REPORT_PROMPT_VERSION } from "./fit-report.prompt";
+import { loadFitResult, loadPersistedFitReport, persistFitReport } from "./fit-report.repository";
 import {
   hasAcceptedCoreNarrative,
   sanitizeGeneratedReport
@@ -131,6 +132,16 @@ export const generateFitReport = async (
   fitAnalysisResultId: string,
   options: GenerateFitReportOptions & { idempotencyKey: string }
 ): Promise<GenerateFitReportResult> => {
+  if (!options.includeDebug) {
+    const persisted = await loadPersistedFitReport(userId, fitAnalysisResultId);
+    if (persisted) {
+      return {
+        ...persisted,
+        availableThreads: await getThreadBalance(userId)
+      };
+    }
+  }
+
   const reportInput = await buildFitReportInput(userId, fitAnalysisResultId, options);
   const prompt = buildFitReportPrompt(reportInput);
   const modelName = env.openRouterModel;
@@ -142,6 +153,15 @@ export const generateFitReport = async (
   const fallbackReport = buildFallbackFitReport(reportInput);
 
   if (threadConsumption.status === "already_consumed") {
+    if (!options.includeDebug) {
+      const persisted = await loadPersistedFitReport(userId, fitAnalysisResultId);
+      if (persisted) {
+        return {
+          ...persisted,
+          availableThreads: threadConsumption.availableThreads
+        };
+      }
+    }
     return {
       availableThreads: threadConsumption.availableThreads,
       fitAnalysisResultId,
@@ -154,6 +174,7 @@ export const generateFitReport = async (
     };
   }
 
+  let generated: GenerateFitReportResult;
   try {
     const generatedReport = await callOpenRouter(prompt, modelName);
     const report = sanitizeGeneratedReport(
@@ -162,7 +183,7 @@ export const generateFitReport = async (
       fallbackReport
     );
     const coreNarrativeAccepted = hasAcceptedCoreNarrative(generatedReport, reportInput);
-    return {
+    generated = {
       availableThreads: threadConsumption.availableThreads,
       fitAnalysisResultId,
       source: coreNarrativeAccepted ? "openrouter" : "fallback",
@@ -173,7 +194,7 @@ export const generateFitReport = async (
       ...(options.includeDebug ? { reportInput, prompt } : {})
     };
   } catch {
-    return {
+    generated = {
       availableThreads: threadConsumption.availableThreads,
       fitAnalysisResultId,
       source: "fallback",
@@ -184,4 +205,10 @@ export const generateFitReport = async (
       ...(options.includeDebug ? { reportInput, prompt } : {})
     };
   }
+
+  if (!options.includeDebug) {
+    const fitResult = await loadFitResult(userId, fitAnalysisResultId);
+    await persistFitReport(userId, fitResult, generated);
+  }
+  return generated;
 };

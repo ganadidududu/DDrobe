@@ -311,6 +311,7 @@ const main = async (): Promise<void> => {
   );
 
   reportThreadStatus = "insufficient";
+  useEnrichedFitResult();
   await assert.rejects(
     () => reportService.generateFitReport(userId, fitResultId, {
       idempotencyKey: "77777777-7777-4777-8777-777777777777"

@@ -66,7 +66,7 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "--coordit-api-base-url https://coordit-backend-staging-gei6wjuuiq-du.a.run.app"
+            argument = "--coordit-api-base-url https://coordit-backend-staging-789827940031.asia-northeast3.run.app"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
@@ -74,7 +74,7 @@
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "https://coordit-backend-staging-gei6wjuuiq-du.a.run.app"
+            argument = "https://coordit-backend-staging-789827940031.asia-northeast3.run.app"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

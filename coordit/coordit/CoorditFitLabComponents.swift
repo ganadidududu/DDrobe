@@ -515,7 +515,7 @@ struct CoorditFitLabReportCard: View {
                 .foregroundStyle(prominent ? Color.white.opacity(0.72) : CoorditFitLabPalette.muted)
             Text(title)
                 .font(CoorditTypography.gmarketBold(size: metrics.value(16), relativeTo: .headline))
-            Text(text)
+            Text(text.replacingOccurrences(of: " 사이즈", with: "\u{00A0}사이즈"))
                 .font(CoorditTypography.gmarketMedium(size: metrics.value(12), relativeTo: .body))
                 .lineSpacing(metrics.value(4))
                 .fixedSize(horizontal: false, vertical: true)

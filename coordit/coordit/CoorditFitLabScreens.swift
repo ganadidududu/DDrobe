@@ -143,13 +143,14 @@ struct CoorditFitLabFamilyView: View {
         variant: CoorditFitLabResultVariant,
         metrics: CoorditResponsiveMetrics
     ) -> some View {
-        if coordinator.report != nil {
+        if coordinator.recommendation != nil {
             CoorditFitLabResultScreen(
                 variant: variant,
                 recommendation: coordinator.recommendation,
                 report: coordinator.report,
                 sizeDrafts: coordinator.draft.sizes,
-                fallbackMessage: nil,
+                fallbackMessage: coordinator.reportFailureMessage,
+                canSaveHistory: coordinator.report != nil,
                 isSaved: coordinator.savedHistory.contains {
                     $0.analysisID == coordinator.recommendation?.fitAnalysisResultID
                 },
@@ -391,7 +392,8 @@ struct CoorditFitLabFamilyView: View {
                 Button("테스트 추천 응답 재개") { coordinator.fixtureAPI?.releaseRecommendation() }
                     .accessibilityIdentifier("fitlab-test-release-recommendation")
             }
-        } else if coordinator.fixtureName == "submission-report-race" {
+        } else if coordinator.fixtureName == "submission-report-race"
+                    || coordinator.fixtureName == "submission-report-insufficient-thread" {
             HStack {
                 Button("테스트 제출 폐기") { coordinator.discardAndRestart() }
                     .accessibilityIdentifier("fitlab-test-force-discard")
@@ -745,6 +747,7 @@ private struct CoorditFitLabResultScreen: View {
     let report: CoorditFitLabReportResponse?
     let sizeDrafts: [CoorditFitLabSizeDraft]
     let fallbackMessage: String?
+    let canSaveHistory: Bool
     let isSaved: Bool
     let metrics: CoorditResponsiveMetrics
     let saveHistory: () async -> Bool
@@ -822,21 +825,29 @@ private struct CoorditFitLabResultScreen: View {
                     .accessibilityIdentifier("fitlab-retry-report")
                 }
 
-                CoorditFitLabPrimaryButton(
-                    title: didSave || isSaved ? "히스토리에 저장됨" : (isSaving ? "저장 중..." : "히스토리에 추가"),
-                    metrics: metrics
-                ) {
-                    guard !isSaving, !didSave, !isSaved else { return }
-                    isSaving = true
-                    Task { @MainActor in
-                        let saved = await saveHistory()
-                        isSaving = false
-                        guard saved else { return }
-                        didSave = true
-                        finishReport()
+                if canSaveHistory {
+                    CoorditFitLabPrimaryButton(
+                        title: didSave || isSaved ? "히스토리에 저장됨" : (isSaving ? "저장 중..." : "히스토리에 추가"),
+                        metrics: metrics
+                    ) {
+                        guard !isSaving, !didSave, !isSaved else { return }
+                        isSaving = true
+                        Task { @MainActor in
+                            let saved = await saveHistory()
+                            isSaving = false
+                            guard saved else { return }
+                            didSave = true
+                            finishReport()
+                        }
                     }
+                    .accessibilityIdentifier("fitlab-add-history")
+                } else {
+                    Text("기준 옷 비교를 완성한 뒤 히스토리에 저장할 수 있어요.")
+                        .font(CoorditTypography.gmarketMedium(size: metrics.value(10), relativeTo: .caption))
+                        .foregroundStyle(Color.black.opacity(0.62))
+                        .multilineTextAlignment(.center)
+                        .accessibilityIdentifier("fitlab-history-awaiting-report")
                 }
-                .accessibilityIdentifier("fitlab-add-history")
 
                 if didSave || isSaved {
                     Text("분석 결과를 히스토리에 저장했어요.")
