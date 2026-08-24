@@ -34,6 +34,7 @@ final class CoorditFitLabCoordinator: ObservableObject {
     @Published private(set) var checkpoint = CoorditFitLabSubmissionCheckpoint()
     @Published private(set) var recommendation: CoorditFitLabRecommendationResponse?
     @Published private(set) var report: CoorditFitLabReportResponse?
+    @Published private(set) var reportFailureMessage: String?
     @Published var selectedHistory: CoorditFitLabHistorySnapshot?
     @Published private(set) var savedHistory: [CoorditFitLabHistorySnapshot] = []
     @Published private(set) var historyRecoveryNotice: String?
@@ -165,12 +166,11 @@ final class CoorditFitLabCoordinator: ObservableObject {
     private func finishBackgroundSubmission() {
         submissionTask = nil
         if submissionStep == .complete,
-           recommendation != nil,
-           report != nil {
+           recommendation != nil {
             analysisState = .completed(
                 draft.garmentKind == .upper ? .fitLabResultTop : .fitLabResultBottom
             )
-            isAnalysisNoticeVisible = true
+            isAnalysisNoticeVisible = report != nil
         } else if let error {
             analysisState = .failed(error.errorDescription ?? "핏 분석을 완료하지 못했어요.")
             isAnalysisNoticeVisible = true
@@ -326,6 +326,7 @@ final class CoorditFitLabCoordinator: ObservableObject {
         let generation = operationGeneration
         error = nil
         retryStep = nil
+        reportFailureMessage = nil
         loadState = .loading
         screen = .loading
         do {
@@ -388,11 +389,13 @@ final class CoorditFitLabCoordinator: ObservableObject {
                     )
                     try ensureActive(generation)
                     report = receivedReport
+                    reportFailureMessage = nil
+                } catch let fitError as CoorditFitLabError {
+                    try ensureActive(generation)
+                    reportFailureMessage = fitError.errorDescription
                 } catch {
                     try ensureActive(generation)
-                    throw CoorditFitLabError.transport(
-                        "핏 스코어 계산은 끝났지만 상세 리포트 생성이 지연되고 있어요. 다시 시도해 주세요."
-                    )
+                    reportFailureMessage = error.localizedDescription
                 }
             }
 
@@ -418,6 +421,7 @@ final class CoorditFitLabCoordinator: ObservableObject {
         createdSizeIDs = []
         recommendation = nil
         report = nil
+        reportFailureMessage = nil
         references = []
         draft = CoorditFitLabDraft()
         submissionStep = .idle
@@ -437,6 +441,7 @@ final class CoorditFitLabCoordinator: ObservableObject {
         loadState = .idle
         error = nil
         retryStep = nil
+        reportFailureMessage = nil
         analysisState = .idle
         isAnalysisNoticeVisible = false
     }

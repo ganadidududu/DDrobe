@@ -271,7 +271,7 @@ struct CoorditMyPageFamilyView: View {
 
                 CoorditSettingsMenuRow(
                     title: "내 신체 정보",
-                    subtitle: "키, 몸무게, 성별, 체수, 단위",
+                    subtitle: "키, 몸무게, 성별, 치수, 단위",
                     assetName: CoorditAssetNames.mypageBody,
                     metrics: contentMetrics
                 ) {

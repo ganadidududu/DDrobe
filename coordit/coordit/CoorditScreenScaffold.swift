@@ -72,16 +72,19 @@ extension View {
 struct CoorditScreenChrome: View {
     let route: CoorditFrameRoute
     let onRouteChange: (CoorditFrameRoute) -> Void
+    var showsHeader = true
 
     var body: some View {
         GeometryReader { geometry in
             let metrics = CoorditResponsiveMetrics(size: geometry.size)
 
             VStack(spacing: 0) {
-                Main01Header(scale: metrics.scale) {
-                    onRouteChange(.myPage)
+                if showsHeader {
+                    Main01Header(scale: metrics.scale) {
+                        onRouteChange(.myPage)
+                    }
+                    .padding(.top, Main01DesignTokens.Metrics.headerTop * metrics.scale)
                 }
-                .padding(.top, Main01DesignTokens.Metrics.headerTop * metrics.scale)
 
                 Spacer(minLength: 0)
 

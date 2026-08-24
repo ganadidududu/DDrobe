@@ -112,11 +112,16 @@ struct CoorditFitLabSizeOption: Identifiable {
                 (CoorditFitLabDraftValidation.normalizedSizeLabel($0.sizeLabel), $0)
             }
         )
-        let referenceComparisons = Dictionary(
-            uniqueKeysWithValues: (report?.chartData.idealVsProduct ?? []).map { ($0.measurement, $0) }
-        )
         let nonEmptyDrafts = sizeDrafts.filter {
             !CoorditFitLabDraftValidation.normalizedSizeLabel($0.label).isEmpty
+        }
+        var referenceComparisons = fallbackComparisons(
+            variant: variant,
+            recommendation: recommendation,
+            sizeDrafts: nonEmptyDrafts
+        )
+        for comparison in report?.chartData.idealVsProduct ?? [] {
+            referenceComparisons[comparison.measurement] = comparison
         }
 
         let draftOptions = nonEmptyDrafts.map { draft in
@@ -163,6 +168,40 @@ struct CoorditFitLabSizeOption: Identifiable {
                 measurements: authoritativeMeasurements(variant: variant, comparisons: referenceComparisons)
             )
         ]
+    }
+
+    private static func fallbackComparisons(
+        variant: CoorditFitLabResultVariant,
+        recommendation: CoorditFitLabRecommendationResponse,
+        sizeDrafts: [CoorditFitLabSizeDraft]
+    ) -> [CoorditFitLabMeasurementKey: CoorditFitLabReportResponse.ChartData.Comparison] {
+        let recommendedSize = CoorditFitLabDraftValidation.normalizedSizeLabel(recommendation.recommendedSize)
+        guard let recommendedDraft = sizeDrafts.first(where: {
+            CoorditFitLabDraftValidation.normalizedSizeLabel($0.label) == recommendedSize
+        }) else {
+            return [:]
+        }
+
+        return recommendation.diff.reduce(into: [:]) { comparisons, entry in
+            let (key, difference) = entry
+            guard variant.measurementKeys.contains(key),
+                  difference.isFinite,
+                  let product = recommendedDraft.measurements[key],
+                  product.isFinite else {
+                return
+            }
+
+            let ideal = product - difference
+            guard ideal.isFinite else { return }
+            comparisons[key] = .init(
+                measurement: key,
+                label: variant.label(for: key),
+                ideal: ideal,
+                product: product,
+                diff: difference,
+                status: nil
+            )
+        }
     }
 
     private static func authoritativeMeasurements(

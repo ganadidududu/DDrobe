@@ -149,7 +149,11 @@ struct CoorditRootView: View {
             .environment(\.coorditShowsScreenBackground, false)
 
             if showsScreenChrome {
-                CoorditScreenChrome(route: route) { navigate(to: $0) }
+                CoorditScreenChrome(
+                    route: route,
+                    onRouteChange: { navigate(to: $0) },
+                    showsHeader: !fitLabCoordinator.isAnalysisNoticeVisible
+                )
                     .zIndex(90)
             }
 
