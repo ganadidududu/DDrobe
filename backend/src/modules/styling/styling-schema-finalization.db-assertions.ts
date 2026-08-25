@@ -32,6 +32,8 @@ const birthDateDefinitionSchema = z.array(z.object({
   column_default: z.string().nullable()
 }));
 
+const relationPersistenceSchema = z.enum(["p", "u", "t"]).nullable();
+
 const sentinelSnapshotSchema = z.object({
   user: z.object({
     id: uuidSchema,
@@ -118,6 +120,7 @@ export const readStylingFinalizationMutationSnapshot = async (
   readonly stylingColumns: Awaited<ReturnType<typeof readStylingColumns>>;
   readonly stylingConstraints: Awaited<ReturnType<typeof readStylingConstraints>>;
   readonly stylingIndexes: Awaited<ReturnType<typeof readStylingIndexes>>;
+  readonly stylingPersistence: z.infer<typeof relationPersistenceSchema>;
   readonly stylingSecurity: Awaited<ReturnType<typeof readStylingSecurity>> | null;
   readonly userColumns: readonly string[];
 }> => {
@@ -140,6 +143,11 @@ export const readStylingFinalizationMutationSnapshot = async (
     "select to_regclass('public.styling_looks') is not null as exists"
   );
   const stylingExists = z.object({ exists: z.boolean() }).parse(stylingResult.rows[0]).exists;
+  const persistenceResult = await client.query(`
+    select relpersistence
+    from pg_class
+    where oid = to_regclass('public.styling_looks')
+  `);
   return {
     birthDateDefinition: await readBirthDateDefinition(client),
     receiptCount: z.coerce.number().int().nonnegative().parse(recordResult.rows[0]?.count),
@@ -149,6 +157,9 @@ export const readStylingFinalizationMutationSnapshot = async (
     stylingColumns: await readStylingColumns(client),
     stylingConstraints: stylingExists ? await readStylingConstraints(client) : [],
     stylingIndexes: stylingExists ? await readStylingIndexes(client) : [],
+    stylingPersistence: relationPersistenceSchema.parse(
+      persistenceResult.rows[0]?.relpersistence ?? null
+    ),
     stylingSecurity: stylingExists ? await readStylingSecurity(client) : null,
     userColumns: await readUserColumnNames(client)
   };

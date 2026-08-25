@@ -184,7 +184,7 @@ The approved precondition is exact committed `20260822` monetary receipt, ordina
 | Field | Required value |
 | --- | --- |
 | Migration | `supabase/migrations/20260825_finalize_styling_schema.sql` |
-| SHA-256 | `a9c85f0d3aa2ed4eb18b845b346420639baede26225d702831c6896d82cce74f` |
+| SHA-256 | `da6e9133af35da8534da39e849dccea66d2b67547bd0127a7be4b239454e06e1` |
 | Typed runner | `backend/src/modules/styling/styling-schema-finalization.runner.ts` |
 | Operator CLI | `backend/src/modules/styling/styling-schema-finalization.runner.cli.ts` |
 | Connection probe | `backend/src/modules/styling/styling-schema-finalization.operator-connection-probe.cli.ts` |

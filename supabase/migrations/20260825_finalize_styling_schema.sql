@@ -299,6 +299,7 @@ begin
     styling_looks_exact :=
       (
         select catalog.relkind = 'r'
+          and catalog.relpersistence = 'p'
           and catalog.relrowsecurity
           and not catalog.relforcerowsecurity
         from pg_class catalog

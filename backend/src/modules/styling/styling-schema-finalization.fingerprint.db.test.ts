@@ -131,6 +131,23 @@ const assertGeneratedNameRejected = async (): Promise<void> => {
   }
 };
 
+const assertUnloggedExactTargetRejected = async (): Promise<void> => {
+  const database = await startDisposableStylingFinalizationDatabase();
+  try {
+    await database.applyStylingFinalization();
+    await database.client.query("alter table public.styling_looks set unlogged");
+    const before = await readStylingFinalizationMutationSnapshot(database.client);
+    assert.equal(before.stylingPersistence, "u");
+    await expectDatabaseError(
+      () => database.applyStylingFinalization(),
+      "styling_schema_finalization_catalog_drift"
+    );
+    assert.deepEqual(await readStylingFinalizationMutationSnapshot(database.client), before);
+  } finally {
+    await database.stop();
+  }
+};
+
 const readExpectedSha = async (): Promise<string> => {
   const migrationPath = resolve(
     process.cwd(),
@@ -210,6 +227,7 @@ const run = async (): Promise<void> => {
       foreign key (user_id) references public.users(id)
   `);
   await assertGeneratedNameRejected();
+  await assertUnloggedExactTargetRejected();
   assert.match(await readExpectedSha(), /^[0-9a-f]{64}$/);
 
   process.stdout.write([
@@ -219,7 +237,7 @@ const run = async (): Promise<void> => {
     "live_shape=exact-birth-and-styling-absent-only",
     "replay=exact-catalog-and-receipt-only",
     "birth_date=absent/type/null/default/generated-drift-rejected",
-    "styling=old-shape/generated/fk/index/rls/acl-drift-rejected",
+    "styling=old-shape/generated/fk/index/persistence/rls/acl-drift-rejected",
     "receipts=20260822-exact/20260824-absent/20260825-exact-required",
     "mutation=none-before-rejection",
     "identifiers=redacted",

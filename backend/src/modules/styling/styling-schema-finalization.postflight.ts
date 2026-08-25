@@ -140,6 +140,7 @@ export const stylingSchemaFinalizationPostflightSql = `
     ) as styling_index_exact,
     (
       select catalog.relkind = 'r'
+        and catalog.relpersistence = 'p'
         and catalog.relrowsecurity
         and not catalog.relforcerowsecurity
         and not exists (
