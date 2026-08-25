@@ -175,40 +175,43 @@ Also unset any remaining `PG*` operator variables. Do not leave the CA in a repo
 
 `styling_looks` and `users.birth_date` are intentionally untouched by this monetization reconciliation and remain separate schema blockers requiring their own reviewed forward changes. App Store Connect app/product/agreement/notification/certificate work and the AdMob verified-URL/live-reward gates also remain separate blockers; this database receipt cannot turn either CTA on.
 
-### Separate profile/styling forward repair
+### Current styling-only forward repair
 
-Do not replay `20260511_add_styling_looks.sql`, `20260813_add_user_birth_date.sql`, the historical migration directory, or `supabase db push`. After independently confirming the exact committed `20260822` monetary receipt above, the only reviewed profile/styling repair artifact is:
+`20260824_reconcile_profile_styling_schema.sql` and its operator surface are immutable but superseded for the newly observed catalog. Do not run that migration or insert a `20260824` receipt. Do not replay `20260511_add_styling_looks.sql`, `20260813_add_user_birth_date.sql`, the historical migration directory, `supabase db push`, or hand-edited SQL.
+
+The approved precondition is exact committed `20260822` monetary receipt, ordinary nullable `public.users.birth_date date` already present with no default, `public.styling_looks` absent, both `20260824` and `20260825` receipts absent, and no Supabase migration ledger. After independently confirming that fingerprint, the only applicable artifact is:
 
 | Field | Required value |
 | --- | --- |
-| Migration | `supabase/migrations/20260824_reconcile_profile_styling_schema.sql` |
-| SHA-256 | `3d2bd3c10d6688d5f5fa6d1ccc010aa3a932478b16536bc68a41d4c50b116c17` |
-| Typed runner | `backend/src/modules/styling/profile-styling-schema-reconciliation.runner.ts` |
-| Operator CLI | `backend/src/modules/styling/profile-styling-schema-reconciliation.runner.cli.ts` |
-| Approval token | `coordit-profile-styling-schema-reconciliation-20260824` |
+| Migration | `supabase/migrations/20260825_finalize_styling_schema.sql` |
+| SHA-256 | `a9c85f0d3aa2ed4eb18b845b346420639baede26225d702831c6896d82cce74f` |
+| Typed runner | `backend/src/modules/styling/styling-schema-finalization.runner.ts` |
+| Operator CLI | `backend/src/modules/styling/styling-schema-finalization.runner.cli.ts` |
+| Connection probe | `backend/src/modules/styling/styling-schema-finalization.operator-connection-probe.cli.ts` |
+| Approval token | `coordit-styling-schema-finalization-20260825` |
 
-Use a separate reviewed change window and the same backup, Session-pooler, verified-CA, clean-commit, and secret-handling gates described above. Run all checked-in local gates before the connection probe:
+Use a separate reviewed change window and the same backup, Session-pooler, verified-CA, clean-commit, and secret-handling gates described above. Run every checked-in local gate before the connection probe:
 
 ```bash
 npm --prefix backend run typecheck
-npm --prefix backend run test:profile-styling-schema-reconciliation
-npm --prefix backend run test:profile-styling-schema-reconciliation:fingerprint
-npm --prefix backend run test:profile-styling-schema-reconciliation:failures
-npm --prefix backend run test:profile-styling-schema-reconciliation:operator
-npm --prefix backend run test:profile-styling-schema-reconciliation:connection-probe
+npm --prefix backend run test:styling-schema-finalization
+npm --prefix backend run test:styling-schema-finalization:fingerprint
+npm --prefix backend run test:styling-schema-finalization:failures
+npm --prefix backend run test:styling-schema-finalization:operator
+npm --prefix backend run test:styling-schema-finalization:connection-probe
 ```
 
-With the same standard `PG*` variables and `PGSSLROOTCERT` set for the approved Session pooler, run the scope-specific connection-only probe first. It performs `connect()` and `end()` only and must print exactly `profile_styling_connection_probe status=connected`. Set the distinct approval variable only after that succeeds:
+With the standard `PG*` variables and `PGSSLROOTCERT` set for the approved Session pooler, run the scope-specific connection-only probe first. It performs `connect()` and `end()` only, issues no query, and must print exactly `styling_schema_finalization_connection_probe status=connected`. Set the approval variable only after that succeeds:
 
 ```bash
-npm --prefix backend run --silent probe:profile-styling-schema-reconciliation:connection
-export COORDIT_PROFILE_STYLING_SCHEMA_RECONCILIATION_APPROVAL='coordit-profile-styling-schema-reconciliation-20260824'
-npm --prefix backend run apply:profile-styling-schema-reconciliation
+npm --prefix backend run --silent probe:styling-schema-finalization:connection
+export COORDIT_STYLING_SCHEMA_FINALIZATION_APPROVAL='coordit-styling-schema-finalization-20260825'
+npm --prefix backend run apply:styling-schema-finalization
 ```
 
-The runner accepts only the paired-absent observed state or the fully exact paired target. It rejects a Supabase migration ledger, a missing or mismatched `20260822` monetary receipt, one-sided state, wrong columns/defaults/FK/index/security, or a conflicting `20260824` record before commit. One transaction sets five-second lock and 30-second statement timeouts, takes a fixed advisory transaction lock, records the migration filename/SHA, runs a fixed read-only postflight, and rolls back on any failure.
+The runner accepts only the exact observed live state above or exact receipt-bearing replay. An exact styling catalog without the exact `20260825` receipt is drift, not adoption. It rejects absent or non-ordinary `birth_date`, any styling partial/wrong column/default/generated state, wrong FK/index/RLS/privileges, any `20260824` receipt, a conflicting `20260825` receipt, a missing or mismatched monetary receipt, or a Supabase ledger before mutation. One transaction sets five-second lock and 30-second statement timeouts, takes a fixed advisory transaction lock, records the migration filename/SHA, runs a fixed typed read-only postflight, and rolls back on any failure.
 
-The observed partial success receipt must report `status=committed`, the filename and SHA above, `disposition=reconciled_observed_partial`, and `connection=redacted`. The only schema additions are nullable `public.users.birth_date date`, the exact `public.styling_looks` table plus owner index, and one `20260824` row in the existing change-record table. `styling_looks` has RLS enabled with no policies, no `anon`/`authenticated` privileges, and service-role CRUD only because current backend persistence uses the service client. Replay preserves the original receipt. Never reverse a committed repair; use another reviewed forward migration. Remove the task-owned CA copy and unset operator variables after the redacted receipt is retained.
+The success receipt must report `status=committed`, the filename and SHA above, `disposition=reconciled_observed_partial`, and `connection=redacted`. The only catalog addition is the exact `public.styling_looks` table plus `styling_looks_user_id_idx`; the only durable DML is one `20260825` change record. The migration does not alter `public.users.birth_date` or write existing user, wallet, or ledger rows. `styling_looks` has RLS enabled with no policies, no `anon`/`authenticated` privileges, and service-role CRUD only because current backend persistence uses the service client. Exact replay preserves the original receipt. Never reverse a committed repair; use another reviewed forward migration. Remove the task-owned CA copy and unset `COORDIT_STYLING_SCHEMA_FINALIZATION_APPROVAL` and all operator `PG*` variables after retaining the redacted receipt.
 
 Supabase's current production guidance recommends distinct environments, version-controlled migrations, RLS review, backups/PITR, and restricted production access: <https://supabase.com/docs/guides/deployment/going-into-prod>.
 
