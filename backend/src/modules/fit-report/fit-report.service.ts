@@ -3,6 +3,11 @@ import { env } from "../../config/env";
 import { consumeFitReportThread, getThreadBalance } from "../thread-wallet/thread-wallet.service";
 import { buildFitReportInput } from "./fit-report.builder";
 import { buildFallbackFitReport } from "./fit-report.fallback";
+import {
+  classifyFitReportFallback,
+  FitReportFallbackError,
+  logFitReportFallback
+} from "./fit-report.fallback-observability";
 import { buildFitReportPrompt, FIT_REPORT_PROMPT_VERSION } from "./fit-report.prompt";
 import { loadFitResult, loadPersistedFitReport, persistFitReport } from "./fit-report.repository";
 import {
@@ -83,15 +88,11 @@ const fitReportResponseFormat = {
   }
 } as const;
 
-class OpenRouterResponseError extends Error {
-  readonly name = "OpenRouterResponseError";
-}
-
 export { buildFallbackFitReport } from "./fit-report.fallback";
 
 const callOpenRouter = async (prompt: string, modelName: string): Promise<FitReportJson> => {
   if (!env.openRouterApiKey) {
-    throw new OpenRouterResponseError("OpenRouter is not configured");
+    throw new FitReportFallbackError("not_configured");
   }
 
   const response = await fetch(openRouterChatCompletionsUrl, {
@@ -116,15 +117,29 @@ const callOpenRouter = async (prompt: string, modelName: string): Promise<FitRep
   });
 
   if (!response.ok) {
-    throw new OpenRouterResponseError(`OpenRouter HTTP ${response.status}`);
+    throw new FitReportFallbackError("http_error");
   }
 
-  const completion = openRouterCompletionSchema.parse(await response.json());
+  const completionResult = openRouterCompletionSchema.safeParse(await response.json());
+  if (!completionResult.success) {
+    throw new FitReportFallbackError("completion_invalid");
+  }
+  const completion = completionResult.data;
   const firstChoice = completion.choices[0];
   if (!firstChoice) {
-    throw new OpenRouterResponseError("OpenRouter response was missing a choice");
+    throw new FitReportFallbackError("completion_invalid");
   }
-  return fitReportJsonSchema.parse(JSON.parse(firstChoice.message.content));
+  let reportCandidate: unknown;
+  try {
+    reportCandidate = JSON.parse(firstChoice.message.content);
+  } catch {
+    throw new FitReportFallbackError("report_invalid");
+  }
+  const reportResult = fitReportJsonSchema.safeParse(reportCandidate);
+  if (!reportResult.success) {
+    throw new FitReportFallbackError("report_invalid");
+  }
+  return reportResult.data;
 };
 
 export const generateFitReport = async (
@@ -183,6 +198,9 @@ export const generateFitReport = async (
       fallbackReport
     );
     const coreNarrativeAccepted = hasAcceptedCoreNarrative(generatedReport, reportInput);
+    if (!coreNarrativeAccepted) {
+      logFitReportFallback("narrative_rejected", modelName);
+    }
     generated = {
       availableThreads: threadConsumption.availableThreads,
       fitAnalysisResultId,
@@ -193,7 +211,8 @@ export const generateFitReport = async (
       chartData: reportInput.chartData,
       ...(options.includeDebug ? { reportInput, prompt } : {})
     };
-  } catch {
+  } catch (error: unknown) {
+    logFitReportFallback(classifyFitReportFallback(error), modelName);
     generated = {
       availableThreads: threadConsumption.availableThreads,
       fitAnalysisResultId,
