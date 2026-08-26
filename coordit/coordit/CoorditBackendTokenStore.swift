@@ -19,14 +19,19 @@ struct CoorditBackendTokenStore {
 
     func save(_ session: CoorditAuthSession) throws {
         let data = try JSONEncoder().encode(session)
-        delete()
+        let attributes: [String: Any] = [
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+        ]
+        let updateStatus = SecItemUpdate(baseQuery as CFDictionary, attributes as CFDictionary)
+        if updateStatus == errSecSuccess { return }
+        guard updateStatus == errSecItemNotFound else { throw TokenStoreError.unavailable }
 
-        var query = baseQuery
-        query[kSecValueData as String] = data
-        query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-
-        let status = SecItemAdd(query as CFDictionary, nil)
-        guard status == errSecSuccess else { throw TokenStoreError.unavailable }
+        var newItem = baseQuery
+        attributes.forEach { key, value in newItem[key] = value }
+        guard SecItemAdd(newItem as CFDictionary, nil) == errSecSuccess else {
+            throw TokenStoreError.unavailable
+        }
     }
 
     func delete() {

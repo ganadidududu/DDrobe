@@ -36,9 +36,10 @@
     "test:admob-reward:all": "npm run test:admob-reward -- --scenario valid && npm run test:admob-reward -- --scenario invalid-signature && npm run test:admob-reward -- --scenario validation-probe",
     "test:admob-reward:db": "tsx src/modules/admob-reward/admob-reward.db.test.ts",
     "test:users": "tsx src/modules/users/users.service.test.ts",
-    "test": "npm run test:fit && npm run test:report && npm run test:thread-wallet && npm run test:apple-notifications && npm run test:admob-reward:all && npm run test:users && vitest run",
+    "test": "npm run test:fit && npm run test:report && npm run test:thread-wallet && npm run test:apple-notifications && npm run test:admob-reward:all && npm run test:users && npm run test:new-user-wallet && vitest run",
     "test:product-import": "vitest run src/modules/product-import/tests",
-    "test:auth-onboarding": "tsx src/modules/auth/auth-onboarding.service.test.ts && tsx src/modules/auth/auth-onboarding.validation.test.ts && tsx src/modules/auth/auth-onboarding.controller.test.ts && tsx src/modules/auth/auth-onboarding-status.service.test.ts"
+    "test:auth-onboarding": "tsx src/modules/auth/auth-onboarding.service.test.ts && tsx src/modules/auth/auth-onboarding.validation.test.ts && tsx src/modules/auth/auth-onboarding.controller.test.ts && tsx src/modules/auth/auth-onboarding-status.service.test.ts",
+    "test:new-user-wallet": "tsx src/modules/thread-wallet/new-user-wallet.db.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",

@@ -57,6 +57,37 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         XCTAssertFalse(element("home-reference-sync-status", in: app).waitForExistence(timeout: 10))
     }
 
+    func testPersistedSocialSessionSurvivesColdRelaunchWithoutProviderSignup() throws {
+        addTeardownBlock {
+            let cleanup = self.launchApp(
+                at: "splash",
+                extraArguments: ["--coordit-ui-testing-clear-persisted-session"]
+            )
+            cleanup.terminate()
+        }
+
+        let seeded = launchApp(
+            at: "splash",
+            extraArguments: [
+                "--coordit-ui-testing-clear-persisted-session",
+                "--coordit-ui-testing-seed-persisted-session",
+                "--coordit-api-base-url", "http://127.0.0.1:45678",
+            ]
+        )
+        XCTAssertTrue(element("coordit-splash-tap-hint", in: seeded).waitForExistence(timeout: 5))
+        XCTAssertFalse(seeded.buttons["splash-signup-entry"].exists)
+        seeded.terminate()
+
+        let restored = launchApp(
+            at: "splash",
+            extraArguments: ["--coordit-api-base-url", "http://127.0.0.1:45678"]
+        )
+        XCTAssertTrue(element("coordit-splash-tap-hint", in: restored).waitForExistence(timeout: 5))
+        XCTAssertFalse(restored.buttons["splash-signup-entry"].exists)
+        element("coordit-screen-splash", in: restored).tap()
+        assertScreen("main04", in: restored)
+    }
+
     func testReturningLoggedOutUserSeesSplashBeforeAuthenticationEntry() throws {
         let app = launchApp(
             at: "splash",

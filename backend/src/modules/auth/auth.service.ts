@@ -72,3 +72,13 @@ export const loginWithAppleIdToken = async (
   if (error || !data.user) throw createHttpError(401, error?.message ?? "Apple login failed");
   return toAuthResponse(data.user, data.session);
 };
+
+export const refreshAuthSession = async (refreshToken: string): Promise<AuthResponse> => {
+  const { data, error } = await supabaseAuth.auth.refreshSession({
+    refresh_token: refreshToken
+  });
+  if (error || !data.user) {
+    throw createHttpError(401, error?.message ?? "Session refresh failed");
+  }
+  return toAuthResponse(data.user, data.session);
+};

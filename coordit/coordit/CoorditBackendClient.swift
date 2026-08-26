@@ -73,6 +73,11 @@ enum CoorditBackendClientError: LocalizedError {
             message
         }
     }
+
+    var invalidatesSession: Bool {
+        guard case let .server(statusCode, _) = self else { return false }
+        return statusCode == 401 || statusCode == 403
+    }
 }
 
 struct CoorditMonetizationReadiness: Codable, Equatable {
@@ -114,6 +119,15 @@ struct CoorditBackendClient {
             method: "POST",
             token: nil,
             body: AppleAuthRequest(idToken: idToken, nonce: nonce)
+        )
+    }
+
+    func refreshSession(refreshToken: String) async throws -> CoorditAuthSession {
+        try await send(
+            path: "/auth/refresh",
+            method: "POST",
+            token: nil,
+            body: RefreshAuthRequest(refreshToken: refreshToken)
         )
     }
 
@@ -386,6 +400,10 @@ private struct GoogleAuthRequest: Encodable {
 private struct AppleAuthRequest: Encodable {
     let idToken: String
     let nonce: String
+}
+
+private struct RefreshAuthRequest: Encodable {
+    let refreshToken: String
 }
 
 private struct UpdateProfileRequest: Encodable {

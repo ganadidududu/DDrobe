@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { env } from "./config/env";
-import { loginWithApple, loginWithGoogle } from "./modules/auth/auth.controller";
+import { loginWithApple, loginWithGoogle, refreshSession } from "./modules/auth/auth.controller";
 import { completeOnboardingController } from "./modules/auth/auth-onboarding.controller";
 import { getOnboardingStatus } from "./modules/auth/auth-onboarding-status.controller";
 import { createBodyMeasurement, listBodyMeasurements } from "./modules/body-measurements/body-measurements.controller";
@@ -79,6 +79,7 @@ export const routes = Router();
 
 routes.post("/auth/google", loginWithGoogle);
 routes.post("/auth/apple", loginWithApple);
+routes.post("/auth/refresh", refreshSession);
 
 // AdMob signs these callbacks itself, so this must stay before authMiddleware.
 routes.get("/webhooks/admob/rewarded", receiveRewardedSSVController);

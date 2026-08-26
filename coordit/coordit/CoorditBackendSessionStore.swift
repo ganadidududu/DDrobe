@@ -75,6 +75,7 @@ final class CoorditBackendSessionStore: ObservableObject {
         self.client = CoorditBackendClient(baseURL: CoorditBackendConfig.baseURL())
         self.tokenStore = CoorditBackendTokenStore()
 #if DEBUG
+        Self.configurePersistedSessionFixture(in: tokenStore)
         if Self.shouldUseAuthenticatedUITestFixture {
             usesAuthenticatedUITestFixture = true
             session = CoorditAuthSession(
@@ -97,9 +98,11 @@ final class CoorditBackendSessionStore: ObservableObject {
         } else {
             usesAuthenticatedUITestFixture = false
             session = tokenStore.load()
+            onboardingComplete = session.map(Self.cachedOnboardingComplete) ?? false
         }
 #else
         session = tokenStore.load()
+        onboardingComplete = session.map(Self.cachedOnboardingComplete) ?? false
 #endif
     }
 
@@ -110,6 +113,7 @@ final class CoorditBackendSessionStore: ObservableObject {
         usesAuthenticatedUITestFixture = false
 #endif
         session = tokenStore.load()
+        onboardingComplete = session.map(Self.cachedOnboardingComplete) ?? false
     }
 
     var isAuthenticated: Bool {
@@ -143,6 +147,7 @@ final class CoorditBackendSessionStore: ObservableObject {
         }
 #endif
         await run {
+            try await refreshPersistedSession()
             let health = try await client.health()
             statusText = health.ok ? "\(health.service) 연결됨" : "백엔드 응답이 불안정해요."
             isWarning = !health.ok
@@ -150,6 +155,27 @@ final class CoorditBackendSessionStore: ObservableObject {
                 try await refreshAccount()
                 try await refreshOnboardingStatus()
             }
+        }
+    }
+
+    private func refreshPersistedSession() async throws {
+        guard let currentSession = session, !currentSession.refreshToken.isEmpty else { return }
+        do {
+            let refreshedSession = try await client.refreshSession(
+                refreshToken: currentSession.refreshToken
+            )
+            try tokenStore.save(refreshedSession)
+            session = refreshedSession
+        } catch let error as CoorditBackendClientError where error.invalidatesSession {
+            if let userID = session?.user.id {
+                Self.clearCachedOnboardingComplete(for: userID)
+            }
+            tokenStore.delete()
+            session = nil
+            profile = nil
+            latestBodyMeasurement = nil
+            onboardingComplete = false
+            throw error
         }
     }
 
@@ -304,6 +330,9 @@ final class CoorditBackendSessionStore: ObservableObject {
 
     func logout() {
         monetizationReadinessRequestID = UUID()
+        if let userID = session?.user.id {
+            Self.clearCachedOnboardingComplete(for: userID)
+        }
         tokenStore.delete()
         session = nil
         profile = nil
@@ -326,6 +355,9 @@ final class CoorditBackendSessionStore: ObservableObject {
         defer { isWorking = false }
         do {
             try await client.deleteAccount(token: token)
+            if let userID = session?.user.id {
+                Self.clearCachedOnboardingComplete(for: userID)
+            }
             tokenStore.delete()
             session = nil
             profile = nil
@@ -391,6 +423,7 @@ final class CoorditBackendSessionStore: ObservableObject {
             let completion = try await client.completeOnboarding(token: token, request: request)
             profile = completion.user
             onboardingComplete = completion.onboardingComplete
+            cacheOnboardingComplete(completion.onboardingComplete)
             latestBodyMeasurement = try await client.listBodyMeasurements(token: token).first
             statusText = "나만의 핏 프로필을 저장했어요."
             isWarning = false
@@ -806,7 +839,26 @@ final class CoorditBackendSessionStore: ObservableObject {
             onboardingComplete = false
             return
         }
-        onboardingComplete = try await client.onboardingStatus(token: token).onboardingComplete
+        let refreshedStatus = try await client.onboardingStatus(token: token).onboardingComplete
+        onboardingComplete = refreshedStatus
+        cacheOnboardingComplete(refreshedStatus)
+    }
+
+    private func cacheOnboardingComplete(_ isComplete: Bool) {
+        guard let userID = session?.user.id else { return }
+        UserDefaults.standard.set(isComplete, forKey: Self.onboardingCacheKey(for: userID))
+    }
+
+    private static func cachedOnboardingComplete(for session: CoorditAuthSession) -> Bool {
+        UserDefaults.standard.bool(forKey: onboardingCacheKey(for: session.user.id))
+    }
+
+    private static func clearCachedOnboardingComplete(for userID: String) {
+        UserDefaults.standard.removeObject(forKey: onboardingCacheKey(for: userID))
+    }
+
+    private static func onboardingCacheKey(for userID: String) -> String {
+        "coordit.onboarding-complete.\(userID)"
     }
 
     private func runAuthenticated(_ action: (String) async throws -> Void) async {
@@ -843,6 +895,29 @@ final class CoorditBackendSessionStore: ObservableObject {
         let arguments = ProcessInfo.processInfo.arguments
         return arguments.contains("--coordit-ui-testing")
             && arguments.contains("--coordit-ui-testing-authenticated")
+    }
+
+    private static func configurePersistedSessionFixture(in tokenStore: CoorditBackendTokenStore) {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard arguments.contains("--coordit-ui-testing") else { return }
+        if arguments.contains("--coordit-ui-testing-clear-persisted-session") {
+            if let userID = tokenStore.load()?.user.id {
+                clearCachedOnboardingComplete(for: userID)
+            }
+            tokenStore.delete()
+        }
+        if arguments.contains("--coordit-ui-testing-seed-persisted-session") {
+            let fixture = CoorditAuthSession(
+                accessToken: "expired-ui-test-access-token",
+                refreshToken: "persisted-ui-test-refresh-token",
+                user: CoorditAuthUser(
+                    id: "00000000-0000-4000-8000-000000000002",
+                    email: "persisted-ui-test@coordit.invalid"
+                )
+            )
+            try? tokenStore.save(fixture)
+            UserDefaults.standard.set(true, forKey: onboardingCacheKey(for: fixture.user.id))
+        }
     }
 
     private static var uiTestingAccessToken: String? {

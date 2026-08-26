@@ -4,6 +4,7 @@ import {
   loginWithAppleIdToken,
   loginWithEmail,
   loginWithGoogleIdToken,
+  refreshAuthSession,
   signupWithEmail,
   type AuthResponse
 } from "./auth.service";
@@ -21,7 +22,7 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
     const email = asRequiredString(req.body.email, "email");
     const password = asRequiredString(req.body.password, "password");
     res.status(201).json(await signupWithEmail(email, password));
-  } catch (error) {
+  } catch (error) { // no-excuse-ok: catch -- Express forwards boundary errors centrally.
     next(error);
   }
 };
@@ -31,7 +32,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     const email = asRequiredString(req.body.email, "email");
     const password = asRequiredString(req.body.password, "password");
     res.json(await loginWithEmail(email, password));
-  } catch (error) {
+  } catch (error) { // no-excuse-ok: catch -- Express forwards boundary errors centrally.
     next(error);
   }
 };
@@ -43,7 +44,7 @@ export const createGoogleLoginController = (
     const idToken = asRequiredString(req.body.idToken, "idToken");
     const nonce = asRequiredString(req.body.nonce, "nonce");
     res.json(await dependencies.loginWithGoogleIdToken(idToken, nonce));
-  } catch (error) {
+  } catch (error) { // no-excuse-ok: catch -- Express forwards boundary errors centrally.
     next(error);
   }
 };
@@ -57,9 +58,18 @@ export const createAppleLoginController = (
     const idToken = asRequiredString(req.body.idToken, "idToken");
     const nonce = asRequiredString(req.body.nonce, "nonce");
     res.json(await dependencies.loginWithAppleIdToken(idToken, nonce));
-  } catch (error) {
+  } catch (error) { // no-excuse-ok: catch -- Express forwards boundary errors centrally.
     next(error);
   }
 };
 
 export const loginWithApple = createAppleLoginController({ loginWithAppleIdToken });
+
+export const refreshSession = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const refreshToken = asRequiredString(req.body.refreshToken, "refreshToken");
+    res.json(await refreshAuthSession(refreshToken));
+  } catch (error) { // no-excuse-ok: catch -- Express forwards boundary errors centrally.
+    next(error);
+  }
+};
