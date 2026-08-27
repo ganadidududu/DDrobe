@@ -1,7 +1,7 @@
 const pageStyles = `
   :root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
   * { box-sizing: border-box; }
-  body { margin: 0; color: #172033; background: #f5f7fb; line-height: 1.7; }
+  body { margin: 0; color: #172033; background: #f5f7fb; line-height: 1.7; word-break: keep-all; overflow-wrap: break-word; }
   header { padding: 56px 24px 44px; color: #fff; background: linear-gradient(135deg, #14213d, #29446f); }
   header div, main, footer { width: min(760px, calc(100% - 40px)); margin: 0 auto; }
   .brand { margin: 0 0 12px; color: #a9c2eb; font-size: 14px; font-weight: 700; letter-spacing: .14em; }
@@ -16,6 +16,7 @@ const pageStyles = `
   a { color: #275d9f; font-weight: 650; }
   .button { display: inline-block; margin-top: 12px; padding: 11px 16px; border-radius: 12px; color: #fff; background: #275d9f; text-decoration: none; }
   .muted { color: #667085; font-size: 14px; }
+  .nowrap { white-space: nowrap; }
   footer { padding: 0 0 40px; color: #667085; font-size: 14px; }
   nav { display: flex; gap: 16px; flex-wrap: wrap; }
   @media (max-width: 520px) { header { padding-top: 40px; } section { padding: 20px; } }
@@ -34,7 +35,7 @@ export const supportPageHtml = `<!doctype html>
   <header><div>
     <p class="brand">COORDIT</p>
     <h1>고객지원</h1>
-    <p>앱 이용, 계정, FIT LAB 분석과 실타래 잔액에 관한 문의를 도와드립니다.</p>
+    <p>앱 이용, 계정, <span class="nowrap">FIT LAB</span> 분석과 실타래 잔액에 관한 문의를 도와드립니다.</p>
   </div></header>
   <main>
     <section>
@@ -46,8 +47,8 @@ export const supportPageHtml = `<!doctype html>
     <section>
       <h2>자주 찾는 도움말</h2>
       <h3>로그인과 계정</h3>
-      <p>Apple 또는 Google 계정으로 로그인할 수 있습니다. 로그인 문제가 계속되면 사용한 로그인 방식과 오류 화면을 함께 알려주세요.</p>
-      <h3>FIT LAB 결과</h3>
+      <p>Apple 또는 Google 계정으로 <span class="nowrap">로그인할 수 있습니다</span>. 로그인 문제가 계속되면 사용한 로그인 방식과 오류 화면을 함께 알려주세요.</p>
+      <h3><span class="nowrap">FIT LAB</span> 결과</h3>
       <p>추천 사이즈와 핏 점수는 입력한 실측, 브랜드 측정 방식, 소재와 개인 선호에 따라 달라질 수 있는 참고 정보입니다.</p>
       <h3>계정 및 데이터 삭제</h3>
       <p>계정 삭제를 원하면 가입에 사용한 이메일과 함께 삭제 요청을 보내주세요. 본인 확인 후 관련 법령상 보관 의무가 있는 정보를 제외하고 처리합니다.</p>
@@ -74,14 +75,14 @@ export const privacyPageHtml = `<!doctype html>
   <header><div>
     <p class="brand">COORDIT</p>
     <h1>개인정보처리방침</h1>
-    <p>COORDIT은 서비스 제공에 필요한 정보만 처리하고, 이용자가 자신의 정보를 통제할 수 있도록 노력합니다.</p>
+    <p>COORDIT은 서비스 제공에 필요한 정보만 처리하고, 이용자가 자신의 정보를 <span class="nowrap">통제할 수 있도록</span> 노력합니다.</p>
   </div></header>
   <main>
     <section>
       <h2>1. 처리하는 정보</h2>
       <ul>
         <li>계정 정보: 이름, 이메일, 사용자 식별자, Apple 또는 Google 로그인 정보</li>
-        <li>프로필과 이용자 입력: 생년월일, 성별, 신체 치수, 옷장·상품·사이즈 정보, 사진 및 FIT LAB 입력·결과</li>
+        <li>프로필과 이용자 입력: 생년월일, 성별, 신체 치수, 옷장·상품·사이즈 정보, 사진 및 <span class="nowrap">FIT LAB</span> 입력·결과</li>
         <li>서비스 이용 정보: 기능 이용 기록, 구매·실타래 지급 기록, 앱 상호작용</li>
         <li>기기와 운영 정보: 기기 식별자, 대략적 위치, 광고 관련 데이터, 충돌·성능 진단 정보</li>
       </ul>
@@ -90,7 +91,7 @@ export const privacyPageHtml = `<!doctype html>
       <h2>2. 이용 목적</h2>
       <ul>
         <li>회원 인증, 프로필·옷장 저장과 계정 관리</li>
-        <li>FIT LAB의 사이즈 비교, 개인화된 추천과 결과 저장</li>
+        <li><span class="nowrap">FIT LAB</span>의 사이즈 비교, 개인화된 추천과 결과 저장</li>
         <li>실타래 잔액, 구매 검증, 중복 지급 방지와 고객지원</li>
         <li>서비스 품질·성능 분석, 오류 대응, 부정 이용 방지와 보안</li>
         <li>동의 및 기능 활성화 상태에 따른 광고 제공과 광고 성과 측정</li>
@@ -98,7 +99,7 @@ export const privacyPageHtml = `<!doctype html>
     </section>
     <section>
       <h2>3. 외부 서비스와 처리 위탁</h2>
-      <p>서비스 운영을 위해 Supabase(인증·데이터 저장), Apple 및 Google(로그인·결제), Google Cloud(서버 운영), OpenRouter 및 선택된 AI 모델 제공자(FIT LAB 생성), Google Mobile Ads(광고), 앱 안정성·분석 제공자를 사용할 수 있습니다. 각 제공자는 필요한 범위에서 정보를 처리하며 자체 정책과 법령을 따릅니다.</p>
+      <p>서비스 운영을 위해 Supabase(인증·데이터 저장), Apple 및 Google(로그인·결제), Google Cloud(서버 운영), OpenRouter 및 선택된 AI 모델 제공자(<span class="nowrap">FIT LAB</span> 생성), Google Mobile Ads(광고), 앱 안정성·분석 제공자를 <span class="nowrap">사용할 수 있습니다</span>. 각 제공자는 필요한 범위에서 정보를 처리하며 자체 정책과 법령을 따릅니다.</p>
     </section>
     <section>
       <h2>4. 보유 기간과 삭제</h2>
@@ -106,7 +107,7 @@ export const privacyPageHtml = `<!doctype html>
     </section>
     <section>
       <h2>5. 이용자의 권리</h2>
-      <p>이용자는 자신의 개인정보에 대한 열람, 정정, 삭제, 처리 정지와 동의 철회를 요청할 수 있습니다. 계정 삭제 및 개인정보 문의는 아래 연락처로 접수해 주세요.</p>
+      <p>이용자는 자신의 개인정보에 대한 열람, 정정, 삭제, 처리 정지와 동의 철회를 <span class="nowrap">요청할 수 있습니다</span>. 계정 삭제 및 개인정보 문의는 아래 연락처로 접수해 주세요.</p>
       <a class="button" href="mailto:insung6853@gmail.com">insung6853@gmail.com</a>
     </section>
     <section>

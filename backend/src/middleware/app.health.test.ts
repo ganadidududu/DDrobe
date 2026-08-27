@@ -132,6 +132,8 @@ describe("GET /health", () => {
     const body = await response.text();
     expect(body).toContain('href="mailto:insung6853@gmail.com"');
     expect(body).toContain('href="/privacy"');
+    expect(body).toContain("word-break: keep-all");
+    expect(body).toContain('<span class="nowrap">로그인할 수 있습니다</span>');
   });
 
   it("serves the public privacy policy without authentication", async () => {
@@ -147,5 +149,8 @@ describe("GET /health", () => {
     const body = await response.text();
     expect(body).toContain('datetime="2026-08-27"');
     expect(body).toContain('href="mailto:insung6853@gmail.com"');
+    expect(body).toContain("word-break: keep-all");
+    expect(body).toContain('<span class="nowrap">FIT LAB</span>');
+    expect(body).toContain('<span class="nowrap">요청할 수 있습니다</span>');
   });
 });
