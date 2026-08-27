@@ -118,4 +118,34 @@ describe("GET /health", () => {
       message: "Invalid AdMob rewarded callback"
     });
   });
+
+  it("serves the public support page without authentication", async () => {
+    // Given: the backend app is listening without an authenticated user.
+    runningServer = await startApp();
+
+    // When: an App Store visitor requests the support URL.
+    const response = await fetch(`http://127.0.0.1:${runningServer.port}/support`);
+
+    // Then: the public HTML contract exposes support and privacy destinations.
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html; charset=utf-8");
+    const body = await response.text();
+    expect(body).toContain('href="mailto:insung6853@gmail.com"');
+    expect(body).toContain('href="/privacy"');
+  });
+
+  it("serves the public privacy policy without authentication", async () => {
+    // Given: the backend app is listening without an authenticated user.
+    runningServer = await startApp();
+
+    // When: an App Store visitor requests the privacy-policy URL.
+    const response = await fetch(`http://127.0.0.1:${runningServer.port}/privacy`);
+
+    // Then: the public HTML contract exposes its effective date and support channel.
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html; charset=utf-8");
+    const body = await response.text();
+    expect(body).toContain('datetime="2026-08-27"');
+    expect(body).toContain('href="mailto:insung6853@gmail.com"');
+  });
 });
