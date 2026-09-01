@@ -142,7 +142,7 @@ final class CoorditBackendSessionStore: ObservableObject {
 
     func bootstrap() async {
 #if DEBUG
-        if usesAuthenticatedUITestFixture {
+        if usesAuthenticatedUITestFixture || Self.shouldUseStalledAppleAuthenticationFixture {
             return
         }
 #endif
@@ -319,6 +319,20 @@ final class CoorditBackendSessionStore: ObservableObject {
     }
 
     func loginWithApple() async {
+        #if DEBUG
+        if Self.shouldUseStalledAppleAuthenticationFixture {
+            session = CoorditAuthSession(
+                accessToken: "stalled-apple-ui-test-access-token",
+                refreshToken: "stalled-apple-ui-test-refresh-token",
+                user: CoorditAuthUser(
+                    id: "00000000-0000-4000-8000-000000000003",
+                    email: "stalled-apple-ui-test@coordit.invalid"
+                )
+            )
+            try? await Task.sleep(nanoseconds: 30_000_000_000)
+            return
+        }
+        #endif
         await authenticate {
             let credential = try await CoorditAppleSignIn.signInCredential()
             return try await client.loginWithApple(
@@ -895,6 +909,12 @@ final class CoorditBackendSessionStore: ObservableObject {
         let arguments = ProcessInfo.processInfo.arguments
         return arguments.contains("--coordit-ui-testing")
             && arguments.contains("--coordit-ui-testing-authenticated")
+    }
+
+    private static var shouldUseStalledAppleAuthenticationFixture: Bool {
+        let arguments = ProcessInfo.processInfo.arguments
+        return arguments.contains("--coordit-ui-testing")
+            && arguments.contains("--coordit-ui-testing-stalled-apple-auth-success")
     }
 
     private static func configurePersistedSessionFixture(in tokenStore: CoorditBackendTokenStore) {

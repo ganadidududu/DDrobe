@@ -171,7 +171,10 @@ struct CoorditRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .buttonStyle(CoorditPressFeedbackButtonStyle())
         .task(id: backendSession.isAuthenticated) {
-            guard !backendSession.isAuthenticated else { return }
+            if backendSession.isAuthenticated {
+                showsAuthenticationEntry = false
+                return
+            }
 
             showsAuthenticationEntry = false
             threadBalance = 0

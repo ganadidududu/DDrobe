@@ -39,6 +39,27 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         XCTAssertFalse(emailPasswordNotice.exists)
     }
 
+    func testAppleSignupSessionTransitionDismissesLoginBeforeProviderTaskFinishes() throws {
+        let app = launchApp(
+            at: "splash",
+            extraArguments: [
+                "--coordit-welcome-state", "fresh",
+                "--coordit-ui-testing-stalled-apple-auth-success",
+            ]
+        )
+
+        app.buttons["splash-signup-entry"].tap()
+        let appleLogin = app.buttons["splash-auth-apple"]
+        XCTAssertTrue(appleLogin.waitForExistence(timeout: 5))
+        appleLogin.tap()
+
+        XCTAssertTrue(
+            element("coordit-splash-tap-hint", in: app).waitForExistence(timeout: 5),
+            "A successful Apple session must dismiss the login entry even if post-auth work is still finishing."
+        )
+        XCTAssertFalse(element("coordit-splash-auth-sheet", in: app).exists)
+    }
+
     func testReturningAuthenticatedSplashEntersMainWithoutFixtureAuthenticationError() throws {
         let app = launchApp(
             at: "splash",
