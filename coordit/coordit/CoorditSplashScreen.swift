@@ -100,10 +100,10 @@ struct CoorditSplashScreen: View {
                         radius: metrics.value(CoorditSplashWelcomeEntryDesign.shadowRadius),
                         y: metrics.value(CoorditSplashWelcomeEntryDesign.shadowYOffset)
                     )
+                    .accessibilityIdentifier("splash-signup-entry")
                     .opacity(logoVisible ? 1 : 0)
                     .offset(y: logoVisible ? 0 : metrics.value(CoorditSplashWelcomeEntryDesign.entranceYOffset))
                     .position(x: geometry.size.width / 2, y: geometry.size.height * CoorditSplashWelcomeEntryDesign.verticalPosition)
-                    .accessibilityIdentifier("splash-signup-entry")
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
@@ -149,7 +149,7 @@ private enum CoorditSplashWelcomeEntryDesign {
     static let width: CGFloat = 210
     static let height: CGFloat = 52
     static let cornerRadius: CGFloat = 15
-    static let verticalPosition: CGFloat = 0.935
+    static let verticalPosition: CGFloat = 0.89
     static let entranceYOffset: CGFloat = 8
     static let shadowOpacity: CGFloat = 0.12
     static let shadowRadius: CGFloat = 16

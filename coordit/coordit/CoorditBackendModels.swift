@@ -7,9 +7,34 @@ struct CoorditAuthSession: Codable, Equatable {
     let user: CoorditAuthUser
 }
 
+struct CoorditAuthRefreshResponse: Codable, Equatable {
+    let accessToken: String
+    let refreshToken: String
+}
+
 struct CoorditAuthUser: Codable, Equatable {
     let id: String
     let email: String
+    let isAnonymous: Bool
+
+    init(id: String, email: String, isAnonymous: Bool = false) {
+        self.id = id
+        self.email = email
+        self.isAnonymous = isAnonymous
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        email = try container.decode(String.self, forKey: .email)
+        isAnonymous = try container.decodeIfPresent(Bool.self, forKey: .isAnonymous) ?? false
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case email
+        case isAnonymous
+    }
 }
 
 struct CoorditUserProfile: Codable, Equatable {
@@ -59,6 +84,11 @@ struct CoorditBackendHealth: Codable, Equatable {
 
 struct CoorditThreadBalanceResponse: Codable, Equatable {
     let availableThreads: Int
+}
+
+struct CoorditGuestWelcomeResponse: Codable, Equatable {
+    let availableThreads: Int
+    let status: String
 }
 
 struct CoorditBackendErrorResponse: Codable, Equatable {

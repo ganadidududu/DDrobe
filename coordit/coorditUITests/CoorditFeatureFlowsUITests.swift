@@ -21,13 +21,81 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         let signupEntry = app.buttons["splash-signup-entry"]
         XCTAssertTrue(signupEntry.waitForExistence(timeout: 5), "Missing splash signup entry")
         XCTAssertEqual(signupEntry.label, "로그인/회원가입")
+        XCTAssertGreaterThanOrEqual(signupEntry.frame.height, 44)
+        XCTAssertFalse(app.buttons["splash-guest-entry"].exists)
         XCTAssertFalse(element("coordit-splash-tap-hint", in: app).exists)
         signupEntry.tap()
 
         XCTAssertTrue(element("coordit-splash-auth-sheet", in: app).waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["splash-auth-google"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["splash-auth-apple"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["splash-auth-guest"].waitForExistence(timeout: 3))
         XCTAssertFalse(element("coordit-screen-mypage-account", in: app).exists)
+    }
+
+    func testFreshInstallCanEnterWithoutSocialLogin() throws {
+        let app = launchApp(
+            at: "splash",
+            extraArguments: [
+                "--coordit-welcome-state", "fresh",
+                "--coordit-test-guest-bootstrap",
+                "--coordit-devicecheck-fixture",
+            ]
+        )
+
+        let signupEntry = app.buttons["splash-signup-entry"]
+        XCTAssertTrue(signupEntry.waitForExistence(timeout: 5))
+        signupEntry.tap()
+
+        let guestEntry = app.buttons["splash-auth-guest"]
+        XCTAssertTrue(guestEntry.waitForExistence(timeout: 5))
+        guestEntry.tap()
+
+        assertScreen("main04", in: app)
+    }
+
+    func testGuestBootstrapFailureStaysRetryableOnSplash() throws {
+        let app = launchApp(
+            at: "splash",
+            extraArguments: [
+                "--coordit-welcome-state", "fresh",
+                "--coordit-test-guest-bootstrap-failure",
+            ]
+        )
+
+        let signupEntry = app.buttons["splash-signup-entry"]
+        XCTAssertTrue(signupEntry.waitForExistence(timeout: 5))
+        signupEntry.tap()
+
+        let guestEntry = app.buttons["splash-auth-guest"]
+        XCTAssertTrue(guestEntry.waitForExistence(timeout: 5))
+        guestEntry.tap()
+
+        XCTAssertTrue(element("splash-auth-error", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(guestEntry.isEnabled)
+        XCTAssertTrue(element("coordit-splash-auth-sheet", in: app).exists)
+    }
+
+    func testAppleLoginClosesAuthenticationSheetWhenAccountHydrationFails() throws {
+        let app = launchApp(
+            at: "splash",
+            extraArguments: [
+                "--coordit-welcome-state", "fresh",
+                "--coordit-test-apple-auth-success-hydration-failure",
+            ]
+        )
+
+        let signupEntry = app.buttons["splash-signup-entry"]
+        XCTAssertTrue(signupEntry.waitForExistence(timeout: 5))
+        signupEntry.tap()
+
+        let authenticationSheet = element("coordit-splash-auth-sheet", in: app)
+        waitForDisappearance(authenticationSheet)
+        XCTAssertFalse(
+            authenticationSheet.exists,
+            "A valid Apple session must leave the login sheet even when profile hydration fails."
+        )
+        assertScreen("main04", in: app)
     }
 
     func testReturningAuthenticatedSplashRestoresTapHint() throws {
@@ -57,10 +125,11 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         XCTAssertEqual(logoCenter, screenCenter, accuracy: 6)
     }
 
-    func testMyPageAccountShowsGoogleLoginButton() throws {
+    func testMyPageAccountShowsGoogleAndAppleLogin() throws {
         let app = launchApp(at: "mypage-account")
         assertScreen("mypage-account", in: app)
 
+        XCTAssertTrue(app.buttons["mypage-backend-apple-login"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["mypage-backend-google-login"].waitForExistence(timeout: 5))
     }
 

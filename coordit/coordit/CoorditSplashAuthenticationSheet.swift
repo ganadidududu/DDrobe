@@ -3,19 +3,20 @@ import SwiftUI
 #if os(iOS)
 struct CoorditSplashAuthenticationSheet: View {
     let onAuthenticated: () -> Void
+    let onGuestAuthenticated: (Int) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var backendSession: CoorditBackendSessionStore
 
     var body: some View {
         VStack(spacing: 0) {
-            Text("coordit에 로그인")
+            Text("coordit 시작하기")
                 .font(CoorditTypography.gmarketMedium(size: CoorditSplashAuthenticationDesign.titleSize, relativeTo: .title2))
                 .foregroundStyle(Main01DesignTokens.Colors.chrome)
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("coordit-splash-auth-sheet")
 
-            Text("나만의 디지털 옷장을 이어서 만나보세요.")
+            Text("비회원으로 시작하거나 계정을 연결하세요.")
                 .font(CoorditTypography.gmarketMedium(size: CoorditSplashAuthenticationDesign.subtitleSize, relativeTo: .subheadline))
                 .foregroundStyle(Main01DesignTokens.Colors.chrome.opacity(0.6))
                 .padding(.top, CoorditSplashAuthenticationDesign.titleToSubtitleSpacing)
@@ -29,13 +30,37 @@ struct CoorditSplashAuthenticationSheet: View {
                     action: { await backendSession.loginWithGoogle() }
                 )
 
-                socialButton(
-                    title: "Apple로 계속하기",
-                    systemImage: "apple.logo",
-                    iconBackground: CoorditSplashAuthenticationDesign.appleMarkSurface,
-                    iconForeground: CoorditSplashAuthenticationDesign.appleMarkForeground,
-                    action: { await backendSession.loginWithApple() }
-                )
+                CoorditAppleSignInButton(
+                    identifier: "splash-auth-apple",
+                    height: CoorditSplashAuthenticationDesign.providerHeight,
+                    cornerRadius: CoorditSplashAuthenticationDesign.providerCornerRadius
+                ) {
+                    onAuthenticated()
+                    dismiss()
+                }
+
+                Button {
+                    Task {
+                        guard let balance = await backendSession.bootstrapGuestIfNeeded() else {
+                            return
+                        }
+                        onGuestAuthenticated(balance)
+                        dismiss()
+                    }
+                } label: {
+                    Text("비회원으로 로그인하기")
+                        .font(CoorditTypography.gmarketMedium(size: CoorditSplashAuthenticationDesign.providerTitleSize, relativeTo: .body))
+                        .foregroundStyle(Main01DesignTokens.Colors.chrome)
+                        .frame(maxWidth: .infinity, minHeight: CoorditSplashAuthenticationDesign.providerHeight)
+                        .background(.white, in: RoundedRectangle(cornerRadius: CoorditSplashAuthenticationDesign.providerCornerRadius, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: CoorditSplashAuthenticationDesign.providerCornerRadius, style: .continuous)
+                                .stroke(Main01DesignTokens.Colors.chrome.opacity(0.2), lineWidth: 1)
+                        }
+                }
+                .buttonStyle(.plain)
+                .disabled(backendSession.isWorking)
+                .accessibilityIdentifier("splash-auth-guest")
             }
             .padding(.top, CoorditSplashAuthenticationDesign.subtitleToProviderSpacing)
 
@@ -47,7 +72,7 @@ struct CoorditSplashAuthenticationSheet: View {
             } else if backendSession.isWarning {
                 Text(backendSession.statusText)
                     .font(CoorditTypography.gmarketMedium(size: CoorditSplashAuthenticationDesign.statusSize, relativeTo: .caption))
-                    .foregroundStyle(.red.opacity(0.85))
+                    .foregroundStyle(CoorditSplashAuthenticationDesign.errorForeground)
                     .multilineTextAlignment(.center)
                     .padding(.top, CoorditSplashAuthenticationDesign.statusTopSpacing)
                     .accessibilityIdentifier("splash-auth-error")
@@ -57,7 +82,7 @@ struct CoorditSplashAuthenticationSheet: View {
 
             Text("계속하면 coordit의 이용약관과 개인정보 처리방침에 동의하게 됩니다.")
                 .font(CoorditTypography.gmarketMedium(size: CoorditSplashAuthenticationDesign.legalSize, relativeTo: .caption2))
-                .foregroundStyle(Main01DesignTokens.Colors.chrome.opacity(0.46))
+                .foregroundStyle(Main01DesignTokens.Colors.chrome.opacity(0.58))
                 .multilineTextAlignment(.center)
         }
         .padding(.horizontal, CoorditSplashAuthenticationDesign.horizontalInset)
@@ -75,7 +100,6 @@ struct CoorditSplashAuthenticationSheet: View {
     private func socialButton(
         title: String,
         icon: String? = nil,
-        systemImage: String? = nil,
         iconBackground: Color,
         iconForeground: Color,
         action: @escaping () async -> Void
@@ -83,7 +107,7 @@ struct CoorditSplashAuthenticationSheet: View {
         Button {
             Task {
                 await action()
-                guard backendSession.isAuthenticated else { return }
+                guard backendSession.isMember else { return }
                 onAuthenticated()
                 dismiss()
             }
@@ -93,9 +117,6 @@ struct CoorditSplashAuthenticationSheet: View {
                     if let icon {
                         Text(icon)
                             .font(.system(size: CoorditSplashAuthenticationDesign.googleMarkSize, weight: .bold, design: .rounded))
-                    } else if let systemImage {
-                        Image(systemName: systemImage)
-                            .font(.system(size: CoorditSplashAuthenticationDesign.appleMarkSize, weight: .semibold))
                     }
                 }
                 .foregroundStyle(iconForeground)
@@ -118,12 +139,12 @@ struct CoorditSplashAuthenticationSheet: View {
         }
         .buttonStyle(.plain)
         .disabled(backendSession.isWorking)
-        .accessibilityIdentifier(title.hasPrefix("Google") ? "splash-auth-google" : "splash-auth-apple")
+        .accessibilityIdentifier("splash-auth-google")
     }
 }
 
 private enum CoorditSplashAuthenticationDesign {
-    static let sheetHeight: CGFloat = 340
+    static let sheetHeight: CGFloat = 410
     static let sheetCornerRadius: CGFloat = 28
     static let horizontalInset: CGFloat = 24
     static let topInset: CGFloat = 22
@@ -142,14 +163,12 @@ private enum CoorditSplashAuthenticationDesign {
     static let providerMarkFrame: CGFloat = 28
     static let googleMarkSurface = Color.white
     static let googleMarkForeground = Color(red: 0.26, green: 0.45, blue: 0.83)
-    static let appleMarkSurface = Main01DesignTokens.Colors.chrome
-    static let appleMarkForeground = Color.white
     static let googleMarkSize: CGFloat = 16
-    static let appleMarkSize: CGFloat = 17
     static let providerTitleSize: CGFloat = 14
     static let statusTopSpacing: CGFloat = 18
     static let statusSize: CGFloat = 11.5
+    static let errorForeground = Color(red: 0.62, green: 0.04, blue: 0.08)
     static let footerMinimumSpacing: CGFloat = 16
-    static let legalSize: CGFloat = 10.5
+    static let legalSize: CGFloat = 11
 }
 #endif

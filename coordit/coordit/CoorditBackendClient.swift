@@ -91,16 +91,62 @@ struct CoorditBackendClient {
         try await send(path: "/auth/signup", method: "POST", token: nil, body: AuthRequest(email: email, password: password))
     }
 
-    func loginWithGoogle(idToken: String) async throws -> CoorditAuthSession {
-        try await send(path: "/auth/google", method: "POST", token: nil, body: GoogleAuthRequest(idToken: idToken))
+    func createGuestSession() async throws -> CoorditAuthSession {
+        try await send(
+            path: "/auth/guest",
+            method: "POST",
+            token: nil,
+            body: Optional<String>.none
+        )
     }
 
-    func loginWithApple(idToken: String, nonce: String) async throws -> CoorditAuthSession {
+    func refreshSession(refreshToken: String) async throws -> CoorditAuthRefreshResponse {
+        try await send(
+            path: "/auth/refresh",
+            method: "POST",
+            token: nil,
+            body: RefreshSessionRequest(refreshToken: refreshToken)
+        )
+    }
+
+    func loginWithGoogle(
+        idToken: String,
+        guestSession: CoorditAuthSession?
+    ) async throws -> CoorditAuthSession {
+        try await send(
+            path: "/auth/google",
+            method: "POST",
+            token: guestSession?.accessToken,
+            body: GoogleAuthRequest(
+                idToken: idToken,
+                guestRefreshToken: guestSession?.refreshToken
+            )
+        )
+    }
+
+    func loginWithApple(
+        idToken: String,
+        nonce: String,
+        guestSession: CoorditAuthSession?
+    ) async throws -> CoorditAuthSession {
         try await send(
             path: "/auth/apple",
             method: "POST",
-            token: nil,
-            body: AppleAuthRequest(idToken: idToken, nonce: nonce)
+            token: guestSession?.accessToken,
+            body: AppleAuthRequest(
+                idToken: idToken,
+                nonce: nonce,
+                guestRefreshToken: guestSession?.refreshToken
+            )
+        )
+    }
+
+    func claimGuestWelcome(token: String, deviceToken: String) async throws -> CoorditGuestWelcomeResponse {
+        try await send(
+            path: "/auth/guest/welcome",
+            method: "POST",
+            token: token,
+            body: GuestWelcomeRequest(deviceToken: deviceToken)
         )
     }
 
@@ -291,13 +337,23 @@ private struct AuthRequest: Encodable {
     let password: String
 }
 
+private struct RefreshSessionRequest: Encodable {
+    let refreshToken: String
+}
+
 private struct GoogleAuthRequest: Encodable {
     let idToken: String
+    let guestRefreshToken: String?
 }
 
 private struct AppleAuthRequest: Encodable {
     let idToken: String
     let nonce: String
+    let guestRefreshToken: String?
+}
+
+private struct GuestWelcomeRequest: Encodable {
+    let deviceToken: String
 }
 
 private struct UpdateProfileRequest: Encodable {

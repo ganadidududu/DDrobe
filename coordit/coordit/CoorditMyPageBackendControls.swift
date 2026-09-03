@@ -4,11 +4,18 @@ import SwiftUI
 extension CoorditMyPageFamilyView {
     func backendConnectionStatus(metrics: CoorditResponsiveMetrics) -> some View {
         CoorditSettingsStatusBanner(
-            text: backendSession.statusText,
+            text: backendAccountStatusText,
             identifier: "mypage-backend-status",
             metrics: metrics,
             isWarning: backendSession.isWarning
         )
+    }
+
+    private var backendAccountStatusText: String {
+        if backendSession.isWarning { return backendSession.statusText }
+        if backendSession.isMember { return "계정 연결됨" }
+        if backendSession.isAuthenticated { return "비회원으로 이용 중" }
+        return "계정을 연결하면 기록을 안전하게 보관할 수 있어요"
     }
 
     func syncBackendProfile() {
@@ -29,14 +36,14 @@ extension CoorditMyPageFamilyView {
         CoorditSettingsCard(metrics: metrics) {
             VStack(spacing: metrics.value(13)) {
                 CoorditSettingsTextField(
-                    title: "백엔드 계정 이메일",
+                    title: "계정 이메일",
                     placeholder: "email@example.com",
                     text: $backendEmail,
                     identifier: "mypage-backend-email",
                     metrics: metrics
                 )
                 CoorditSettingsTextField(
-                    title: "백엔드 계정 비밀번호",
+                    title: "비밀번호",
                     placeholder: "비밀번호",
                     text: $backendPassword,
                     identifier: "mypage-backend-password",
@@ -47,13 +54,22 @@ extension CoorditMyPageFamilyView {
                 CoorditSettingsGoogleButton(
                     identifier: "mypage-backend-google-login",
                     metrics: metrics,
-                    isEnabled: !backendSession.isWorking && CoorditGoogleSignIn.isConfigured
+                    isEnabled: !backendSession.isWorking
                 ) {
                     Task {
                         await backendSession.loginWithGoogle()
                         syncBackendProfile()
                         syncBackendBodyMeasurement()
                     }
+                }
+
+                CoorditAppleSignInButton(
+                    identifier: "mypage-backend-apple-login",
+                    height: metrics.value(48),
+                    cornerRadius: metrics.value(7)
+                ) {
+                    syncBackendProfile()
+                    syncBackendBodyMeasurement()
                 }
 
                 HStack(spacing: metrics.value(10)) {
@@ -83,7 +99,7 @@ extension CoorditMyPageFamilyView {
                     }
                 }
 
-                if backendSession.isAuthenticated {
+                if backendSession.isMember {
                     CoorditSettingsPrimaryButton(
                         title: "이 기기에서 로그아웃",
                         identifier: "mypage-backend-local-logout",

@@ -57,6 +57,29 @@ enum CoorditAppleSignIn {
         }
     }
 
+    static func prepare(_ request: ASAuthorizationAppleIDRequest) -> String {
+        let rawNonce = UUID().uuidString
+        request.requestedScopes = [.fullName, .email]
+        request.nonce = SHA256.hash(data: Data(rawNonce.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+        return rawNonce
+    }
+
+    static func credential(
+        from result: Result<ASAuthorization, Error>,
+        rawNonce: String
+    ) throws -> CoorditAppleSignInCredential {
+        let authorization = try result.get()
+        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+              let tokenData = credential.identityToken,
+              let token = String(data: tokenData, encoding: .utf8),
+              !token.isEmpty else {
+            throw CoorditAppleSignInError.missingIdentityToken
+        }
+        return CoorditAppleSignInCredential(idToken: token, nonce: rawNonce)
+    }
+
     private final class Coordinator: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
         let anchor: ASPresentationAnchor
         let rawNonce: String

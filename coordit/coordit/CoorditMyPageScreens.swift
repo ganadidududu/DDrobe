@@ -357,18 +357,18 @@ struct CoorditMyPageFamilyView: View {
         CoorditSettingsCard(metrics: metrics) {
             VStack(alignment: .leading, spacing: metrics.value(13)) {
                 HStack(spacing: metrics.value(10)) {
-                    Image(systemName: backendSession.isAuthenticated ? "checkmark.seal.fill" : "person.crop.circle.badge.plus")
+                    Image(systemName: backendSession.isMember ? "checkmark.seal.fill" : "person.crop.circle.badge.plus")
                         .font(.system(size: metrics.value(21), weight: .semibold))
                         .foregroundStyle(CoorditSettingsStyle.ink)
                         .frame(width: metrics.value(32), height: metrics.value(32))
 
                     VStack(alignment: .leading, spacing: metrics.value(4)) {
-                        Text(backendSession.isAuthenticated ? backendSession.displayNameText : "로그인하고 내 핏 기록을 이어가세요")
+                        Text(backendSession.isMember ? backendSession.displayNameText : "로그인하고 내 핏 기록을 이어가세요")
                             .font(CoorditTypography.gmarketBold(size: metrics.value(13), relativeTo: .subheadline))
                             .foregroundStyle(.black)
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
-                        Text(backendSession.isAuthenticated ? backendSession.emailText : "계정으로 신체 정보와 추천 기록을 저장해요")
+                        Text(backendSession.isMember ? backendSession.emailText : "계정으로 신체 정보와 추천 기록을 저장해요")
                             .font(CoorditTypography.gmarketMedium(size: metrics.value(9), relativeTo: .caption))
                             .foregroundStyle(CoorditSettingsStyle.muted)
                             .lineLimit(1)
@@ -377,7 +377,7 @@ struct CoorditMyPageFamilyView: View {
                 }
 
                 CoorditSettingsPrimaryButton(
-                    title: backendSession.isAuthenticated ? "계정 관리" : "로그인 / 회원가입",
+                    title: backendSession.isMember ? "계정 관리" : "로그인 / 회원가입",
                     identifier: "mypage-login-entry",
                     metrics: metrics
                 ) {

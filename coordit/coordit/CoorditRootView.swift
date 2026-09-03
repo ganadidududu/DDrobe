@@ -163,6 +163,7 @@ struct CoorditRootView: View {
                 onOpenFitLab: { navigate(to: .fitLabInput) }
             )
             .zIndex(100)
+
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .buttonStyle(CoorditPressFeedbackButtonStyle())
@@ -200,8 +201,12 @@ struct CoorditRootView: View {
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             openPendingSharedFitLabImport()
+            Task {
+                await backendSession.refreshPersistedSessionIfNeeded()
+            }
         }
         .task {
+            await backendSession.restorePersistedSession()
             openPendingSharedFitLabImport()
         }
         .sheet(isPresented: $showsFitLabReferenceSelection) {
@@ -213,10 +218,19 @@ struct CoorditRootView: View {
             )
         }
         .sheet(isPresented: $showsSplashAuthentication) {
-            CoorditSplashAuthenticationSheet {
-                CoorditWelcomeLaunchState.markWelcomeCompleted()
-                showsSplashAuthentication = false
-            }
+            CoorditSplashAuthenticationSheet(
+                onAuthenticated: {
+                    CoorditWelcomeLaunchState.markWelcomeCompleted()
+                    showsSplashAuthentication = false
+                    navigate(to: .main04)
+                },
+                onGuestAuthenticated: { balance in
+                    threadBalance = balance
+                    CoorditWelcomeLaunchState.markWelcomeCompleted()
+                    showsSplashAuthentication = false
+                    navigate(to: .main04)
+                }
+            )
         }
     }
 
@@ -371,13 +385,14 @@ struct CoorditRootView: View {
                 return
             }
             #endif
-            guard let session = backendSession.session else {
+            guard let session = backendSession.session,
+                  let token = try? await backendSession.validAccessToken() else {
                 await fitLabCoordinator.loadCompatibleReferences(authenticatedUserID: nil)
                 return
             }
             let api = CoorditFitLabHTTPAPI(
                 baseURL: CoorditBackendConfig.baseURL(),
-                accessToken: session.accessToken
+                accessToken: token
             )
             await fitLabCoordinator.loadCompatibleReferences(
                 using: api,

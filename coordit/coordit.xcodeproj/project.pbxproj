@@ -449,9 +449,9 @@
 				ENABLE_PREVIEWS = YES;
 				EXCLUDED_SOURCE_FILE_NAMES = Info.plist;
 				GENERATE_INFOPLIST_FILE = NO;
-				GOOGLE_IOS_CLIENT_ID = "";
-				GOOGLE_REVERSED_CLIENT_ID = "";
-				GOOGLE_WEB_CLIENT_ID = "";
+				GOOGLE_IOS_CLIENT_ID = "789827940031-1dn0g314b7d7kmpbd8sghodgd00ldpa7.apps.googleusercontent.com";
+				GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.789827940031-1dn0g314b7d7kmpbd8sghodgd00ldpa7";
+				GOOGLE_WEB_CLIENT_ID = "789827940031-omahjmi6eepp4rpf5ue7kjqndf8rhjr7.apps.googleusercontent.com";
 				INFOPLIST_FILE = coordit/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -484,9 +484,9 @@
 				ENABLE_PREVIEWS = YES;
 				EXCLUDED_SOURCE_FILE_NAMES = Info.plist;
 				GENERATE_INFOPLIST_FILE = NO;
-				GOOGLE_IOS_CLIENT_ID = "";
-				GOOGLE_REVERSED_CLIENT_ID = "";
-				GOOGLE_WEB_CLIENT_ID = "";
+				GOOGLE_IOS_CLIENT_ID = "789827940031-1dn0g314b7d7kmpbd8sghodgd00ldpa7.apps.googleusercontent.com";
+				GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.789827940031-1dn0g314b7d7kmpbd8sghodgd00ldpa7";
+				GOOGLE_WEB_CLIENT_ID = "789827940031-omahjmi6eepp4rpf5ue7kjqndf8rhjr7.apps.googleusercontent.com";
 				INFOPLIST_FILE = coordit/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
