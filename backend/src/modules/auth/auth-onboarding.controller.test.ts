@@ -22,7 +22,8 @@ const result: CompleteOnboardingResult = {
     display_name: "Mina",
     gender: null,
     birth_year: null,
-    created_at: "2026-07-08T00:00:00.000Z", updated_at: "2026-07-08T00:00:00.000Z"
+    created_at: "2026-07-08T00:00:00.000Z", updated_at: "2026-07-08T00:00:00.000Z",
+    is_guest: false
   },
   consentRows: [
     {

@@ -15,6 +15,16 @@ const integer = (key: string, fallback: number): number => {
   return Number.isInteger(value) && value > 0 ? value : fallback;
 };
 
+const optional = (key: string): string | null => {
+  const value = process.env[key]?.trim();
+  return value ? value : null;
+};
+
+const deviceCheckEnvironment = (): "development" | "production" =>
+  process.env.APPLE_DEVICECHECK_ENVIRONMENT === "development"
+    ? "development"
+    : "production";
+
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   port: Number(process.env.PORT ?? 4000),
@@ -36,4 +46,8 @@ export const env = {
   domainRequestDelayMs: integer("DOMAIN_REQUEST_DELAY_MS", 1_500),
   userRateLimitPerMinute: integer("USER_RATE_LIMIT_PER_MINUTE", 5),
   crawlerUserAgent: process.env.USER_AGENT ?? "CoorditProductImporter/1.0",
+  appleDeviceCheckKeyId: optional("APPLE_DEVICECHECK_KEY_ID"),
+  appleDeviceCheckTeamId: optional("APPLE_DEVICECHECK_TEAM_ID"),
+  appleDeviceCheckPrivateKey: optional("APPLE_DEVICECHECK_PRIVATE_KEY"),
+  appleDeviceCheckEnvironment: deviceCheckEnvironment(),
 };

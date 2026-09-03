@@ -61,7 +61,7 @@ describe("POST /auth/apple", () => {
     expect(await response.json()).toEqual({
       accessToken: "apple-access-token",
       refreshToken: "apple-refresh-token",
-      user: appleUser
+      user: { ...appleUser, isAnonymous: false }
     });
     expect(signInWithIdToken).toHaveBeenCalledWith({
       provider: "apple",

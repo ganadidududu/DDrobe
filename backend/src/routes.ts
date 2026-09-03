@@ -1,7 +1,12 @@
 import { Router } from "express";
 import { reassessClothingItemFit } from "./modules/clothing-items/fit-reassessment.controller";
 import { signup, login, loginWithApple, loginWithGoogle } from "./modules/auth/auth.controller";
+import { refreshSessionController } from "./modules/auth/auth-refresh.controller";
 import { completeOnboardingController } from "./modules/auth/auth-onboarding.controller";
+import {
+  guestSessionController,
+  guestWelcomeController,
+} from "./modules/auth/guest-auth.controller";
 import { createBodyMeasurement, listBodyMeasurements } from "./modules/body-measurements/body-measurements.controller";
 import {
   createClothingItem,
@@ -68,10 +73,13 @@ routes.post("/auth/signup", signup);
 routes.post("/auth/login", login);
 routes.post("/auth/google", loginWithGoogle);
 routes.post("/auth/apple", loginWithApple);
+routes.post("/auth/guest", guestSessionController);
+routes.post("/auth/refresh", refreshSessionController);
 
 routes.use(authMiddleware);
 
 routes.post("/auth/onboarding", completeOnboardingController);
+routes.post("/auth/guest/welcome", guestWelcomeController);
 
 routes.get("/users/me", getMe);
 routes.patch("/users/me", updateMe);

@@ -15,9 +15,10 @@ export const findUserById = async (userId: string): Promise<UserRow> => {
 };
 
 export const upsertUserProfile = async (user: {
-  id: string;
-  email: string;
-  displayName?: string | null;
+  readonly id: string;
+  readonly email: string;
+  readonly displayName?: string | null;
+  readonly isGuest?: boolean;
 }): Promise<UserRow> => {
   const { data, error } = await supabase
     .from("users")
@@ -25,6 +26,7 @@ export const upsertUserProfile = async (user: {
       id: user.id,
       email: user.email,
       display_name: user.displayName ?? null,
+      is_guest: user.isGuest ?? false,
       updated_at: new Date().toISOString()
     })
     .select("*")

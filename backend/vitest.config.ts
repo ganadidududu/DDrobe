@@ -12,6 +12,12 @@ export default defineConfig({
       "src/modules/clothing-items/clothing-items.service.test.ts",
       "src/modules/fit/fit.controller.test.ts",
       "src/modules/auth/auth-apple.http.test.ts",
+      "src/modules/auth/auth-refresh.service.test.ts",
+      "src/modules/auth/auth-refresh.http.test.ts",
+      "src/modules/auth/guest-auth.service.test.ts",
+      "src/modules/auth/guest-auth.http.test.ts",
+      "src/modules/auth/apple-device-check.test.ts",
+      "src/modules/auth/social-auth-upgrade.service.test.ts",
       "src/middleware/**/*.test.ts"
     ]
   }

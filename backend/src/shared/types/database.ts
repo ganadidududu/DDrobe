@@ -35,6 +35,7 @@ export interface UserRow {
   birth_year: number | null;
   created_at: string;
   updated_at: string;
+  is_guest: boolean;
 }
 
 export interface ConsentVersionRow {

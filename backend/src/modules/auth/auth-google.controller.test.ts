@@ -29,7 +29,8 @@ const authResponse: AuthResponse = {
   refreshToken: "refresh-token",
   user: {
     id: "google-user-1",
-    email: "mina@example.com"
+    email: "mina@example.com",
+    isAnonymous: false
   }
 };
 

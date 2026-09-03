@@ -8,6 +8,18 @@ export const supabaseAuth = createClient(env.supabaseUrl, env.supabaseAnonKey, {
   }
 });
 
+export const createSupabaseAuthClient = () => createClient(
+  env.supabaseUrl,
+  env.supabaseAnonKey,
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  }
+);
+
 export const supabaseAdmin = createClient(env.supabaseUrl, env.supabaseServiceRoleKey, {
   auth: {
     persistSession: false,
@@ -16,4 +28,3 @@ export const supabaseAdmin = createClient(env.supabaseUrl, env.supabaseServiceRo
 });
 
 export const supabase = supabaseAdmin;
-

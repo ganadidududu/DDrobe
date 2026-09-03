@@ -14,4 +14,3 @@ app.get("/health", (_req, res) => {
 
 app.use(routes);
 app.use(errorMiddleware);
-

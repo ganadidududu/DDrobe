@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { authenticateBearer } from "../../middleware/auth.middleware";
 import { asRequiredString } from "../../shared/utils/request";
 import {
   loginWithAppleIdToken,
@@ -7,13 +8,36 @@ import {
   signupWithEmail,
   type AuthResponse
 } from "./auth.service";
+import type { GuestUpgradeSession } from "./social-auth-upgrade.service";
 
 type GoogleLoginControllerDependencies = {
-  readonly loginWithGoogleIdToken: (idToken: string) => Promise<AuthResponse>;
+  readonly loginWithGoogleIdToken: (
+    idToken: string,
+    guest: GuestUpgradeSession | null
+  ) => Promise<AuthResponse>;
 };
 
 type AppleLoginControllerDependencies = {
-  readonly loginWithAppleIdToken: (idToken: string, nonce: string) => Promise<AuthResponse>;
+  readonly loginWithAppleIdToken: (
+    idToken: string,
+    nonce: string,
+    guest: GuestUpgradeSession | null
+  ) => Promise<AuthResponse>;
+};
+
+const guestUpgradeSession = async (req: Request): Promise<GuestUpgradeSession | null> => {
+  const refreshToken = req.body.guestRefreshToken;
+  if (refreshToken === undefined && req.headers.authorization === undefined) return null;
+
+  const parsedRefreshToken = asRequiredString(refreshToken, "guestRefreshToken");
+  const user = await authenticateBearer(req.headers.authorization);
+  const authorization = req.headers.authorization;
+  if (!authorization?.startsWith("Bearer ")) return null;
+  return {
+    accessToken: authorization.slice("Bearer ".length),
+    refreshToken: parsedRefreshToken,
+    userId: user.id,
+  };
 };
 
 export const signup = async (req: Request, res: Response, next: NextFunction) => {
@@ -41,7 +65,7 @@ export const createGoogleLoginController = (
 ) => async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const idToken = asRequiredString(req.body.idToken, "idToken");
-    res.json(await dependencies.loginWithGoogleIdToken(idToken));
+    res.json(await dependencies.loginWithGoogleIdToken(idToken, await guestUpgradeSession(req)));
   } catch (error) {
     next(error);
   }
@@ -55,7 +79,11 @@ export const createAppleLoginController = (
   try {
     const idToken = asRequiredString(req.body.idToken, "idToken");
     const nonce = asRequiredString(req.body.nonce, "nonce");
-    res.json(await dependencies.loginWithAppleIdToken(idToken, nonce));
+    res.json(await dependencies.loginWithAppleIdToken(
+      idToken,
+      nonce,
+      await guestUpgradeSession(req)
+    ));
   } catch (error) {
     next(error);
   }
