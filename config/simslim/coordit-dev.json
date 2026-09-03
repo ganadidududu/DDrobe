@@ -1,0 +1,12 @@
+{
+  "name": "coordit-dev",
+  "description": "Slim COORDIT development simulators while preserving authentication, StoreKit, links, photos, and DeviceCheck.",
+  "except": [
+    "icloud",
+    "store",
+    "web",
+    "photos",
+    "telemetry",
+    "other"
+  ]
+}
