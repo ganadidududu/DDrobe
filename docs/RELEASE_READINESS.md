@@ -10,17 +10,24 @@
 - Closet registration remains in its loading state until one backend transaction persists both the item and selected size. Failure offers retry instead of a false success page.
 - Account deletion is available in the app and deletes the Supabase Auth account; foreign-key cascades remove user-owned application data and the device keychain session is cleared.
 - Account deletion only shows completion after it clears in-memory closet state and attempts to erase the deleted user's device-local Fit Lab history directory. A local cleanup failure is surfaced instead of reported as a full success.
+- A social login is optional: the app creates a server-backed anonymous session, and DeviceCheck limits the welcome grant to three threads per physical device across reinstalls.
+- Linking a new Apple or Google identity preserves the anonymous user's UUID. When the identity already belongs to a member, one database transaction merges the guest's closet, Fit Lab history, and remaining balance.
+- A valid Apple session is published before optional profile hydration, so a temporary `/users/me` failure cannot leave App Review stuck on the login sheet.
 - Closet item + selected-size saves require an idempotency key. The atomic SQL function replays the original item and size on retry instead of creating a duplicate.
 - A Release build fails closed when `CoorditAPIBaseURL` is missing or not HTTPS. Google sign-in is disabled until both client IDs are present. Rewarded-ad and purchase controls stay disabled until their settlement implementations are complete.
 
 ## Required before release
 
-1. Apply all SQL files in `supabase/migrations`, including `20260730_add_thread_wallet.sql`, to the same Supabase project used by the deployed API.
+1. Apply all SQL files in `supabase/migrations`, including `20260730_add_thread_wallet.sql` and `20260902_add_guest_devicecheck_auth.sql`, to the same Supabase project used by the deployed API.
 2. Configure a public HTTPS `COORDIT_API_BASE_URL` for the Release build. Do not ship a Release build pointed at localhost.
-3. Create the consumable In-App Purchase products in App Store Connect, set immutable product IDs, complete agreements/tax/banking, and configure review metadata.
-4. Add StoreKit 2 purchase verification on the deployed backend before enabling an IAP purchase button. Credit a ledger entry with Apple transaction ID idempotency before finishing the transaction.
-5. Configure App Store Server Notifications V2 to a deployed HTTPS endpoint and test sandbox notifications.
-6. Publish the privacy policy URL, complete App Privacy answers, provide review credentials, and verify the in-app account-deletion workflow against the deployed Supabase project.
+3. Enable anonymous sign-ins and manual identity linking in Supabase Auth. Verify both a new social identity link and an existing-member guest merge against that project.
+4. Create an Apple DeviceCheck key and deploy its key ID, team ID, and private `.p8` contents as backend-only secrets. Use the production DeviceCheck environment for TestFlight and App Store builds.
+5. Verify a fresh physical device receives exactly three threads and that deleting/reinstalling the app does not issue another welcome grant. Simulator fixtures do not prove this behavior.
+6. Supply `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_REVERSED_CLIENT_ID`, and `GOOGLE_WEB_CLIENT_ID` to the Release archive and verify the visible Google button completes a real backend session. The checked-in build-setting placeholders are intentionally empty.
+7. Create the consumable In-App Purchase products in App Store Connect, set immutable product IDs, complete agreements/tax/banking, and configure review metadata.
+8. Add StoreKit 2 purchase verification on the deployed backend before enabling an IAP purchase button. Credit a ledger entry with Apple transaction ID idempotency before finishing the transaction.
+9. Configure App Store Server Notifications V2 to a deployed HTTPS endpoint and test sandbox notifications.
+10. Publish the privacy policy URL, complete App Privacy answers, provide review credentials, and verify the in-app account-deletion workflow against the deployed Supabase project.
 
 ## Deliberate non-claims
 
