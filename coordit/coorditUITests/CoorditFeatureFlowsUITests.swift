@@ -30,7 +30,45 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         XCTAssertTrue(app.buttons["splash-auth-google"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["splash-auth-apple"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["splash-auth-guest"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["splash-auth-email"].waitForExistence(timeout: 3))
         XCTAssertFalse(element("coordit-screen-mypage-account", in: app).exists)
+
+        let authenticationSheetScreenshot = XCTAttachment(screenshot: app.screenshot())
+        authenticationSheetScreenshot.name = "authentication-provider-sheet"
+        authenticationSheetScreenshot.lifetime = .keepAlways
+        add(authenticationSheetScreenshot)
+    }
+
+    func testReviewerCanOpenEmailLoginFromAuthenticationSheet() throws {
+        let app = launchApp(
+            at: "splash",
+            extraArguments: ["--coordit-welcome-state", "fresh"]
+        )
+
+        let signupEntry = app.buttons["splash-signup-entry"]
+        XCTAssertTrue(signupEntry.waitForExistence(timeout: 5))
+        signupEntry.tap()
+
+        let emailEntry = app.buttons["splash-auth-email"]
+        XCTAssertTrue(emailEntry.waitForExistence(timeout: 5))
+        XCTAssertGreaterThanOrEqual(emailEntry.frame.height, 44)
+        emailEntry.tap()
+
+        XCTAssertTrue(app.textFields["splash-auth-email-field"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.secureTextFields["splash-auth-password-field"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["splash-auth-email-submit"].waitForExistence(timeout: 3))
+        let emailBack = app.buttons["splash-auth-email-back"]
+        XCTAssertTrue(emailBack.waitForExistence(timeout: 3))
+        XCTAssertGreaterThanOrEqual(emailBack.frame.height, 44)
+
+        let legalCopy = element("splash-auth-legal", in: app)
+        XCTAssertTrue(legalCopy.waitForExistence(timeout: 3))
+        XCTAssertGreaterThanOrEqual(legalCopy.frame.height, 30)
+
+        let emailLoginScreenshot = XCTAttachment(screenshot: app.screenshot())
+        emailLoginScreenshot.name = "reviewer-email-login"
+        emailLoginScreenshot.lifetime = .keepAlways
+        add(emailLoginScreenshot)
     }
 
     func testFreshInstallCanEnterWithoutSocialLogin() throws {
@@ -54,7 +92,7 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         assertScreen("main04", in: app)
     }
 
-    func testGuestBootstrapFailureStaysRetryableOnSplash() throws {
+    func testGuestWelcomeFailureDoesNotBlockAppEntry() throws {
         let app = launchApp(
             at: "splash",
             extraArguments: [
@@ -71,9 +109,11 @@ final class CoorditFeatureFlowsUITests: XCTestCase {
         XCTAssertTrue(guestEntry.waitForExistence(timeout: 5))
         guestEntry.tap()
 
-        XCTAssertTrue(element("splash-auth-error", in: app).waitForExistence(timeout: 5))
-        XCTAssertTrue(guestEntry.isEnabled)
-        XCTAssertTrue(element("coordit-splash-auth-sheet", in: app).exists)
+        assertScreen("main04", in: app)
+        XCTAssertFalse(
+            element("coordit-splash-auth-sheet", in: app).exists,
+            "A failed welcome-credit claim must not block an already-created guest session."
+        )
     }
 
     func testAppleLoginClosesAuthenticationSheetWhenAccountHydrationFails() throws {

@@ -88,6 +88,11 @@ final class CoorditBackendSessionStore: ObservableObject {
 #endif
     }
 
+    func clearStatus() {
+        statusText = ""
+        isWarning = false
+    }
+
     var emailText: String {
         if session?.user.isAnonymous == true { return "계정을 연결해 기록을 보호하세요" }
         return profile?.email ?? session?.user.email ?? "로그인 필요"
@@ -144,12 +149,7 @@ final class CoorditBackendSessionStore: ObservableObject {
         defer { isWorking = false }
 
 #if DEBUG
-        if Self.shouldSimulateGuestBootstrapFailure {
-            statusText = "비회원 시작에 실패했어요. 잠시 후 다시 시도해주세요."
-            isWarning = true
-            return nil
-        }
-        if Self.shouldSimulateGuestBootstrap {
+        if Self.shouldSimulateGuestBootstrap || Self.shouldSimulateGuestBootstrapFailure {
             let guestSession = CoorditAuthSession(
                 accessToken: "coordit-ui-test-guest-access-token",
                 refreshToken: "coordit-ui-test-guest-refresh-token",
@@ -161,9 +161,11 @@ final class CoorditBackendSessionStore: ObservableObject {
             )
             try? tokenStore.save(guestSession)
             session = guestSession
-            statusText = "비회원으로 시작했어요."
-            isWarning = false
-            return 3
+            if Self.shouldSimulateGuestBootstrap {
+                statusText = "비회원으로 시작했어요."
+                isWarning = false
+                return 3
+            }
         }
 #endif
 
@@ -184,6 +186,14 @@ final class CoorditBackendSessionStore: ObservableObject {
         }
 
         do {
+#if DEBUG
+            if Self.shouldSimulateGuestBootstrapFailure {
+                throw CoorditBackendClientError.server(
+                    statusCode: 503,
+                    message: "UI test welcome-credit failure"
+                )
+            }
+#endif
             let deviceToken = try await CoorditDeviceCheck.token()
             let welcome = try await authenticatedValue { token in
                 try await client.claimGuestWelcome(token: token, deviceToken: deviceToken)
@@ -194,9 +204,10 @@ final class CoorditBackendSessionStore: ObservableObject {
             isWarning = false
             return welcome.availableThreads
         } catch {
-            statusText = "비회원 시작에 실패했어요. 잠시 후 다시 시도해주세요."
+            let availableThreads = await fetchThreadBalance() ?? 0
+            statusText = "비회원 로그인은 완료됐어요. 실타래 지급만 잠시 후 다시 시도해주세요."
             isWarning = true
-            return nil
+            return availableThreads
         }
     }
 
